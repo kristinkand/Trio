@@ -882,7 +882,7 @@ extension Home {
                 HStack {
                     tappableButton(
                         buttonColor: (colorScheme == .dark ? Color.white : Color.black).opacity(0.8),
-                        label: String(localized: "Stats", comment: "Stats icon in main view"),
+                        label: String(localized: "GOAT", comment: "Stats icon in main view"),
                         iconString: statsIconString,
                         action: { state.showModal(for: .statistics) }
                     )
