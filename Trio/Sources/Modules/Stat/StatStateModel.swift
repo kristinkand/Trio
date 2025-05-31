@@ -38,7 +38,7 @@ extension Stat {
         var bolusTotalsCache: [(Date, total: Double)] = []
 
         // Selected Duration for Glucose Stats
-        var selectedIntervalForGlucoseStats: StatsTimeIntervalWithToday = .today {
+        var selectedIntervalForGlucoseStats: StatsTimeIntervalWithToday = .total {
             didSet {
                 setupGlucoseArray(for: selectedIntervalForGlucoseStats)
             }
