@@ -11,6 +11,7 @@ enum Icon_: String, CaseIterable, Identifiable {
     case trio3D
     case wilford = "diabeetus"
     case catWithPod
+    case Elmo
     case catWithPodWhite = "catWithPodWhiteBG"
     var id: String { rawValue }
 }
