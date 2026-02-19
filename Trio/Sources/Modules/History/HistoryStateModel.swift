@@ -72,13 +72,13 @@ extension History {
                         return
                     }
 
-                    // Delete from Nightscout
+            // Delete from Nightscout
                     if let id = glucoseToDelete.id?.uuidString {
                         self.provider.deleteGlucoseFromNightscout(withID: id)
                         self.provider.deleteManualGlucoseFromNightscout(withID: id)
                     }
 
-                    // Delete from Apple Health
+            // Delete from Apple Health
                     if let id = glucoseToDelete.id?.uuidString {
                         self.provider.deleteGlucoseFromHealth(withSyncID: id)
                     }
