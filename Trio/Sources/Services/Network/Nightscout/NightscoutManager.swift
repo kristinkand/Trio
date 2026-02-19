@@ -1449,3 +1449,15 @@ extension BaseNightscoutManager {
         return reason + tddString
     }
 }
+func deleteGlucose(withID id: String) async {
+        guard let nightscout = nightscoutAPI, isUploadEnabled else { return }
+
+        do {
+            try await nightscout.deleteGlucose(withId: id)
+        } catch {
+            debug(
+                .nightscout,
+                "\(DebuggingIdentifiers.failed) Failed to delete CGM Glucose Reading from Nightscout with error: \(error.localizedDescription)"
+            )
+        }
+    }
