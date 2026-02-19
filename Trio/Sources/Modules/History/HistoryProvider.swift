@@ -41,14 +41,21 @@ extension History {
                 await self.nightscoutManager.deleteManualGlucose(withID: id)
             }
         }
-
+        
+        func deleteGlucoseFromNightscout(withID id: String) {
+            Task.detached { [weak self] in
+                guard let self = self else { return }
+                await self.nightscoutManager.deleteGlucose(withID: id)
+            } 
+        }
+        
         func deleteGlucoseFromHealth(withSyncID id: String) {
             Task.detached { [weak self] in
                 guard let self = self else { return }
                 await self.healthkitManager.deleteGlucose(syncID: id)
             }
         }
-
+        
         func deleteMealDataFromHealth(byID id: String, sampleType: HKSampleType) {
             Task.detached { [weak self] in
                 guard let self = self else { return }
@@ -62,12 +69,6 @@ extension History {
 
         func deleteCarbsFromTidepool(withSyncId id: UUID, carbs: Decimal, at: Date, enteredBy: String) {
             tidepoolManager.deleteCarbs(withSyncId: id, carbs: carbs, at: at, enteredBy: enteredBy)
-        }
-    }
-        func deleteGlucoseFromNightscout(withID id: String) {
-            Task.detached { [weak self] in
-                guard let self = self else { return }
-                await self.nightscoutManager.deleteGlucose(withID: id)
          }
      }
 }
