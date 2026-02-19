@@ -74,6 +74,7 @@ extension History {
 
                     // Delete from Nightscout
                     if let id = glucoseToDelete.id?.uuidString {
+                        self.provider.deleteGlucoseFromNightscout(withID: id)
                         self.provider.deleteManualGlucoseFromNightscout(withID: id)
                     }
 
