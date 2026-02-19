@@ -11,6 +11,7 @@ protocol NightscoutManager: GlucoseSource {
     func fetchTempTargets() async -> [TempTarget]
     func deleteCarbs(withID id: String) async
     func deleteInsulin(withID id: String) async
+    func deleteGlucose(withID id: String) async
     func deleteManualGlucose(withID id: String) async
     func uploadDeviceStatus() async throws
     func uploadGlucose() async
