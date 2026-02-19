@@ -64,4 +64,10 @@ extension History {
             tidepoolManager.deleteCarbs(withSyncId: id, carbs: carbs, at: at, enteredBy: enteredBy)
         }
     }
+        func deleteGlucoseFromNightscout(withID id: String) {
+            Task.detached { [weak self] in
+                guard let self = self else { return }
+                await self.nightscoutManager.deleteGlucose(withID: id)
+            }
+        }
 }
