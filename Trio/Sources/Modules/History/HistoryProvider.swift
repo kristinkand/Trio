@@ -68,6 +68,6 @@ extension History {
             Task.detached { [weak self] in
                 guard let self = self else { return }
                 await self.nightscoutManager.deleteGlucose(withID: id)
-            }
-        }
+         }
+     }
 }
