@@ -3,9 +3,15 @@
     {
       "filename" : "plane.png",
       "idiom" : "universal",
-      "platform" : "ios"
+      "platform" : "ios",
       "size" : "1024x1024"
-    }, 
+    },
+    {
+      "filename" : "plane watch.png",
+      "idiom" : "universal",
+      "platform" : "watchos",
+      "size" : "1024x1024"
+    }
   ],
   "info" : {
     "author" : "xcode",
