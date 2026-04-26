@@ -355,7 +355,7 @@ extension BloodGlucose {
         }
 
         let glucoseEntry = GlucoseStored(context: context)
-        g glucoseEntry.id = UUID(uuidString: id) ?? UUID()
+        glucoseEntry.id = UUID(uuidString: id) ?? UUID()
         glucoseEntry.date = dateString
         glucoseEntry.glucose = Int16(glucoseValue)
         glucoseEntry.direction = direction?.rawValue
