@@ -72169,6 +72169,9 @@
         }
       }
     },
+    "Clears the local App Attest key, registered flag, and forbidden flag. The next telemetry send will re-attest from scratch. Use only if telemetry is stuck." : {
+
+    },
     "Click to Snooze Alerts" : {
       "localizations" : {
         "bg" : {
@@ -209859,6 +209862,15 @@
           }
         }
       }
+    },
+    "Reset and retry send" : {
+
+    },
+    "Reset App Attest state" : {
+
+    },
+    "Reset App Attest state?" : {
+
     },
     "Reset to Defaults" : {
       "localizations" : {
