@@ -25,6 +25,7 @@ extension Home {
         @State var isMenuPresented = false
         @State var showTreatments = false
         @State var selectedTab: Int = 0
+        static let treatmentTabTag = 4
         @State var showQuickBolusPicker = false
         @State var showQuickBolusNoHistory = false
         @State var showPumpSelection: Bool = false
@@ -32,6 +33,10 @@ extension Home {
         @State var showSnoozeSheet: Bool = false
         @State var showManualGlucose: Bool = false
         @State var alarmsSnoozeUntil: Date = .distantPast
+        // Pull-down-to-force-loop (see HomeRootView+Refresh.swift)
+        @State var pullOffset: CGFloat = 0
+        @State var isRefreshArmed = false
+        @State var isForcingLoop = false
         @State var notificationsDisabled = false
 
         @FetchRequest(fetchRequest: OverrideStored.fetch(
@@ -65,12 +70,10 @@ extension Home {
                     geo: geo,
                     chartHeight: chartHeight,
                     units: state.units,
-                    hours: state.filteredHours,
                     highGlucose: state.highGlucose,
                     lowGlucose: state.lowGlucose,
                     currentGlucoseTarget: state.currentGlucoseTarget,
                     glucoseColorScheme: state.glucoseColorScheme,
-                    screenHours: state.hours,
                     displayXgridLines: state.displayXgridLines,
                     displayYgridLines: state.displayYgridLines,
                     thresholdLines: state.thresholdLines,
@@ -123,6 +126,44 @@ extension Home {
         }
 
         @ViewBuilder func mainViewElements(_ geo: GeometryProxy) -> some View {
+            // viewport-sized content: rubber-bands for the pull-down, never scrolls
+            ScrollView(.vertical, showsIndicators: false) {
+                dashboardContent(geo)
+                    .padding(.top, isForcingLoop ? HomeLayout.refreshIndicatorHeight : 0)
+                    .animation(.easeInOut(duration: 0.25), value: isForcingLoop)
+                    .background(
+                        GeometryReader { g in
+                            Color.clear.preference(
+                                key: HomePullOffsetKey.self,
+                                value: g.frame(in: .named("homeScroll")).minY
+                            )
+                        }
+                    )
+            }
+            .coordinateSpace(name: "homeScroll")
+            .scrollBounceBehavior(.always, axes: [.vertical])
+            .modifier(HomePullOffsetReader(onChange: handlePullChange))
+            .onPreferenceChange(HomePullOffsetKey.self) { handlePullChange($0) }
+            .overlay(alignment: .top) { pullToRefreshIndicator }
+            // safe-area anchor: the tab bar can never cover the bottom controls
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                bottomControls()
+            }
+            .background(appState.trioBackgroundColor(for: colorScheme))
+            .onReceive(
+                resolver.resolve(AlertPermissionsChecker.self)!.$notificationsDisabled,
+                perform: {
+                    if notificationsDisabled != $0 {
+                        notificationsDisabled = $0
+                        if notificationsDisabled {
+                            debug(.default, "notificationsDisabled")
+                        }
+                    }
+                }
+            )
+        }
+
+        @ViewBuilder private func dashboardContent(_ geo: GeometryProxy) -> some View {
             VStack(spacing: 0) {
                 ZStack {
                     if let apsManager = state.apsManager, let bluetoothManager = apsManager.bluetoothManager,
@@ -153,24 +194,7 @@ extension Home {
 
                 mainChart(geo: geo)
             }
-            // fill the screen; zones stay top-aligned, chart takes the slack
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            // safe-area anchor: the tab bar can never cover the bottom controls
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                bottomControls()
-            }
-            .background(appState.trioBackgroundColor(for: colorScheme))
-            .onReceive(
-                resolver.resolve(AlertPermissionsChecker.self)!.$notificationsDisabled,
-                perform: {
-                    if notificationsDisabled != $0 {
-                        notificationsDisabled = $0
-                        if notificationsDisabled {
-                            debug(.default, "notificationsDisabled")
-                        }
-                    }
-                }
-            )
+            .frame(maxWidth: .infinity)
         }
 
         @ViewBuilder func mainView() -> some View {
@@ -276,6 +300,135 @@ extension Home {
         }
 
         @ViewBuilder func tabBar() -> some View {
+            if #available(iOS 26.0, *) {
+                modernTabBar()
+            } else {
+                legacyTabBar()
+            }
+        }
+
+        /// Legacy layout on the glass bar: a dead middle slot with the
+        /// treatment button overlaid; the slot's selection is swallowed.
+        @available(iOS 26.0, *)
+        @ViewBuilder private func modernTabBar() -> some View {
+            ZStack(alignment: .bottom) {
+                TabView(selection: modernTabSelection) {
+                    let carbsRequiredBadge: String? = carbsRequiredBadgeValue
+
+                    NavigationStack { mainView() }
+                        .tabItem { Label("", systemImage: "chart.xyaxis.line") }
+                        .badge(carbsRequiredBadge).tag(0)
+                        .accessibilityLabel(Text("Main"))
+
+                    NavigationStack { History.RootView(resolver: resolver) }
+                        .tabItem { Label("", systemImage: historySFSymbol) }.tag(1)
+                        .accessibilityLabel(Text("History"))
+
+                    Spacer()
+                        // nbsp title + empty image: invisible item that still
+                        // holds a full-width slot for the overlaid button
+                        .tabItem { Label {
+                            Text(String(repeating: "\u{00A0}", count: 12))
+                        } icon: {
+                            Image(uiImage: UIImage())
+                        } }
+                        .tag(RootView.treatmentTabTag)
+
+                    NavigationStack { Adjustments.RootView(resolver: resolver) }
+                        .tabItem {
+                            Label(
+                                "",
+                                systemImage: "slider.horizontal.2.gobackward"
+                            ) }.tag(2)
+                        .accessibilityLabel(Text("Adjustments"))
+
+                    NavigationStack(path: self.$settingsPath) {
+                        Settings.RootView(resolver: resolver) }
+                        .environment(settingsSearchHighlight)
+                        .tabItem { Label(
+                            "",
+                            systemImage: "gear"
+                        ) }.tag(3)
+                        .accessibilityLabel(Text("Settings"))
+                }
+                .tint(Color.tabBar)
+
+                // fixed distance from the physical screen bottom; immune to
+                // safe-area changes (keyboard, accessories)
+                GeometryReader { geo in
+                    treatmentButton
+                        .position(x: geo.size.width / 2, y: geo.size.height - 50)
+                }
+                .ignoresSafeArea(.all, edges: .bottom)
+            }
+            .ignoresSafeArea(.container, edges: .bottom)
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+            .blur(radius: state.waitForSuggestion ? 8 : 0)
+            .onChange(of: selectedTab) {
+                if selectedTab != 3, !settingsPath.isEmpty {
+                    settingsPath = NavigationPath()
+                }
+            }
+        }
+
+        private var modernTabSelection: Binding<Int> {
+            Binding(
+                get: { selectedTab },
+                set: { newValue in
+                    if newValue == RootView.treatmentTabTag {
+                        let previous = selectedTab
+                        selectedTab = newValue
+                        DispatchQueue.main.async {
+                            selectedTab = previous
+                        }
+                    } else {
+                        selectedTab = newValue
+                    }
+                }
+            )
+        }
+
+        private var treatmentButton: some View {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 40))
+                .foregroundStyle(Color.tabBar)
+                .padding(.vertical, 2)
+                .padding(.horizontal, 24)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    state.showModal(for: .treatmentView)
+                }
+                .onLongPressGesture(minimumDuration: 0.5) {
+                    guard state.enableQuickBolus else { return }
+                    let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
+                    impactHeavy.impactOccurred()
+                    Task {
+                        await state.loadQuickBolusSuggestions()
+                        if state.quickBolusHistory.isEmpty {
+                            showQuickBolusNoHistory = true
+                        } else {
+                            showQuickBolusPicker = true
+                        }
+                    }
+                }
+                .accessibilityLabel(Text("Add Treatment"))
+        }
+
+        private var carbsRequiredBadgeValue: String? {
+            guard let carbsRequired = state.enactedAndNonEnactedDeterminations.first?.carbsRequired,
+                  state.showCarbsRequiredBadge
+            else {
+                return nil
+            }
+            let carbsRequiredDecimal = Decimal(carbsRequired)
+            if carbsRequiredDecimal > state.settingsManager.settings.carbsRequiredThreshold {
+                let numberAsNSNumber = NSDecimalNumber(decimal: carbsRequiredDecimal)
+                return (Formatter.decimalFormatterWithTwoFractionDigits.string(from: numberAsNSNumber) ?? "") + " g"
+            }
+            return nil
+        }
+
+        @ViewBuilder private func legacyTabBar() -> some View {
             ZStack(alignment: .bottom) {
                 TabView(selection: $selectedTab) {
                     let carbsRequiredBadge: String? = {
@@ -318,28 +471,7 @@ extension Home {
                 }
                 .tint(Color.tabBar)
 
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Color.tabBar)
-                    .padding(.vertical, 2)
-                    .padding(.horizontal, 24)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        state.showModal(for: .treatmentView)
-                    }
-                    .onLongPressGesture(minimumDuration: 0.5) {
-                        guard state.enableQuickBolus else { return }
-                        let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
-                        impactHeavy.impactOccurred()
-                        Task {
-                            await state.loadQuickBolusSuggestions()
-                            if state.quickBolusHistory.isEmpty {
-                                showQuickBolusNoHistory = true
-                            } else {
-                                showQuickBolusPicker = true
-                            }
-                        }
-                    }
+                treatmentButton
             }.ignoresSafeArea(.keyboard, edges: .bottom).blur(radius: state.waitForSuggestion ? 8 : 0)
                 .onChange(of: selectedTab) {
                     // reset only when leaving Settings; programmatic pushes survive the switch
