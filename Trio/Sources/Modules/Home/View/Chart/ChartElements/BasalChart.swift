@@ -32,7 +32,11 @@ extension MainChartView {
             .onChange(of: state.maxBasal) {
                 calculateBasals()
             }
-            .frame(minHeight: geo.size.height * 0.05)
+            // profile loads async after first appearance; redraw the dashed line
+            .onChange(of: state.basalProfile) {
+                calculateBasals()
+            }
+            .frame(minHeight: basalHeight)
             .frame(width: fullWidth(viewWidth: screenSize.width))
             .chartXScale(domain: state.startMarker ... state.endMarker)
             .chartXAxis { basalChartXAxis }
