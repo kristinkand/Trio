@@ -353,9 +353,13 @@ extension Home {
                 }
                 .tint(Color.tabBar)
 
-                treatmentButton
-                    // the floating bar tracks the screen edge, not the safe area
-                    .padding(.bottom, 28)
+                // fixed distance from the physical screen bottom; immune to
+                // safe-area changes (keyboard, accessories)
+                GeometryReader { geo in
+                    treatmentButton
+                        .position(x: geo.size.width / 2, y: geo.size.height - 50)
+                }
+                .ignoresSafeArea(.all, edges: .bottom)
             }
             .ignoresSafeArea(.container, edges: .bottom)
             .ignoresSafeArea(.keyboard, edges: .bottom)
