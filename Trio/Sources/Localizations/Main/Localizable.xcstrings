@@ -28476,6 +28476,7 @@
       }
     },
     "Acknowledge all alerts" : {
+      "extractionState" : "stale",
       "localizations" : {
         "bg" : {
           "stringUnit" : {
