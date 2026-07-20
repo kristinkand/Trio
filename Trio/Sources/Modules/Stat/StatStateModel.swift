@@ -121,7 +121,7 @@ extension Stat {
             }
         }
 
-        private func fetchGlucose(for interval: StatsTimeIntervalWithToday) async -> [NSManagedObjectID] {
+        func fetchGlucose(for interval: StatsTimeIntervalWithToday) async -> [NSManagedObjectID] {
             do {
                 let context = CoreDataStack.shared.newTaskContext()
                 context.name = "StatStateModel.fetchGlucose"
