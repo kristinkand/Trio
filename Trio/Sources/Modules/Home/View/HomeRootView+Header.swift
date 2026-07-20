@@ -79,6 +79,11 @@ extension Home.RootView {
             .onTapGesture {
                 state.isLoopStatusPresented = true
             }
+            .onLongPressGesture {
+                let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
+                impactHeavy.impactOccurred()
+                state.runLoop()
+            }
             /// eventualBG string at bottomTrailing
 
             if let eventualBG = state.enactedAndNonEnactedDeterminations.first?.eventualBG {

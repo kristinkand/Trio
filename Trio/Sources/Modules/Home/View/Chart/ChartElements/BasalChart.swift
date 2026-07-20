@@ -15,12 +15,14 @@ struct BasalProfile: Hashable {
     }
 }
 
-extension MainChartCanvas {
+extension MainChartView {
     var basalChart: some View {
         VStack {
             Chart {
+                drawStartRuleMark()
+                drawEndRuleMark()
                 drawCurrentTimeMarker()
-                drawTempBasals()
+                drawTempBasals(dummy: false)
                 drawBasalProfile()
                 drawSuspensions()
             }.onChange(of: state.tempBasals) {
@@ -30,56 +32,62 @@ extension MainChartCanvas {
             .onChange(of: state.maxBasal) {
                 calculateBasals()
             }
-            .frame(width: canvasWidth, height: basalHeight)
-            .chartXScale(domain: windowStart ... windowEnd)
-            .chartXAxis { mainChartXAxis } // grid lines only; hour labels render once, on the bottom pane
+            // profile loads async after first appearance; redraw the dashed line
+            .onChange(of: state.basalProfile) {
+                calculateBasals()
+            }
+            .frame(minHeight: basalHeight)
+            .frame(width: fullWidth(viewWidth: screenSize.width))
+            .chartXScale(domain: state.startMarker ... state.endMarker)
+            .chartXAxis { basalChartXAxis }
+            .chartXAxis(.hidden)
             .chartYAxis(.hidden)
-            .chartYScale(domain: 0 ... basalDomainMax)
+            .chartPlotStyle { basalChartPlotStyle($0) }
         }
-    }
-
-    /// Upper bound of the basal chart's y-domain. The bars hang from the top of the plot
-    /// (drawn at `basalDomainMax - rate`), so the tallest rate spans the full strip height —
-    /// matching the old rendering, which achieved the same look by rotating and mirroring
-    /// the plot content.
-    var basalDomainMax: Double {
-        let tempMax = preparedTempBasals.map(\.rate).max() ?? 0
-        let profileMax = basalProfiles.map(\.amount).max() ?? 0
-        return max(tempMax, profileMax, 0.1)
-    }
-
-    /// Converts a basal rate to its top-anchored y value.
-    private func invertedY(_ rate: Double) -> Double {
-        basalDomainMax - rate
     }
 }
 
 // MARK: - Draw functions
 
-extension MainChartCanvas {
-    func drawTempBasals() -> some ChartContent {
+extension MainChartView {
+    func drawTempBasals(dummy: Bool) -> some ChartContent {
         ForEach(preparedTempBasals, id: \.rate) { basal in
-            RectangleMark(
-                xStart: .value("start", basal.start),
-                xEnd: .value("end", basal.end),
-                yStart: .value("rate-start", basalDomainMax),
-                yEnd: .value("rate-end", invertedY(basal.rate))
-            ).foregroundStyle(
-                .linearGradient(
-                    colors: [
-                        Color.insulin.opacity(0.6),
-                        Color.insulin.opacity(0.1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            ).alignsMarkStylesWithPlotArea()
+            if dummy {
+                RectangleMark(
+                    xStart: .value("start", basal.start),
+                    xEnd: .value("end", basal.end),
+                    yStart: .value("rate-start", 0),
+                    yEnd: .value("rate-end", basal.rate)
+                ).foregroundStyle(Color.clear)
 
-            LineMark(x: .value("Start Date", basal.start), y: .value("Amount", invertedY(basal.rate)))
-                .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.insulin)
+                LineMark(x: .value("Start Date", basal.start), y: .value("Amount", basal.rate))
+                    .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.clear)
 
-            LineMark(x: .value("End Date", basal.end), y: .value("Amount", invertedY(basal.rate)))
-                .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.insulin)
+                LineMark(x: .value("End Date", basal.end), y: .value("Amount", basal.rate))
+                    .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.clear)
+            } else {
+                RectangleMark(
+                    xStart: .value("start", basal.start),
+                    xEnd: .value("end", basal.end),
+                    yStart: .value("rate-start", 0),
+                    yEnd: .value("rate-end", basal.rate)
+                ).foregroundStyle(
+                    .linearGradient(
+                        colors: [
+                            Color.insulin.opacity(0.6),
+                            Color.insulin.opacity(0.1)
+                        ],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                ).alignsMarkStylesWithPlotArea()
+
+                LineMark(x: .value("Start Date", basal.start), y: .value("Amount", basal.rate))
+                    .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.insulin)
+
+                LineMark(x: .value("End Date", basal.end), y: .value("Amount", basal.rate))
+                    .lineStyle(.init(lineWidth: 1)).foregroundStyle(Color.insulin)
+            }
         }
     }
 
@@ -88,12 +96,12 @@ extension MainChartCanvas {
         ForEach(basalProfiles, id: \.self) { profile in
             LineMark(
                 x: .value("Start Date", profile.startDate),
-                y: .value("Amount", invertedY(profile.amount)),
+                y: .value("Amount", profile.amount),
                 series: .value("profile", "profile")
             ).lineStyle(.init(lineWidth: 2, dash: [2, 4])).foregroundStyle(Color.insulin)
             LineMark(
                 x: .value("End Date", profile.endDate ?? state.endMarker),
-                y: .value("Amount", invertedY(profile.amount)),
+                y: .value("Amount", profile.amount),
                 series: .value("profile", "profile")
             ).lineStyle(.init(lineWidth: 2.5, dash: [2, 4])).foregroundStyle(Color.insulin)
         }
@@ -116,16 +124,13 @@ extension MainChartCanvas {
                 )
 
                 let basalProfileDuringSuspension = basalProfiles.first(where: { $0.startDate <= suspensionStart })
-                // Clamp to the explicit y-domain: the fallback height of 1 U/hr can exceed
-                // `basalDomainMax` when no profile data is available, and unlike the old
-                // auto-scaled (flipped) plot, an explicit domain would clip the mark.
-                let suspensionMarkHeight = min(basalProfileDuringSuspension?.amount ?? 1, basalDomainMax)
+                let suspensionMarkHeight = basalProfileDuringSuspension?.amount ?? 1
 
                 RectangleMark(
                     xStart: .value("start", suspensionStart),
                     xEnd: .value("end", suspensionEnd),
-                    yStart: .value("suspend-start", basalDomainMax),
-                    yEnd: .value("suspend-end", invertedY(suspensionMarkHeight))
+                    yStart: .value("suspend-start", 0),
+                    yEnd: .value("suspend-end", suspensionMarkHeight)
                 )
                 .foregroundStyle(Color.loopGray.opacity(colorScheme == .dark ? 0.3 : 0.8))
             }
@@ -135,7 +140,7 @@ extension MainChartCanvas {
 
 // MARK: - Calculation
 
-extension MainChartCanvas {
+extension MainChartView {
     @MainActor func calculateTempBasals() {
         let now = Date()
         let suspensionTimes = state.suspendAndResumeEvents.compactMap(\.timestamp)
