@@ -22631,6 +22631,9 @@
         }
       }
     },
+    "1. Select a date range.\n\n2. Select a data type and chart type, and tap \"Add to Report\".\n\n3. Repeat step 2 until you get all the information you want into the report.\n\n4. Add a Patient Name (optional) and tap Export.\n\n5. For easier exports, save your selection as a Preset by tapping \"Save as Preset…\"." : {
+      "comment" : "Info sheet body explaining how to build and export a Statistics PDF report"
+    },
     "2 hours" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -28140,6 +28143,9 @@
           }
         }
       }
+    },
+    "About PDF Export" : {
+      "comment" : "Info sheet title for the Statistics PDF export feature"
     },
     "About Quick-Pick Boluses" : {
       "comment" : "Info sheet title for quick-pick boluses feature"
@@ -144589,7 +144595,7 @@
       }
     },
     "Got it!" : {
-      "comment" : "Dismiss button for Quick-Pick Boluses info sheet",
+      "comment" : "Dismiss button for Quick-Pick Boluses info sheet\nDismiss button for the PDF export info sheet",
       "localizations" : {
         "bg" : {
           "stringUnit" : {
