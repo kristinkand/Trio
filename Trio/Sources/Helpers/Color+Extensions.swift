@@ -15,6 +15,10 @@ extension Color {
                 UIColor(red: 0.118, green: 0.588, blue: 0.988, alpha: 1.0) // these are RGB of our insulin color
         )
 
+    // Dimmed overlay line showing yesterday's BG curve on the main chart, shifted
+    // 24h forward. Teal keeps it visually distinct from glucose/insulin/carb colors.
+    static let previousDayGlucose = Color.teal
+
     // The loopAccent color is intended to be use as the app accent color.
     public static let loopAccent = Color("accent")
 

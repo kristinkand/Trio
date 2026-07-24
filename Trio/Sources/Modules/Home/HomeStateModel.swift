@@ -97,6 +97,8 @@ extension Home {
         var waitForSuggestion: Bool = false
         var glucoseFromPersistence: [GlucoseStored] = []
         var latestTwoGlucoseValues: [GlucoseStored] = []
+        var glucoseFromPersistenceYesterday: [GlucoseStored] = []
+        var showPreviousDayGlucose: Bool = false
         var carbsFromPersistence: [CarbEntryStored] = []
         var fpusFromPersistence: [CarbEntryStored] = []
         var determinationsFromPersistence: [OrefDetermination] = []
@@ -170,6 +172,22 @@ extension Home {
                 cacheName: nil
             )
             controller.delegate = glucoseControllerDelegate
+            return controller
+        }()
+
+        @ObservationIgnored let previousDayGlucoseControllerDelegate = FetchedResultsControllerDelegate()
+        @ObservationIgnored private(set) lazy var previousDayGlucoseController: NSFetchedResultsController<GlucoseStored> = {
+            let request = NSFetchRequest<GlucoseStored>(entityName: "GlucoseStored")
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \GlucoseStored.date, ascending: true)]
+            request.predicate = NSPredicate.glucosePreviousDay
+            request.fetchBatchSize = 50
+            let controller = NSFetchedResultsController(
+                fetchRequest: request,
+                managedObjectContext: viewContext,
+                sectionNameKeyPath: nil,
+                cacheName: nil
+            )
+            controller.delegate = previousDayGlucoseControllerDelegate
             return controller
         }()
 
@@ -373,6 +391,9 @@ extension Home {
                 self.updateGlucoseFromController()
                 // Re-sync the chart domain even if no new reading arrived while backgrounded.
                 self.updateStartEndMarkers()
+            }
+            reanchor(previousDayGlucoseController, with: NSPredicate.glucosePreviousDay) {
+                self.updatePreviousDayGlucoseFromController()
             }
             reanchor(carbsController, with: NSPredicate.carbsForChart(since: chartHistoryStartDate)) {
                 self.updateCarbsFromController() }
@@ -943,6 +964,8 @@ extension Home.StateModel:
         displayXgridLines = settingsManager.settings.xGridLines
         displayYgridLines = settingsManager.settings.yGridLines
         thresholdLines = settingsManager.settings.rulerMarks
+        showPreviousDayGlucose = settingsManager.settings.showPreviousDayGlucose
+        Task { await updatePreviousDayGlucoseFromController() }
         bolusDisplayThreshold = settingsManager.settings.bolusDisplayThreshold
         showCarbsRequiredBadge = settingsManager.settings.showCarbsRequiredBadge
         enableQuickPickTreatments = settingsManager.settings.enableQuickPickTreatments

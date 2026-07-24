@@ -840,6 +840,16 @@ struct MainChartCanvas: View {
         }
     }
 
+    // Yesterday's readings, shifted forward 24h to align with today's clock time,
+    // filtered to the render window like the other `windowed*` arrays above.
+    var windowedPreviousDayGlucose: [GlucoseStored] {
+        state.glucoseFromPersistenceYesterday.filter { entry in
+            guard let date = entry.date else { return false }
+            let shiftedDate = date.addingTimeInterval(24 * 60 * 60)
+            return shiftedDate >= windowStart && shiftedDate <= windowEnd
+        }
+    }
+
     var windowedInsulin: [PumpEventStored] {
         state.insulinFromPersistence.filter { entry in
             guard let date = entry.timestamp else { return false }
@@ -927,6 +937,11 @@ extension MainChartCanvas {
                 tempTargetRunStored: state.tempTargetRunStored,
                 units: state.units,
                 viewContext: context
+            )
+
+            PreviousDayGlucoseChartView(
+                glucoseData: windowedPreviousDayGlucose,
+                units: state.units
             )
 
             GlucoseChartView(
