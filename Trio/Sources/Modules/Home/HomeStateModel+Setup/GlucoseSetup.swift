@@ -15,6 +15,19 @@ extension Home.StateModel {
         } catch {
             debug(.default, "\(DebuggingIdentifiers.failed) Failed to perform glucose fetch: \(error)")
         }
+
+        previousDayGlucoseControllerDelegate.onContentChange = { [weak self] in
+            Task { @MainActor in
+                self?.updatePreviousDayGlucoseFromController()
+            }
+        }
+
+        do {
+            try previousDayGlucoseController.performFetch()
+            updatePreviousDayGlucoseFromController()
+        } catch {
+            debug(.default, "\(DebuggingIdentifiers.failed) Failed to perform previous day glucose fetch: \(error)")
+        }
     }
 
     @MainActor func updateGlucoseFromController() {
@@ -22,6 +35,14 @@ extension Home.StateModel {
         glucoseFromPersistence = objects
         latestTwoGlucoseValues = Array(objects.suffix(2))
         updateGlucoseChartYAxis(glucoseValues: objects)
+    }
+
+    // Populates (or clears) the dimmed "yesterday" comparison overlay on the main chart.
+    // Mirrors LoopFollow's "Show Yesterday's BG" behavior. The controller always stays live
+    // (like every other FetchedResultsController on this state model); only the published
+    // array is gated on the toggle, so flipping it on/off never needs a fresh disk fetch.
+    @MainActor func updatePreviousDayGlucoseFromController() {
+        glucoseFromPersistenceYesterday = showPreviousDayGlucose ? (previousDayGlucoseController.fetchedObjects ?? []) : []
     }
 
     /// Called from `MainChartView` on `.onChange(of: units)` to recompute the glucose-derived chart state.

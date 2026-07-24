@@ -169,6 +169,7 @@ extension UserInterfaceSettings {
                         VStack {
                             Toggle("Show X-Axis Grid Lines", isOn: $state.xGridLines)
                             Toggle("Show Y-Axis Grid Lines", isOn: $state.yGridLines)
+                            Toggle("Show Previous Day's BG", isOn: $state.showPreviousDayGlucose)
 
                             HStack(alignment: .center) {
                                 Text(
