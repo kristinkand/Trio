@@ -52,6 +52,13 @@ extension NSPredicate {
         NSPredicate(format: "date >= %@", date as NSDate)
     }
 
+    // Previous day's readings, used to draw the dimmed "yesterday" comparison
+    // line on the main chart. Fetched as a 24h-48h-ago window so it can be
+    // shifted forward by exactly 24h and land on today's window.
+    static var glucosePreviousDay: NSPredicate {
+        NSPredicate(format: "date >= %@ AND date < %@", Date.twoDaysAgo as NSDate, Date.oneDayAgo as NSDate)
+    }
+
     static var manualGlucose: NSPredicate {
         let date = Date.oneDayAgo
         return NSPredicate(format: "isManual == %@ AND date >= %@", true as NSNumber, date as NSDate)
