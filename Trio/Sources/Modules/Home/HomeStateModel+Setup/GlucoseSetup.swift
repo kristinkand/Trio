@@ -35,6 +35,7 @@ extension Home.StateModel {
         glucoseFromPersistence = objects
         latestTwoGlucoseValues = Array(objects.suffix(2))
         updateGlucoseChartYAxis(glucoseValues: objects)
+        reanchorPreviousDayGlucoseController()
     }
 
     // Populates (or clears) the dimmed "yesterday" comparison overlay on the main chart.
@@ -43,6 +44,23 @@ extension Home.StateModel {
     // array is gated on the toggle, so flipping it on/off never needs a fresh disk fetch.
     @MainActor func updatePreviousDayGlucoseFromController() {
         glucoseFromPersistenceYesterday = showPreviousDayGlucose ? (previousDayGlucoseController.fetchedObjects ?? []) : []
+    }
+
+    // NSFetchedResultsController predicates are frozen at creation time -- Date.twoDaysAgo /
+    // Date.oneDayAgo are evaluated once, not kept continuously current. Without re-anchoring,
+    // the 24-48h-ago window silently goes stale as the day progresses: the shifted overlay
+    // stops gaining new points past whatever moment it was last refreshed, which shows up as
+    // the line abruptly ending mid-chart. Re-anchoring here, on the same ~5 minute cadence as
+    // today's own glucose refresh, keeps the window continuously current without needing the
+    // user to toggle the setting off/on to force a re-fetch.
+    @MainActor private func reanchorPreviousDayGlucoseController() {
+        previousDayGlucoseController.fetchRequest.predicate = NSPredicate.glucosePreviousDay
+        do {
+            try previousDayGlucoseController.performFetch()
+            updatePreviousDayGlucoseFromController()
+        } catch {
+            debug(.default, "\(DebuggingIdentifiers.failed) Failed to reanchor previous day glucose fetch: \(error)")
+        }
     }
 
     /// Called from `MainChartView` on `.onChange(of: units)` to recompute the glucose-derived chart state.
