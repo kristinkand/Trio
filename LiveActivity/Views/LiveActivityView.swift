@@ -59,6 +59,9 @@ struct LiveActivityView: View {
 
         } else if context.state.useDetailedViewIOS {
             VStack {
+                HStack(alignment: .center, spacing: 8) {
+                    LiveActivityBubbleView(context: context, glucoseColor: glucoseColor)
+
                 LiveActivityChartView(context: context, additionalState: context.state.detailedViewState)
                     .frame(maxWidth: UIScreen.main.bounds.width * 0.9)
                     .frame(height: 80)
@@ -88,6 +91,7 @@ struct LiveActivityView: View {
                             }
                         }
                     }
+                }
 
                 HStack {
                     if context.state.detailedViewState.widgetItems.contains(where: { $0 != .empty }) {
