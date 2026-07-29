@@ -269,4 +269,15 @@
             <fetchIndexElement property="isPreset" type="Binary" order="descending"/>
         </fetchIndex>
     </entity>
+    <entity name="PlacementLogStored" representedClassName="PlacementLogStored" syncable="YES">
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="deviceType" optional="YES" attributeType="String"/>
+        <attribute name="hasSiteIssue" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isPainful" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="location" optional="YES" attributeType="String"/>
+        <fetchIndex name="byDate">
+            <fetchIndexElement property="date" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
 </model>

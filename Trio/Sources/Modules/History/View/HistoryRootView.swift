@@ -13,6 +13,7 @@ extension History {
         @State var errorMessage: String = ""
         @State var showFutureEntries: Bool = false // default to hide future entries
         @State var showManualGlucose: Bool = false
+        @State var showAddPlacementLog: Bool = false
         @State var isAmountUnconfirmed: Bool = true
         @State var showTreatmentTypeFilter = false
         @State var selectedTreatmentTypes: Set<TreatmentType> = Set(TreatmentType.allCases)
@@ -56,6 +57,13 @@ extension History {
             animation: .bouncy
         ) var tempTargetRunStored: FetchedResults<TempTargetRunStored>
 
+        @FetchRequest(
+            entity: PlacementLogStored.entity(),
+            sortDescriptors: [NSSortDescriptor(keyPath: \PlacementLogStored.date, ascending: false)],
+            predicate: NSPredicate.allPlacementLogs,
+            animation: .bouncy
+        ) var placementLogStored: FetchedResults<PlacementLogStored>
+
         var body: some View {
             historyConfirmations(
                 ZStack(alignment: .center, content: {
@@ -77,6 +85,7 @@ extension History {
                             case .glucose: glucoseList
                             case .meals: mealsList
                             case .adjustments: adjustmentsList
+                            case .placementLog: placementLogList
                             }
                         }.scrollContentBackground(.hidden)
                             .background(appState.trioBackgroundColor(for: colorScheme))
@@ -113,13 +122,20 @@ extension History {
                         })
                         ToolbarItem(placement: .topBarTrailing, content: {
                             addButton({
-                                showManualGlucose = true
-                                state.manualGlucose = 0
+                                if state.mode == .placementLog {
+                                    showAddPlacementLog = true
+                                } else {
+                                    showManualGlucose = true
+                                    state.manualGlucose = 0
+                                }
                             })
                         })
                     }
                     .sheet(isPresented: $showManualGlucose) {
                         addGlucoseView()
+                    }
+                    .sheet(isPresented: $showAddPlacementLog) {
+                        addPlacementLogView()
                     }
                     .sheet(isPresented: $state.showCarbEntryEditor) {
                         if let carbEntry = state.carbEntryToEdit {
