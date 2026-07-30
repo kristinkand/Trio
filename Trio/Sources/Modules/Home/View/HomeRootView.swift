@@ -25,7 +25,7 @@ extension Home {
         @State var isMenuPresented = false
         @State var showTreatments = false
         @State var selectedTab: Int = 0
-	static let treatmentTabTag = 4
+        static let treatmentTabTag = 4
         @State var showQuickPickTreatmentsPicker = false
         @State var showQuickPickTreatmentsNoHistory = false
         @State var showPumpSelection: Bool = false
@@ -122,7 +122,7 @@ extension Home {
             }
             .contentShape(Circle())
             .padding(.bottom, 6)
-// same trailing inset as the alarm bell in the meal row
+            // same trailing inset as the alarm bell in the meal row
             .padding(.trailing, 16)
         }
 

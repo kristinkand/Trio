@@ -56,45 +56,14 @@ extension History {
             glucoseStorage.addManualGlucose(glucose: glucoseAsInt)
         }
 
-        func startEditingPlacementLog(_ entry: PlacementLogStored) {
-            editingPlacementLogObjectID = entry.objectID
-            newPlacementDeviceType = entry.deviceTypeEnum
-            newPlacementLocation = entry.locationEnum
-            newPlacementHasSiteIssue = entry.hasSiteIssue
-            newPlacementIsPainful = entry.isPainful
-            newPlacementIsPainfulGivingInsulin = entry.isPainfulGivingInsulin
-        }
-
-        func resetNewPlacementLogFields() {
-            editingPlacementLogObjectID = nil
-            newPlacementDeviceType = .pump
-            newPlacementLocation = .abdomenLeftHigh
-            newPlacementHasSiteIssue = false
-            newPlacementIsPainful = false
-            newPlacementIsPainfulGivingInsulin = false
-        }
-
-        func savePlacementLog() {
+        func addPlacementLog() {
             Task {
-                if let objectID = editingPlacementLogObjectID {
-                    await placementLogStorage.updatePlacementLog(
-                        objectID,
-                        deviceType: newPlacementDeviceType,
-                        location: newPlacementLocation,
-                        hasSiteIssue: newPlacementHasSiteIssue,
-                        isPainful: newPlacementIsPainful,
-                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin
-                    )
-                } else {
-                    await placementLogStorage.addPlacementLog(
-                        deviceType: newPlacementDeviceType,
-                        location: newPlacementLocation,
-                        hasSiteIssue: newPlacementHasSiteIssue,
-                        isPainful: newPlacementIsPainful,
-                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin
-                    )
-                }
-                resetNewPlacementLogFields()
+                await placementLogStorage.addPlacementLog(
+                    deviceType: newPlacementDeviceType,
+                    location: newPlacementLocation,
+                    hasSiteIssue: newPlacementHasSiteIssue,
+                    isPainful: newPlacementIsPainful
+                )
             }
         }
 

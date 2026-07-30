@@ -274,7 +274,6 @@
         <attribute name="hasSiteIssue" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="isPainful" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
-        <attribute name="isPainfulGivingInsulin" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="location" optional="YES" attributeType="String"/>
         <fetchIndex name="byDate">
             <fetchIndexElement property="date" type="Binary" order="descending"/>
