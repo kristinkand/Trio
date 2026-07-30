@@ -7,7 +7,16 @@ protocol PlacementLogStorage {
         deviceType: PlacementDeviceType,
         location: PlacementLocation,
         hasSiteIssue: Bool,
-        isPainful: Bool
+        isPainful: Bool,
+        isPainfulGivingInsulin: Bool
+    ) async
+    func updatePlacementLog(
+        _ objectID: NSManagedObjectID,
+        deviceType: PlacementDeviceType,
+        location: PlacementLocation,
+        hasSiteIssue: Bool,
+        isPainful: Bool,
+        isPainfulGivingInsulin: Bool
     ) async
     func deletePlacementLog(_ objectID: NSManagedObjectID) async
 }
@@ -26,12 +35,14 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
     ///   - deviceType: Whether this entry is for a pump or a sensor.
     ///   - location: The body location the device was placed at.
     ///   - hasSiteIssue: Whether a site issue was noted for this placement.
-    ///   - isPainful: Whether the placement was painful.
+    ///   - isPainful: Whether the placement was painful to wear.
+    ///   - isPainfulGivingInsulin: Whether giving insulin at this site was painful (pump only).
     func addPlacementLog(
         deviceType: PlacementDeviceType,
         location: PlacementLocation,
         hasSiteIssue: Bool,
-        isPainful: Bool
+        isPainful: Bool,
+        isPainfulGivingInsulin: Bool
     ) async {
         let context = makeContext()
         context.name = "addPlacementLog"
@@ -43,6 +54,7 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
             newEntry.locationEnum = location
             newEntry.hasSiteIssue = hasSiteIssue
             newEntry.isPainful = isPainful
+            newEntry.isPainfulGivingInsulin = isPainfulGivingInsulin
 
             do {
                 guard context.hasChanges else { return }
@@ -50,6 +62,49 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
             } catch let error as NSError {
                 debugPrint(
                     "\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to save Placement Log Entry to Core Data with error: \(error.userInfo)"
+                )
+            }
+        }
+    }
+
+    /// Updates an existing pump/sensor placement log entry.
+    ///
+    /// - Parameters:
+    ///   - objectID: The `NSManagedObjectID` of the entry to update.
+    ///   - deviceType: Whether this entry is for a pump or a sensor.
+    ///   - location: The body location the device was placed at.
+    ///   - hasSiteIssue: Whether a site issue was noted for this placement.
+    ///   - isPainful: Whether the placement was painful to wear.
+    ///   - isPainfulGivingInsulin: Whether giving insulin at this site was painful (pump only).
+    func updatePlacementLog(
+        _ objectID: NSManagedObjectID,
+        deviceType: PlacementDeviceType,
+        location: PlacementLocation,
+        hasSiteIssue: Bool,
+        isPainful: Bool,
+        isPainfulGivingInsulin: Bool
+    ) async {
+        let context = makeContext()
+        context.name = "updatePlacementLog"
+        await context.perform {
+            guard let entry = try? context.existingObject(with: objectID) as? PlacementLogStored else {
+                debugPrint(
+                    "\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to find Placement Log Entry to update."
+                )
+                return
+            }
+            entry.deviceTypeEnum = deviceType
+            entry.locationEnum = location
+            entry.hasSiteIssue = hasSiteIssue
+            entry.isPainful = isPainful
+            entry.isPainfulGivingInsulin = isPainfulGivingInsulin
+
+            do {
+                guard context.hasChanges else { return }
+                try context.save()
+            } catch let error as NSError {
+                debugPrint(
+                    "\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to update Placement Log Entry in Core Data with error: \(error.userInfo)"
                 )
             }
         }

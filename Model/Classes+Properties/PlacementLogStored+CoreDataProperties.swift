@@ -12,6 +12,7 @@ public extension PlacementLogStored {
     @NSManaged var location: String?
     @NSManaged var hasSiteIssue: Bool
     @NSManaged var isPainful: Bool
+    @NSManaged var isPainfulGivingInsulin: Bool
 }
 
 extension PlacementLogStored: Identifiable {}

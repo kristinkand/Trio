@@ -32,6 +32,8 @@ extension History {
         var newPlacementLocation: PlacementLocation = .abdomenLeftHigh
         var newPlacementHasSiteIssue: Bool = false
         var newPlacementIsPainful: Bool = false
+        var newPlacementIsPainfulGivingInsulin: Bool = false
+        var editingPlacementLogObjectID: NSManagedObjectID?
 
         override func subscribe() {
             units = settingsManager.settings.units
@@ -54,14 +56,45 @@ extension History {
             glucoseStorage.addManualGlucose(glucose: glucoseAsInt)
         }
 
-        func addPlacementLog() {
+        func startEditingPlacementLog(_ entry: PlacementLogStored) {
+            editingPlacementLogObjectID = entry.objectID
+            newPlacementDeviceType = entry.deviceTypeEnum
+            newPlacementLocation = entry.locationEnum
+            newPlacementHasSiteIssue = entry.hasSiteIssue
+            newPlacementIsPainful = entry.isPainful
+            newPlacementIsPainfulGivingInsulin = entry.isPainfulGivingInsulin
+        }
+
+        func resetNewPlacementLogFields() {
+            editingPlacementLogObjectID = nil
+            newPlacementDeviceType = .pump
+            newPlacementLocation = .abdomenLeftHigh
+            newPlacementHasSiteIssue = false
+            newPlacementIsPainful = false
+            newPlacementIsPainfulGivingInsulin = false
+        }
+
+        func savePlacementLog() {
             Task {
-                await placementLogStorage.addPlacementLog(
-                    deviceType: newPlacementDeviceType,
-                    location: newPlacementLocation,
-                    hasSiteIssue: newPlacementHasSiteIssue,
-                    isPainful: newPlacementIsPainful
-                )
+                if let objectID = editingPlacementLogObjectID {
+                    await placementLogStorage.updatePlacementLog(
+                        objectID,
+                        deviceType: newPlacementDeviceType,
+                        location: newPlacementLocation,
+                        hasSiteIssue: newPlacementHasSiteIssue,
+                        isPainful: newPlacementIsPainful,
+                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin
+                    )
+                } else {
+                    await placementLogStorage.addPlacementLog(
+                        deviceType: newPlacementDeviceType,
+                        location: newPlacementLocation,
+                        hasSiteIssue: newPlacementHasSiteIssue,
+                        isPainful: newPlacementIsPainful,
+                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin
+                    )
+                }
+                resetNewPlacementLogFields()
             }
         }
 

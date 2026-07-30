@@ -79,6 +79,17 @@ extension History {
                         .pickerStyle(SegmentedPickerStyle())
                         .padding(.horizontal)
 
+                        if state.mode == .placementLog {
+                            HStack {
+                                Spacer()
+                                addButton("Add Placement", {
+                                    state.resetNewPlacementLogFields()
+                                    showAddPlacementLog = true
+                                })
+                                    .padding(.trailing)
+                            }
+                        }
+
                         Form {
                             switch state.mode {
                             case .treatments: treatmentsList
@@ -121,13 +132,9 @@ extension History {
                             )
                         })
                         ToolbarItem(placement: .topBarTrailing, content: {
-                            addButton({
-                                if state.mode == .placementLog {
-                                    showAddPlacementLog = true
-                                } else {
-                                    showManualGlucose = true
-                                    state.manualGlucose = 0
-                                }
+                            addButton("Add Glucose", {
+                                showManualGlucose = true
+                                state.manualGlucose = 0
                             })
                         })
                     }
@@ -145,12 +152,12 @@ extension History {
             )
         }
 
-        @ViewBuilder func addButton(_ action: @escaping () -> Void) -> some View {
+        @ViewBuilder func addButton(_ label: LocalizedStringKey, _ action: @escaping () -> Void) -> some View {
             Button(
                 action: action,
                 label: {
                     HStack {
-                        Text("Add Glucose")
+                        Text(label)
                         Image(systemName: "plus")
                             .font(.title2)
                     }
