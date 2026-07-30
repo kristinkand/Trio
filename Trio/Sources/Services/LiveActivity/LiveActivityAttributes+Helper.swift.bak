@@ -127,8 +127,7 @@ extension LiveActivityAttributes.ContentState {
                 ? (determination?.forecastLines ?? [])
                 .map { LiveActivityAttributes.ForecastLine(type: $0.type, values: $0.values) }
                 : [],
-            forecastDisplayType: settings.forecastDisplayType.rawValue,
-            showBubble: settings.showBubbleInLiveActivity
+            forecastDisplayType: settings.forecastDisplayType.rawValue
         )
 
         self.init(
