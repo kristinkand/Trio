@@ -60,7 +60,9 @@ struct LiveActivityView: View {
         } else if context.state.useDetailedViewIOS {
             VStack {
                 HStack(alignment: .center, spacing: 8) {
-                    LiveActivityBubbleView(context: context, glucoseColor: glucoseColor)
+                    if context.state.detailedViewState.showBubble {
+                        LiveActivityBubbleView(context: context, glucoseColor: glucoseColor)
+                    }
 
                     LiveActivityChartView(context: context, additionalState: context.state.detailedViewState)
                         .frame(maxWidth: UIScreen.main.bounds.width * 0.9)
