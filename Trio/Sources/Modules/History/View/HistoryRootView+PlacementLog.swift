@@ -24,37 +24,52 @@ extension History.RootView {
     }
 
     @ViewBuilder func placementLogView(_ entry: PlacementLogStored) -> some View {
-        HStack {
-            Image(systemName: entry.deviceTypeEnum == .pump ? "syringe.fill" : "sensor.tag.radiowaves.forward.fill")
-                .foregroundStyle(entry.deviceTypeEnum == .pump ? Color.blue : Color.orange)
+        Menu {
+            Button {
+                state.startEditingPlacementLog(entry)
+                showAddPlacementLog = true
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            Button(role: .destructive) {
+                state.deletePlacementLog(entry.objectID)
+            } label: {
+                Label("Delete", systemImage: "trash.fill")
+            }
+        } label: {
+            HStack {
+                Image(systemName: entry.deviceTypeEnum == .pump ? "syringe.fill" : "sensor.tag.radiowaves.forward.fill")
+                    .foregroundStyle(entry.deviceTypeEnum == .pump ? Color.blue : Color.orange)
 
-            VStack(alignment: .leading) {
-                Text(entry.locationEnum.fullDisplayName)
-                HStack(spacing: 6) {
-                    if entry.hasSiteIssue {
-                        Label("Site Issue", systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                    if entry.isPainful {
-                        Label("Painful", systemImage: "bolt.heart.fill")
-                            .font(.caption)
-                            .foregroundStyle(.red)
+                VStack(alignment: .leading) {
+                    Text(entry.locationEnum.fullDisplayName)
+                        .foregroundStyle(.primary)
+                    HStack(spacing: 6) {
+                        if entry.hasSiteIssue {
+                            Label("Site Issue", systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                        if entry.isPainfulGivingInsulin {
+                            Label("Painful (Insulin)", systemImage: "bolt.heart.fill")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                        if entry.isPainful {
+                            Label("Painful (Wearing)", systemImage: "bolt.heart.fill")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
+
+                Spacer()
+
+                Text(Formatter.dateFormatter.string(from: entry.date ?? Date()))
+                    .foregroundStyle(.primary)
             }
-
-            Spacer()
-
-            Text(Formatter.dateFormatter.string(from: entry.date ?? Date()))
+            .contentShape(Rectangle())
         }
-        .swipeActions {
-            Button(
-                "Delete",
-                systemImage: "trash.fill",
-                role: .none,
-                action: { state.deletePlacementLog(entry.objectID) }
-            ).tint(.red)
-        }
+        .buttonStyle(.plain)
     }
 }

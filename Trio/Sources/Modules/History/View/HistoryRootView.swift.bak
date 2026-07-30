@@ -79,17 +79,6 @@ extension History {
                         .pickerStyle(SegmentedPickerStyle())
                         .padding(.horizontal)
 
-                        if state.mode == .placementLog {
-                            HStack {
-                                Spacer()
-                                addButton("Add Placement", {
-                                    state.resetNewPlacementLogFields()
-                                    showAddPlacementLog = true
-                                })
-                                    .padding(.trailing)
-                            }
-                        }
-
                         Form {
                             switch state.mode {
                             case .treatments: treatmentsList
