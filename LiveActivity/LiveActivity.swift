@@ -130,7 +130,8 @@ private extension LiveActivityAttributes.ContentState {
             minForecast: [],
             maxForecast: [],
             forecastLines: [],
-            forecastDisplayType: "cone"
+            forecastDisplayType: "cone",
+            showBubble: true
         )
 
     // 0 is the widest digit. Use this to get an upper bound on text width.
