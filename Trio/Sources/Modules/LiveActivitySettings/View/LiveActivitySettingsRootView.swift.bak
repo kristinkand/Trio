@@ -10,7 +10,6 @@ extension LiveActivitySettings {
         @State private var shouldDisplayHintLockScreen: Bool = false
         @State private var shouldDisplayHintSmartStack: Bool = false
         @State private var shouldDisplayHintGlucoseForecasts: Bool = false
-        @State private var shouldDisplayHintBubble: Bool = false
         @State var hintDetent = PresentationDetent.large
         @State var selectedVerboseHint: AnyView?
         @State var hintLabel: String?
@@ -176,30 +175,6 @@ extension LiveActivitySettings {
                                         )
                                     ).foregroundStyle(Color.accentColor)
                                 }
-
-                                SettingInputSection(
-                                    decimalValue: $decimalPlaceholder,
-                                    booleanValue: $state.showBubbleInLiveActivity,
-                                    shouldDisplayHint: $shouldDisplayHintBubble,
-                                    selectedVerboseHint: Binding(
-                                        get: { selectedVerboseHint },
-                                        set: {
-                                            selectedVerboseHint = $0.map { AnyView($0) }
-                                            hintLabel = String(localized: "Show Glucose Bubble")
-                                        }
-                                    ),
-                                    units: state.units,
-                                    type: .boolean,
-                                    label: String(localized: "Show Glucose Bubble"),
-                                    miniHint: String(localized: "Display the round glucose bubble next to the chart."),
-                                    verboseHint: VStack(alignment: .leading, spacing: 10) {
-                                        Text("Default: ON").bold()
-                                        Text(
-                                            "When enabled, the Detailed Lock Screen widget shows a colored glucose bubble (matching the main app) next to the glucose chart. Turn this off to show just the chart."
-                                        )
-                                    },
-                                    headerText: String(localized: "Show Glucose Bubble")
-                                )
                             }
                         }.listRowBackground(Color.chart)
 
@@ -283,15 +258,6 @@ extension LiveActivitySettings {
                 SettingInputHintView(
                     hintDetent: $hintDetent,
                     shouldDisplayHint: $shouldDisplayHintGlucoseForecasts,
-                    hintLabel: hintLabel ?? "",
-                    hintText: selectedVerboseHint ?? AnyView(EmptyView()),
-                    sheetTitle: String(localized: "Help", comment: "Help sheet title")
-                )
-            }
-            .sheet(isPresented: $shouldDisplayHintBubble) {
-                SettingInputHintView(
-                    hintDetent: $hintDetent,
-                    shouldDisplayHint: $shouldDisplayHintBubble,
                     hintLabel: hintLabel ?? "",
                     hintText: selectedVerboseHint ?? AnyView(EmptyView()),
                     sheetTitle: String(localized: "Help", comment: "Help sheet title")
