@@ -7,7 +7,7 @@ extension History.RootView {
             HStack {
                 Text("Location").foregroundStyle(.secondary)
                 Spacer()
-                Text("Time").foregroundStyle(.secondary)
+                Text("Date").foregroundStyle(.secondary)
             }
 
             if !placementLogStored.isEmpty {
@@ -65,7 +65,7 @@ extension History.RootView {
 
                 Spacer()
 
-                Text(Formatter.dateFormatter.string(from: entry.date ?? Date()))
+                Text(Formatter.placementLogDateFormatter.string(from: entry.date ?? Date()))
                     .foregroundStyle(.primary)
             }
             .contentShape(Rectangle())
