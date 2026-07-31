@@ -700,8 +700,7 @@ extension Treatments {
                     note: note,
                     enteredBy: CarbsEntry.local,
                     isFPU: false,
-                    fpuID: fat > 0 || protein > 0 ? UUID().uuidString : nil,
-                    isSuperBolus: useSuperBolus
+                    fpuID: fat > 0 || protein > 0 ? UUID().uuidString : nil
                 )]
                 try await carbsStorage.storeCarbs(carbsToStore, areFetchedFromRemote: false)
 
