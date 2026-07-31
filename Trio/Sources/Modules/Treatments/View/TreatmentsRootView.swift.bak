@@ -170,11 +170,11 @@ extension Treatments {
 
             switch current {
             case .fat:
-                return .protein
-            case .protein:
                 return .bolus
+            case .protein:
+                return .fat
             case .carbs:
-                return showFPU ? .fat : .bolus
+                return showFPU ? .protein : .bolus
             case .bolus:
                 return .carbs
             }
@@ -192,13 +192,13 @@ extension Treatments {
 
             switch current {
             case .fat:
-                return .carbs
+                return .protein
             case .protein:
-                return .fat
+                return .carbs
             case .carbs:
                 return .bolus
             case .bolus:
-                return showFPU ? .protein : .carbs
+                return showFPU ? .fat : .carbs
             }
         }
 
@@ -319,13 +319,6 @@ extension Treatments {
                                         }
                                     }
                                 }
-                            }
-
-                            HStack {
-                                Text("Insulin on Board (IOB)")
-                                Spacer()
-                                Text(String(format: "%.2f U", NSDecimalNumber(decimal: state.iob).doubleValue))
-                                    .foregroundColor(.secondary)
                             }
 
                             HStack {
@@ -533,20 +526,20 @@ extension Treatments {
                     .listRowBackground(treatmentButtonBackground)
                     .shadow(radius: 3)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .glassActionSheet(
-                        Text(bolusWarning.warningMessage + " Bolus \(state.amount.description) U?"),
+                    .confirmationDialog(
+                        bolusWarning.warningMessage + " Bolus \(state.amount.description) U?",
                         isPresented: $showConfirmDialogForBolusing,
-                        actions: [
-                            GlassSheetAction(
-                                verbatim: bolusWarning.warningMessage
-                                    .isEmpty ? String(localized: "Enact Bolus") :
-                                    String(localized: "Ignore Warning and Enact Bolus"),
-                                role: bolusWarning.warningMessage.isEmpty ? nil : .destructive
-                            ) {
-                                state.invokeTreatmentsTask()
-                            }
-                        ]
-                    )
+                        titleVisibility: .visible
+                    ) {
+                        Button("Cancel", role: .cancel) {}
+                        Button(
+                            bolusWarning.warningMessage
+                                .isEmpty ? String(localized: "Enact Bolus") : String(localized: "Ignore Warning and Enact Bolus"),
+                            role: bolusWarning.warningMessage.isEmpty ? nil : .destructive
+                        ) {
+                            state.invokeTreatmentsTask()
+                        }
+                    }
                 }
             } header: {
                 if !bolusWarning.warningMessage.isEmpty {
