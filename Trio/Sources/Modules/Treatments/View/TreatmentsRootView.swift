@@ -322,6 +322,13 @@ extension Treatments {
                             }
 
                             HStack {
+                                Text("Insulin on Board (IOB)")
+                                Spacer()
+                                Text(String(format: "%.2f U", NSDecimalNumber(decimal: state.iob).doubleValue))
+                                    .foregroundColor(.secondary)
+                            }
+
+                            HStack {
                                 HStack {
                                     Text("Recommendation")
                                     Button(action: {
