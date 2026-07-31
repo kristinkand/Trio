@@ -3,7 +3,7 @@ import Foundation
 
 extension NSPredicate {
     static var allPlacementLogs: NSPredicate {
-        NSPredicate(format: "id != nil")
+        NSPredicate(format: "date >= %@", Date.sixMonthsAgo as NSDate)
     }
 }
 
