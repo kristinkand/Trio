@@ -18,7 +18,6 @@ extension Home.StateModel {
 
         previousDayGlucoseControllerDelegate.onContentChange = { [weak self] in
             Task { @MainActor in
-                debug(.default, "[PrevDayDiag] onContentChange fired for previousDayGlucoseController at \(Date())")
                 self?.updatePreviousDayGlucoseFromController()
             }
         }
@@ -44,16 +43,7 @@ extension Home.StateModel {
     // (like every other FetchedResultsController on this state model); only the published
     // array is gated on the toggle, so flipping it on/off never needs a fresh disk fetch.
     @MainActor func updatePreviousDayGlucoseFromController() {
-        let fetchedCount = previousDayGlucoseController.fetchedObjects?.count ?? -1
-        debug(
-            .default,
-            "[PrevDayDiag] updatePreviousDayGlucoseFromController: showPreviousDayGlucose=\(showPreviousDayGlucose) fetchedObjects=\(fetchedCount) at \(Date())"
-        )
         glucoseFromPersistenceYesterday = showPreviousDayGlucose ? (previousDayGlucoseController.fetchedObjects ?? []) : []
-        debug(
-            .default,
-            "[PrevDayDiag] -> glucoseFromPersistenceYesterday now has \(glucoseFromPersistenceYesterday.count) entries"
-        )
     }
 
     // NSFetchedResultsController predicates are frozen at creation time -- Date.twoDaysAgo /
@@ -64,7 +54,6 @@ extension Home.StateModel {
     // today's own glucose refresh, keeps the window continuously current without needing the
     // user to toggle the setting off/on to force a re-fetch.
     @MainActor private func reanchorPreviousDayGlucoseController() {
-        debug(.default, "[PrevDayDiag] reanchorPreviousDayGlucoseController firing at \(Date())")
         previousDayGlucoseController.fetchRequest.predicate = NSPredicate.glucosePreviousDay
         do {
             try previousDayGlucoseController.performFetch()
