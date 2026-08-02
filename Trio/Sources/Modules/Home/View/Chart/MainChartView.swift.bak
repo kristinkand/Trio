@@ -824,19 +824,11 @@ struct MainChartCanvas: View {
     // Yesterday's readings, shifted forward 24h to align with today's clock time,
     // filtered to the render window like the other `windowed*` arrays above.
     var windowedPreviousDayGlucose: [GlucoseStored] {
-        let source = state.glucoseFromPersistenceYesterday
-        let result = source.filter { entry in
+        state.glucoseFromPersistenceYesterday.filter { entry in
             guard let date = entry.date else { return false }
             let shiftedDate = date.addingTimeInterval(24 * 60 * 60)
             return shiftedDate >= windowStart && shiftedDate <= windowEnd
         }
-        if result.isEmpty, !source.isEmpty {
-            debug(
-                .default,
-                "[PrevDayDiag] windowedPreviousDayGlucose EMPTY despite source=\(source.count): windowStart=\(windowStart) windowEnd=\(windowEnd) at \(Date())"
-            )
-        }
-        return result
     }
 
     var windowedInsulin: [PumpEventStored] {
