@@ -57,19 +57,7 @@ final class BaseSettingsManager: SettingsManager, Injectable {
 
     init(resolver: Resolver) {
         let storage = resolver.resolve(FileStorage.self)!
-        let retrieved = storage.retrieve(OpenAPS.Trio.settings, as: TrioSettings.self)
-        if let retrieved {
-            debug(
-                .default,
-                "[PrevDayDiag] BaseSettingsManager.init: retrieved TrioSettings from disk, showPreviousDayGlucose=\(retrieved.showPreviousDayGlucose)"
-            )
-        } else {
-            debug(
-                .default,
-                "[PrevDayDiag] BaseSettingsManager.init: storage.retrieve(OpenAPS.Trio.settings) returned NIL -- falling back to OpenAPS.defaults, ALL settings reset"
-            )
-        }
-        settings = retrieved
+        settings = storage.retrieve(OpenAPS.Trio.settings, as: TrioSettings.self)
             ?? TrioSettings(from: OpenAPS.defaults(for: OpenAPS.Trio.settings))
             ?? TrioSettings()
 
