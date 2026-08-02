@@ -102,9 +102,6 @@ struct MainChartView: View {
     /// Auto-pans the chart while a scrubbing finger rests in the viewport's edge zones.
     @State private var edgePanTask: Task<Void, Never>?
 
-    /// Measured plot rect of the COB/IOB pane (canvas y-coords) for overlay alignment.
-    @State private var cobIobPlotFrame: CGRect = .zero
-
     var body: some View {
         ZStack(alignment: .topLeading) {
             MainChartCanvas(
@@ -165,7 +162,6 @@ struct MainChartView: View {
         )
         .clipped()
         .contentShape(Rectangle())
-        .onPreferenceChange(CobIobPlotFrameKey.self) { cobIobPlotFrame = $0 }
         .simultaneousGesture(panAndInspectGesture)
         .simultaneousGesture(magnifyGesture)
         .simultaneousGesture(TapGesture(count: 2).onEnded { cycleZoomPreset() })
@@ -324,11 +320,7 @@ extension MainChartView {
         )
         let span = domain.upperBound - domain.lowerBound
         let fraction = span == 0 ? 0.5 : (value - domain.lowerBound) / span
-        // the pane's hour labels reserve space inside the pane frame, so the
-        // plot is shorter than cobIobHeight; map through the measured plot rect
-        let plotTop = cobIobPlotFrame == .zero ? basalHeight + mainHeight : cobIobPlotFrame.minY
-        let plotHeight = cobIobPlotFrame == .zero ? cobIobHeight : cobIobPlotFrame.height
-        return plotTop + plotHeight * CGFloat(1 - min(max(fraction, 0), 1))
+        return basalHeight + mainHeight + cobIobHeight * CGFloat(1 - min(max(fraction, 0), 1))
     }
 
     /// Dark fade pinned to the trailing edge whenever "now" is scrolled off-screen.
@@ -383,30 +375,25 @@ extension MainChartView {
                     .frame(width: 6, height: 6)
                     .position(x: x, y: glucoseY)
 
-                // Selected COB / (scaled) IOB dots on the bottom pane, at the
-                // determination's own timestamp: the lookup picks the newest
-                // determination within ±150 s of the scrub point, so drawing its
-                // value at the rule's x floats the dot off the stepped line.
+                // Selected COB / (scaled) IOB dots on the bottom pane.
                 if let selectedCOBValue {
-                    let dotX = xPosition(for: selectedCOBValue.deliverAt ?? selectionDate)
                     let y = cobIobYPosition(forChartValue: Double(selectedCOBValue.cob))
                     Circle().fill(Color.orange.opacity(0.8))
                         .frame(width: 15, height: 15)
-                        .position(x: dotX, y: y)
+                        .position(x: x, y: y)
                     Circle().fill(Color.primary)
                         .frame(width: 6, height: 6)
-                        .position(x: dotX, y: y)
+                        .position(x: x, y: y)
                 }
                 if let selectedIOBValue {
-                    let dotX = xPosition(for: selectedIOBValue.deliverAt ?? selectionDate)
                     let scaled = MainChartHelper.scaledIobAmount(selectedIOBValue.iob?.doubleValue ?? 0)
                     let y = cobIobYPosition(forChartValue: scaled)
                     Circle().fill(Color.darkerBlue.opacity(0.8))
                         .frame(width: 15, height: 15)
-                        .position(x: dotX, y: y)
+                        .position(x: x, y: y)
                     Circle().fill(Color.primary)
                         .frame(width: 6, height: 6)
-                        .position(x: dotX, y: y)
+                        .position(x: x, y: y)
                 }
 
                 // Detail card: fixed slot at the top of the glucose pane.
@@ -470,20 +457,14 @@ extension MainChartView {
         return min(max(proposed, earliest), max(earliest, latest))
     }
 
-    /// Anchors the visible window so the current reading stays on-screen at any zoom.
+    /// Anchors the visible window just past `state.endMarker`.
     private func scrollToTrailingEdge() {
         // Never yank the chart out from under an active gesture (pan, pinch, or an
         // in-progress inspect/scrub); the next data tick after the gesture ends will
         // re-anchor to trailing as before.
         guard !isPinching, panBaseline == nil, !isInspectLatched else { return }
         momentumTask?.cancel()
-        // Wide zoom keeps the forecast-anchored framing; tighter zoom (where anchoring to
-        // endMarker pushed `now` off the left) re-anchors to `now` plus a proportional peek.
-        let forecastAnchoredTrailing = state.endMarker.addingTimeInterval(trailingOverscan)
-        let nowAnchoredTrailing = Date.now
-            .addingTimeInterval(visibleSeconds * MainChartHelper.Config.followForecastPeekFraction)
-        let trailingEdge = min(forecastAnchoredTrailing, nowAnchoredTrailing)
-        scrollPosition = clampedLeadingEdge(trailingEdge.addingTimeInterval(-visibleSeconds))
+        scrollPosition = state.endMarker.addingTimeInterval(trailingOverscan - visibleSeconds)
     }
 
     /// One-finger gesture: movement pans (with momentum on release); a press held in
@@ -843,19 +824,11 @@ struct MainChartCanvas: View {
     // Yesterday's readings, shifted forward 24h to align with today's clock time,
     // filtered to the render window like the other `windowed*` arrays above.
     var windowedPreviousDayGlucose: [GlucoseStored] {
-        let source = state.glucoseFromPersistenceYesterday
-        let result = source.filter { entry in
+        state.glucoseFromPersistenceYesterday.filter { entry in
             guard let date = entry.date else { return false }
             let shiftedDate = date.addingTimeInterval(24 * 60 * 60)
             return shiftedDate >= windowStart && shiftedDate <= windowEnd
         }
-        if result.isEmpty, !source.isEmpty {
-            debug(
-                .default,
-                "[PrevDayDiag] windowedPreviousDayGlucose EMPTY despite source=\(source.count): windowStart=\(windowStart) windowEnd=\(windowEnd) at \(Date())"
-            )
-        }
-        return result
     }
 
     var windowedInsulin: [PumpEventStored] {
@@ -886,10 +859,6 @@ struct MainChartCanvas: View {
         }
     }
 
-    /// Coordinate space for plot-frame preferences; pane-local plot rects let the
-    /// shell's selection overlay match the charts' real plot areas.
-    static let coordinateSpaceName = "mainChartCanvas"
-
     var body: some View {
         VStack(spacing: 0) {
             basalChart
@@ -897,19 +866,9 @@ struct MainChartCanvas: View {
             cobIobChart
         }
         .frame(width: canvasWidth)
-        .coordinateSpace(name: Self.coordinateSpaceName)
         .onAppear {
             calculateTempBasals()
         }
-    }
-}
-
-/// Plot-area rect of the COB/IOB pane in canvas coordinates (y is offset-independent).
-struct CobIobPlotFrameKey: PreferenceKey {
-    static let defaultValue = CGRect.zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        let next = nextValue()
-        if next != .zero { value = next }
     }
 }
 
@@ -917,14 +876,7 @@ struct CobIobPlotFrameKey: PreferenceKey {
 
 extension MainChartCanvas {
     var mainChart: some View {
-        // slice each series once per layout; these were computed properties
-        // re-evaluated on every reference (glucose alone was scanned 3x)
-        let glucose = windowedGlucose
-        let insulin = windowedInsulin
-        let carbs = windowedCarbs
-        let fpus = windowedFPUs
-
-        return Chart {
+        Chart {
             drawCurrentTimeMarker()
             drawThresholdLines()
 
@@ -953,7 +905,7 @@ extension MainChartCanvas {
             )
 
             GlucoseChartView(
-                glucoseData: glucose,
+                glucoseData: windowedGlucose,
                 units: state.units,
                 highGlucose: state.highGlucose,
                 lowGlucose: state.lowGlucose,
@@ -963,17 +915,17 @@ extension MainChartCanvas {
             )
 
             InsulinView(
-                glucoseData: glucose,
-                insulinData: insulin,
+                glucoseData: windowedGlucose,
+                insulinData: windowedInsulin,
                 units: state.units,
                 bolusDisplayThreshold: state.bolusDisplayThreshold
             )
 
             CarbView(
-                glucoseData: glucose,
+                glucoseData: windowedGlucose,
                 units: state.units,
-                carbData: carbs,
-                fpuData: fpus,
+                carbData: windowedCarbs,
+                fpuData: windowedFPUs,
                 minValue: units == .mgdL ? state.minYAxisValue : state.minYAxisValue
                     .asMmolL
             )
