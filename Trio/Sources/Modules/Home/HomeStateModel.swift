@@ -687,6 +687,7 @@ extension Home {
             displayYgridLines = settingsManager.settings.yGridLines
             bolusDisplayThreshold = settingsManager.settings.bolusDisplayThreshold
             thresholdLines = settingsManager.settings.rulerMarks
+            showPreviousDayGlucose = settingsManager.settings.showPreviousDayGlucose
             showCarbsRequiredBadge = settingsManager.settings.showCarbsRequiredBadge
             enableQuickPickTreatments = settingsManager.settings.enableQuickPickTreatments
             forecastDisplayType = settingsManager.settings.forecastDisplayType

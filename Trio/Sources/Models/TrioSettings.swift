@@ -279,22 +279,8 @@ extension TrioSettings: Decodable {
             settings.rulerMarks = rulerMarks
         }
 
-        if container.contains(.showPreviousDayGlucose) {
-            do {
-                let decoded = try container.decode(Bool.self, forKey: .showPreviousDayGlucose)
-                settings.showPreviousDayGlucose = decoded
-                debug(.default, "[PrevDayDiag] TrioSettings decode: showPreviousDayGlucose key present, decoded=\(decoded)")
-            } catch {
-                debug(
-                    .default,
-                    "[PrevDayDiag] TrioSettings decode: showPreviousDayGlucose key present but decode FAILED: \(error) -- falling back to default false"
-                )
-            }
-        } else {
-            debug(
-                .default,
-                "[PrevDayDiag] TrioSettings decode: showPreviousDayGlucose key MISSING from persisted file -- falling back to default false"
-            )
+        if let showPreviousDayGlucose = try? container.decode(Bool.self, forKey: .showPreviousDayGlucose) {
+            settings.showPreviousDayGlucose = showPreviousDayGlucose
         }
 
         if let bolusDisplayThreshold = try? container.decode(BolusDisplayThreshold.self, forKey: .bolusDisplayThreshold) {
