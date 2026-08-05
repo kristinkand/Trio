@@ -75,6 +75,10 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var homeStatsPanelFace: HomeStatsPanelFace = .timeInRange
     var requireAdjustmentsConfirmation: Bool = false
 
+    /// Whether the app should request iOS's Critical Alerts authorization, letting
+    /// urgent alarms (e.g. urgent-low glucose, not-looping) bypass Silent Mode and Do Not Disturb.
+    var useCriticalAlerts: Bool = false
+
     /// Selected Garmin watchface (Trio or SwissAlpine)
     var garminWatchface: GarminWatchface = .trio
     var garminDatafield: GarminDatafield = .none
@@ -278,6 +282,10 @@ extension TrioSettings: Decodable {
 
         if let rulerMarks = try? container.decode(Bool.self, forKey: .rulerMarks) {
             settings.rulerMarks = rulerMarks
+        }
+
+        if let useCriticalAlerts = try? container.decode(Bool.self, forKey: .useCriticalAlerts) {
+            settings.useCriticalAlerts = useCriticalAlerts
         }
 
         if let showPreviousDayGlucose = try? container.decode(Bool.self, forKey: .showPreviousDayGlucose) {
