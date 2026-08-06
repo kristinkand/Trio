@@ -457,14 +457,20 @@ extension MainChartView {
         return min(max(proposed, earliest), max(earliest, latest))
     }
 
-    /// Anchors the visible window just past `state.endMarker`.
+    /// Anchors the visible window so the current reading stays on-screen at any zoom.
     private func scrollToTrailingEdge() {
         // Never yank the chart out from under an active gesture (pan, pinch, or an
         // in-progress inspect/scrub); the next data tick after the gesture ends will
         // re-anchor to trailing as before.
         guard !isPinching, panBaseline == nil, !isInspectLatched else { return }
         momentumTask?.cancel()
-        scrollPosition = state.endMarker.addingTimeInterval(trailingOverscan - visibleSeconds)
+        // Wide zoom keeps the forecast-anchored framing; tighter zoom (where anchoring to
+        // endMarker pushed `now` off the left) re-anchors to `now` plus a proportional peek.
+        let forecastAnchoredTrailing = state.endMarker.addingTimeInterval(trailingOverscan)
+        let nowAnchoredTrailing = Date.now
+            .addingTimeInterval(visibleSeconds * MainChartHelper.Config.followForecastPeekFraction)
+        let trailingEdge = min(forecastAnchoredTrailing, nowAnchoredTrailing)
+        scrollPosition = clampedLeadingEdge(trailingEdge.addingTimeInterval(-visibleSeconds))
     }
 
     /// One-finger gesture: movement pans (with momentum on release); a press held in
@@ -830,7 +836,6 @@ struct MainChartCanvas: View {
             return shiftedDate >= windowStart && shiftedDate <= windowEnd
         }
     }
-
     var windowedInsulin: [PumpEventStored] {
         state.insulinFromPersistence.filter { entry in
             guard let date = entry.timestamp else { return false }
@@ -876,7 +881,14 @@ struct MainChartCanvas: View {
 
 extension MainChartCanvas {
     var mainChart: some View {
-        Chart {
+        // slice each series once per layout; these were computed properties
+        // re-evaluated on every reference (glucose alone was scanned 3x)
+        let glucose = windowedGlucose
+        let insulin = windowedInsulin
+        let carbs = windowedCarbs
+        let fpus = windowedFPUs
+
+        return Chart {
             drawCurrentTimeMarker()
             drawThresholdLines()
 
@@ -905,7 +917,7 @@ extension MainChartCanvas {
             )
 
             GlucoseChartView(
-                glucoseData: windowedGlucose,
+                glucoseData: glucose,
                 units: state.units,
                 highGlucose: state.highGlucose,
                 lowGlucose: state.lowGlucose,
@@ -915,17 +927,17 @@ extension MainChartCanvas {
             )
 
             InsulinView(
-                glucoseData: windowedGlucose,
-                insulinData: windowedInsulin,
+                glucoseData: glucose,
+                insulinData: insulin,
                 units: state.units,
                 bolusDisplayThreshold: state.bolusDisplayThreshold
             )
 
             CarbView(
-                glucoseData: windowedGlucose,
+                glucoseData: glucose,
                 units: state.units,
-                carbData: windowedCarbs,
-                fpuData: windowedFPUs,
+                carbData: carbs,
+                fpuData: fpus,
                 minValue: units == .mgdL ? state.minYAxisValue : state.minYAxisValue
                     .asMmolL
             )
