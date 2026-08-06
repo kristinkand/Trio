@@ -47,11 +47,15 @@ enum MainChartHelper {
         /// Visible x-axis window seeded on first launch of the chart (matches the old 6 h default).
         static let defaultVisibleSeconds: TimeInterval = 6 * 3600
         /// Tightest pinch-in zoom.
-        static let minVisibleSeconds: TimeInterval = 3 * 3600
+        static let minVisibleSeconds: TimeInterval = 1 * 3600
         /// Widest pinch-out zoom.
         static let maxVisibleSeconds: TimeInterval = 24 * 3600
         /// Double-tap cycles the visible window through these presets.
         static let zoomPresets: [TimeInterval] = [6 * 3600, 12 * 3600, 24 * 3600]
+        /// When auto-follow re-anchors to `now` at tight zoom, the current reading sits this
+        /// fraction from the trailing edge (0.55 makes the crossover land at ~6 h, so the
+        /// forecast-anchored framing at 6 h and wider is unchanged; below it, `now` stays on-screen).
+        static let followForecastPeekFraction: CGFloat = 0.55
         /// Render window extends this many visible-windows beyond each visible edge.
         static let renderWindowPadFactor = 1.5
         /// Re-anchor when the visible edge gets within this fraction of a

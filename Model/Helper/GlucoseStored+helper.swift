@@ -58,7 +58,6 @@ extension NSPredicate {
     static var glucosePreviousDay: NSPredicate {
         NSPredicate(format: "date >= %@ AND date < %@", Date.twoDaysAgo as NSDate, Date.oneDayAgo as NSDate)
     }
-
     static var manualGlucose: NSPredicate {
         let date = Date.oneDayAgo
         return NSPredicate(format: "isManual == %@ AND date >= %@", true as NSNumber, date as NSDate)
