@@ -53,6 +53,7 @@ private struct AlgorithmAdjustmentPercentileChart: View {
                             yStart: .value("10th Percentile", stats.percentile10),
                             yEnd: .value("90th Percentile", stats.percentile90)
                         )
+                        .interpolationMethod(.catmullRom)
                         .foregroundStyle(color.opacity(0.25))
                         .opacity(stats.hasData ? 1 : 0)
 
@@ -61,6 +62,7 @@ private struct AlgorithmAdjustmentPercentileChart: View {
                             yStart: .value("25th Percentile", stats.percentile25),
                             yEnd: .value("75th Percentile", stats.percentile75)
                         )
+                        .interpolationMethod(.catmullRom)
                         .foregroundStyle(color.opacity(0.5))
                         .opacity(stats.hasData ? 1 : 0)
 
@@ -69,6 +71,7 @@ private struct AlgorithmAdjustmentPercentileChart: View {
                                 x: .value("Hour", Calendar.current.dateForChartHour(stats.hour)),
                                 y: .value("Median", stats.median)
                             )
+                            .interpolationMethod(.catmullRom)
                             .lineStyle(StrokeStyle(lineWidth: 2))
                             .foregroundStyle(color)
                         }
@@ -208,8 +211,25 @@ struct AlgorithmAdjustmentsChartsView: View {
     let units: GlucoseUnits
     let selectedInterval: Stat.StateModel.StatsTimeIntervalWithToday
 
+    // TEMPORARY diagnostic line -- not a real feature. ISF/CR have shown up empty for reasons that
+    // haven't been pinned down from code review alone; this surfaces the actual counts on-device
+    // so the real cause (vs. a display bug) can be confirmed before writing another blind fix.
+    // Safe to remove once that's settled -- it only counts values already fetched, nothing more.
+    private var diagnosticSummary: String {
+        let total = points.count
+        let withISF = points.filter { $0.isf != nil }.count
+        let withCR = points.filter { $0.carbRatio != nil }.count
+        let withAF = points.filter { $0.autosensRatio != nil }.count
+        let withRate = points.filter { $0.basalRate != nil }.count
+        return "Debug: \(total) records — ISF: \(withISF), CR: \(withCR), AF: \(withAF), rate: \(withRate)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            Text(diagnosticSummary)
+                .font(.caption2)
+                .foregroundStyle(.orange)
+
             AlgorithmAdjustmentPercentileChart(
                 title: String(localized: "Insulin Sensitivity Factor (ISF)"),
                 unitLabel: "\(units.rawValue) / U",
