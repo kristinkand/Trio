@@ -251,6 +251,9 @@ struct StatExportMenuView: View {
             return selectedLoopingChartType == .loopingPerformance ? .loopingPerformance : nil
         case .meals:
             return selectedMealChartType == .totalMeals ? .mealsTotalMeals : nil
+        case .algorithmAdjustments:
+            // Not yet exportable to PDF reports.
+            return nil
         }
     }
 
@@ -342,6 +345,9 @@ struct StatExportMenuView: View {
                     isEnabled: type == .totalMeals
                 ) { selectedMealChartType = type }
             }
+        case .algorithmAdjustments:
+            // Not yet exportable to PDF reports.
+            optionRow(title: String(localized: "Algorithm Adjustments"), isSelected: false, isEnabled: false) {}
         }
     }
 
