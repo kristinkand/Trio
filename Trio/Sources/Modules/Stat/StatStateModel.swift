@@ -20,6 +20,7 @@ extension Stat {
         var loopStatRecords: [LoopStatRecord] = []
         var loopStats: [LoopStatsProcessedData] = []
         var groupedLoopStats: [LoopStatsByPeriod] = []
+        var algorithmAdjustmentStats: [AlgorithmAdjustmentPoint] = []
         var bolusStats: [BolusStats] = []
         var hourlyStats: [HourlyStats] = []
         var glucoseRangeStats: [GlucoseRangeStats] = []
@@ -67,6 +68,13 @@ extension Stat {
             }
         }
 
+        // Selected Duration for Algorithm Adjustment Stats
+        var selectedIntervalForAlgorithmStats: StatsTimeIntervalWithToday = .today {
+            didSet {
+                setupAlgorithmAdjustmentStats()
+            }
+        }
+
         // Selected Glucose Chart Type
         var selectedGlucoseChartType: GlucoseChartType = .percentileByTime
 
@@ -87,6 +95,7 @@ extension Stat {
             setupTDDStats()
             setupBolusStats()
             setupLoopStatRecords()
+            setupAlgorithmAdjustmentStats()
             setupMealStats()
             setupGlucoseDailyStats()
             units = settingsManager.settings.units
@@ -363,6 +372,8 @@ extension Stat.StateModel {
         case looping
         /// Meal-related statistics and correlations
         case meals
+        /// Algorithm adjustment history (ISF, CR, AF, basal rate) statistics
+        case algorithmAdjustments
 
         var id: String { rawValue }
 
@@ -376,6 +387,11 @@ extension Stat.StateModel {
                 return String(localized: "Looping", comment: "Title for looping and system statistics")
             case .meals:
                 return String(localized: "Meals", comment: "Title for meal-related statistics")
+            case .algorithmAdjustments:
+                return String(
+                    localized: "Algorithm",
+                    comment: "Title for algorithm adjustment history statistics (ISF, CR, AF, basal rate)"
+                )
             }
         }
     }
