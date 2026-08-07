@@ -526,12 +526,14 @@
 		BD249D8A2D42FC1200412DEB /* GlucosePercentileChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D892D42FC0E00412DEB /* GlucosePercentileChart.swift */; };
 		BD249D8C2D42FC2C00412DEB /* GlucoseDistributionChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D8B2D42FC2500412DEB /* GlucoseDistributionChart.swift */; };
 		BD249D8E2D42FC3900412DEB /* LoopBarChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D8D2D42FC3600412DEB /* LoopBarChartView.swift */; };
+		2426DAC2CCEF457293A7D7E6 /* AlgorithmAdjustmentsChartsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A954B9748CF94F5CB4DB115C /* AlgorithmAdjustmentsChartsView.swift */; };
 		BD249D902D42FC4500412DEB /* MealStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D8F2D42FC4300412DEB /* MealStatsView.swift */; };
 		BD249D922D42FC5300412DEB /* GlucoseSectorChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D912D42FC5000412DEB /* GlucoseSectorChart.swift */; };
 		BD249D942D42FC5E00412DEB /* TotalDailyDoseChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D932D42FC5C00412DEB /* TotalDailyDoseChart.swift */; };
 		BD249D972D42FCBF00412DEB /* AreaChartSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D962D42FCBD00412DEB /* AreaChartSetup.swift */; };
 		BD249D992D42FCCD00412DEB /* BolusStatsSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D982D42FCCA00412DEB /* BolusStatsSetup.swift */; };
 		BD249D9B2D42FCDB00412DEB /* LoopChartSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D9A2D42FCD800412DEB /* LoopChartSetup.swift */; };
+		147B19FE15C04618979716BC /* AlgorithmAdjustmentsSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E205B40CFD9C4C2192CB17F5 /* AlgorithmAdjustmentsSetup.swift */; };
 		BD249D9D2D42FCF500412DEB /* MealStatsSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D9C2D42FCF300412DEB /* MealStatsSetup.swift */; };
 		BD249D9F2D42FD0600412DEB /* StackedChartSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D9E2D42FD0200412DEB /* StackedChartSetup.swift */; };
 		BD249DA12D42FD1200412DEB /* TDDSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249DA02D42FD1000412DEB /* TDDSetup.swift */; };
@@ -1582,12 +1584,14 @@
 		BD249D892D42FC0E00412DEB /* GlucosePercentileChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucosePercentileChart.swift; sourceTree = "<group>"; };
 		BD249D8B2D42FC2500412DEB /* GlucoseDistributionChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseDistributionChart.swift; sourceTree = "<group>"; };
 		BD249D8D2D42FC3600412DEB /* LoopBarChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopBarChartView.swift; sourceTree = "<group>"; };
+		A954B9748CF94F5CB4DB115C /* AlgorithmAdjustmentsChartsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlgorithmAdjustmentsChartsView.swift; sourceTree = "<group>"; };
 		BD249D8F2D42FC4300412DEB /* MealStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealStatsView.swift; sourceTree = "<group>"; };
 		BD249D912D42FC5000412DEB /* GlucoseSectorChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseSectorChart.swift; sourceTree = "<group>"; };
 		BD249D932D42FC5C00412DEB /* TotalDailyDoseChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TotalDailyDoseChart.swift; sourceTree = "<group>"; };
 		BD249D962D42FCBD00412DEB /* AreaChartSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AreaChartSetup.swift; sourceTree = "<group>"; };
 		BD249D982D42FCCA00412DEB /* BolusStatsSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusStatsSetup.swift; sourceTree = "<group>"; };
 		BD249D9A2D42FCD800412DEB /* LoopChartSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopChartSetup.swift; sourceTree = "<group>"; };
+		E205B40CFD9C4C2192CB17F5 /* AlgorithmAdjustmentsSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlgorithmAdjustmentsSetup.swift; sourceTree = "<group>"; };
 		BD249D9C2D42FCF300412DEB /* MealStatsSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealStatsSetup.swift; sourceTree = "<group>"; };
 		BD249D9E2D42FD0200412DEB /* StackedChartSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StackedChartSetup.swift; sourceTree = "<group>"; };
 		BD249DA02D42FD1000412DEB /* TDDSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TDDSetup.swift; sourceTree = "<group>"; };
@@ -3702,6 +3706,7 @@
 				DDCAE9792D79F99200B1BB51 /* Meal */,
 				DDCAE9782D79F98E00B1BB51 /* Insulin */,
 				DDCAE9772D79F98600B1BB51 /* Looping */,
+				96FEF429EFC1422CAB1FDBEE /* Algorithm */,
 				10AF8EE6558343259FAE9483 /* Export */,
 			);
 			path = ViewElements;
@@ -3717,6 +3722,7 @@
 				BD249D962D42FCBD00412DEB /* AreaChartSetup.swift */,
 				BD249D9E2D42FD0200412DEB /* StackedChartSetup.swift */,
 				BD249D9A2D42FCD800412DEB /* LoopChartSetup.swift */,
+				E205B40CFD9C4C2192CB17F5 /* AlgorithmAdjustmentsSetup.swift */,
 				F1718DA686EA4E8F87B0A729 /* ExportSetup.swift */,
 				C40E9F8C6CEB4A308060A821 /* ReportPresetSetup.swift */,
 			);
@@ -4443,6 +4449,14 @@
 				DD906BF52EA6AAE900262772 /* BaseNightscoutManager+Subscribers.swift */,
 			);
 			path = Nightscout;
+			sourceTree = "<group>";
+		};
+		96FEF429EFC1422CAB1FDBEE /* Algorithm */ = {
+			isa = PBXGroup;
+			children = (
+				A954B9748CF94F5CB4DB115C /* AlgorithmAdjustmentsChartsView.swift */,
+			);
+			path = Algorithm;
 			sourceTree = "<group>";
 		};
 		DDCAE9772D79F98600B1BB51 /* Looping */ = {
@@ -5346,6 +5360,7 @@
 				190EBCCB29FF13CB00BA767D /* UserInterfaceSettingsRootView.swift in Sources */,
 				3811DEA925C9D88300A708ED /* AppearanceManager.swift in Sources */,
 				BD249D8E2D42FC3900412DEB /* LoopBarChartView.swift in Sources */,
+				2426DAC2CCEF457293A7D7E6 /* AlgorithmAdjustmentsChartsView.swift in Sources */,
 				CE7950242997D81700FA576E /* CGMSettingsView.swift in Sources */,
 				58237D9E2BCF0A6B00A47A79 /* PopupView.swift in Sources */,
 				BD793CB02CE7C61500D669AC /* OverrideRunStored+helper.swift in Sources */,
@@ -5517,6 +5532,7 @@
 				58D08B342C8DF9A700AA37D3 /* CobIobChart.swift in Sources */,
 				642F76A05A4FF530463A9FD0 /* NightscoutConfigRootView.swift in Sources */,
 				BD249D9B2D42FCDB00412DEB /* LoopChartSetup.swift in Sources */,
+				147B19FE15C04618979716BC /* AlgorithmAdjustmentsSetup.swift in Sources */,
 				BD7DA9AC2AE06EB900601B20 /* BolusCalculatorConfigRootView.swift in Sources */,
 				AD3D2CD42CD01B9EB8F26522 /* PumpConfigDataFlow.swift in Sources */,
 				DD17452E2C55AE4800211FAC /* TargetBehavoirDataFlow.swift in Sources */,
