@@ -33,6 +33,17 @@ private struct AlgorithmAdjustmentPercentileChart: View {
         return high + padding
     }
 
+    // TEMPORARY diagnostic -- shows what actually got computed for THIS specific chart (not just
+    // the aggregate record counts shown above all four charts), so we can see whether the values
+    // feeding the chart are sane before chasing another rendering theory blind.
+    private var diagnosticCaption: String {
+        let hoursWithData = hourlyStats.filter(\.hasData).count
+        let medians = hourlyStats.filter(\.hasData).map(\.median)
+        let lo = medians.min().map { String(format: "%.2f", $0) } ?? "n/a"
+        let hi = medians.max().map { String(format: "%.2f", $0) } ?? "n/a"
+        return "\(hoursWithData)/24 hrs · median \(lo)–\(hi) · Y \(String(format: "%.2f", minY))–\(String(format: "%.2f", maxY))"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
@@ -46,34 +57,46 @@ private struct AlgorithmAdjustmentPercentileChart: View {
                 )
                 .frame(height: 130)
             } else {
+                Text(diagnosticCaption)
+                    .font(.caption2)
+                    .foregroundStyle(.yellow)
+
                 Chart {
                     ForEach(hourlyStats, id: \.hour) { stats in
-                        AreaMark(
-                            x: .value("Hour", Calendar.current.dateForChartHour(stats.hour)),
-                            yStart: .value("10th Percentile", stats.percentile10),
-                            yEnd: .value("90th Percentile", stats.percentile90)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(color.opacity(0.25))
-                        .opacity(stats.hasData ? 1 : 0)
-
-                        AreaMark(
-                            x: .value("Hour", Calendar.current.dateForChartHour(stats.hour)),
-                            yStart: .value("25th Percentile", stats.percentile25),
-                            yEnd: .value("75th Percentile", stats.percentile75)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(color.opacity(0.5))
-                        .opacity(stats.hasData ? 1 : 0)
-
                         if stats.hasData {
+                            AreaMark(
+                                x: .value("Hour", Calendar.current.dateForChartHour(stats.hour)),
+                                yStart: .value("10th Percentile", stats.percentile10),
+                                yEnd: .value("90th Percentile", stats.percentile90)
+                            )
+                            .foregroundStyle(color.opacity(0.25))
+
+                            AreaMark(
+                                x: .value("Hour", Calendar.current.dateForChartHour(stats.hour)),
+                                yStart: .value("25th Percentile", stats.percentile25),
+                                yEnd: .value("75th Percentile", stats.percentile75)
+                            )
+                            .foregroundStyle(color.opacity(0.5))
+
                             LineMark(
                                 x: .value("Hour", Calendar.current.dateForChartHour(stats.hour)),
                                 y: .value("Median", stats.median)
                             )
-                            .interpolationMethod(.catmullRom)
                             .lineStyle(StrokeStyle(lineWidth: 2))
                             .foregroundStyle(color)
+
+                            // TEMPORARY diagnostic mark: a guaranteed-visible red dot at the same
+                            // position as the median line/bands above, using a plain system color
+                            // instead of this chart's named asset color. If the red dots show up but
+                            // the colored bands/line don't, the problem is specific to this chart's
+                            // `color` (a named asset); if nothing shows up at all, the problem is
+                            // upstream of color entirely.
+                            PointMark(
+                                x: .value("Hour", Calendar.current.dateForChartHour(stats.hour)),
+                                y: .value("Median", stats.median)
+                            )
+                            .symbolSize(20)
+                            .foregroundStyle(.red)
                         }
                     }
                 }
