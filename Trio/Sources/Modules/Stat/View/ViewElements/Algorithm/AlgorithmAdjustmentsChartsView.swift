@@ -33,6 +33,18 @@ private struct AlgorithmAdjustmentDotChart: View {
         return high + padding
     }
 
+    /// "18/24 hrs · median 4.9–7.2" -- how many hours of the day have data, and the spread of
+    /// their medians, at a glance without needing to read individual dots off the chart.
+    private var summaryCaption: String? {
+        guard let lo = dataPoints.map(\.median).min(), let hi = dataPoints.map(\.median).max() else {
+            return nil
+        }
+        let range = lo == hi ?
+            String(format: "%.1f", lo) :
+            "\(String(format: "%.1f", lo))–\(String(format: "%.1f", hi))"
+        return "\(dataPoints.count)/24 hrs · median \(range)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
@@ -46,6 +58,12 @@ private struct AlgorithmAdjustmentDotChart: View {
                 )
                 .frame(height: 130)
             } else {
+                if let summaryCaption {
+                    Text(summaryCaption)
+                        .font(.caption2)
+                        .foregroundStyle(color.opacity(0.8))
+                }
+
                 Chart(dataPoints, id: \.hour) { stats in
                     PointMark(
                         x: .value("Hour", Calendar.current.dateForChartHour(stats.hour)),
