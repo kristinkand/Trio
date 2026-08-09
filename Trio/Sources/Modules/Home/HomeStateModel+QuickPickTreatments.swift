@@ -2,7 +2,7 @@ import CoreData
 import Foundation
 
 /// A single historical amount (bolus units or carb grams) used to build Quick-Pick Treatment suggestions.
-private struct QuickPickSample {
+struct QuickPickSample {
     let amount: Decimal
     let timestamp: Date
 }
@@ -10,12 +10,12 @@ private struct QuickPickSample {
 /// Scores samples by recency, time-of-day, and weekday/weekend similarity to "now", then returns the
 /// rounded amounts with the highest scores. Shared by the bolus and carb Quick-Pick Treatment suggestion
 /// loaders so the two amount types are ranked with identical logic.
-private func topQuickPickSuggestions(
+func topQuickPickSuggestions(
     from samples: [QuickPickSample],
     roundingScale: Int,
+    now: Date,
     limit: Int = 5
 ) -> [Decimal] {
-    let now = Date()
     let cal = Calendar.current
     let nowMinute = cal.component(.hour, from: now) * 60 + cal.component(.minute, from: now)
     let nowDOW = cal.component(.weekday, from: now)
@@ -81,7 +81,7 @@ private func fetchQuickPickSuggestions<T: NSManagedObject>(
         return await fetchContext.perform {
             guard let entities = results as? [T] else { return [] }
             let samples = entities.compactMap(extractSample)
-            return topQuickPickSuggestions(from: samples, roundingScale: roundingScale)
+            return topQuickPickSuggestions(from: samples, roundingScale: roundingScale, now: Date())
         }
     } catch {
         debug(.default, "\(DebuggingIdentifiers.failed) failed to fetch quick-pick suggestions for \(type): \(error)")
@@ -117,9 +117,9 @@ extension Home.StateModel {
             sortKey: "pumpEvent.timestamp",
             roundingScale: 2
         ) { bolus in
-            guard let nsAmount = bolus.amount, nsAmount.doubleValue > 0, nsAmount.doubleValue <= maxBolusUnits,
+            guard let rawAmount = bolus.amount, rawAmount.doubleValue > 0, rawAmount.doubleValue <= maxBolusUnits,
                   let timestamp = bolus.pumpEvent?.timestamp else { return nil }
-            return QuickPickSample(amount: nsAmount as Decimal, timestamp: timestamp)
+            return QuickPickSample(amount: rawAmount as Decimal, timestamp: timestamp)
         }
     }
 
@@ -174,8 +174,11 @@ extension Home.StateModel {
         )
         do {
             guard try await unlockmanager.unlock() else { return .failed }
-            await apsManager.enactBolus(amount: delivery, isSMB: false, callback: nil)
-            return .succeeded
+            var bolusSucceeded = false
+            await apsManager.enactBolus(amount: delivery, isSMB: false) { success, _ in
+                bolusSucceeded = success
+            }
+            return bolusSucceeded ? .succeeded : .failed
         } catch {
             debug(.bolusState, "Quick-pick treatment bolus authentication error: \(error)")
             return .failed
