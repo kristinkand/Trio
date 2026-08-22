@@ -8,6 +8,11 @@ struct MealImpactListView: View {
     let events: [MealImpactEvent]
     let units: GlucoseUnits
 
+    /// A fixed viewport height, like the other Stats tabs' cards (Meals: 250, Bolus
+    /// Distribution: 280) -- rather than growing with the row count. The list scrolls
+    /// internally within this window instead of pushing the rest of the tab down.
+    private static let viewportHeight: CGFloat = 350
+
     var body: some View {
         List {
             ForEach(events) { event in
@@ -16,7 +21,7 @@ struct MealImpactListView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .frame(minHeight: CGFloat(events.count) * 92)
+        .frame(height: Self.viewportHeight)
     }
 }
 
