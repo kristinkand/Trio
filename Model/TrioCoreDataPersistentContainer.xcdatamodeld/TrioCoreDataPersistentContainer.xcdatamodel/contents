@@ -273,6 +273,7 @@
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="deviceType" optional="YES" attributeType="String"/>
         <attribute name="hasSiteIssue" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="hasInaccurateReadings" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="isPainful" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="isPainfulGivingInsulin" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>

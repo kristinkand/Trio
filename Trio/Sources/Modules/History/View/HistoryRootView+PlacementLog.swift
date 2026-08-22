@@ -60,6 +60,11 @@ extension History.RootView {
                                 .font(.caption)
                                 .foregroundStyle(.red)
                         }
+                        if entry.hasInaccurateReadings {
+                            Label("Inaccurate Readings", systemImage: "chart.line.downtrend.xyaxis")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
 
