@@ -20,6 +20,8 @@ extension History.RootView {
                                     state.newPlacementLocation = .upperArmLeft
                                 }
                                 state.newPlacementIsPainfulGivingInsulin = false
+                            } else {
+                                state.newPlacementHasInaccurateReadings = false
                             }
                         }
                 }.listRowBackground(Color.chart)
@@ -48,6 +50,9 @@ extension History.RootView {
                         Toggle("Painful (Giving Insulin)", isOn: $state.newPlacementIsPainfulGivingInsulin)
                     }
                     Toggle("Painful (Wearing)", isOn: $state.newPlacementIsPainful)
+                    if state.newPlacementDeviceType == .sensor {
+                        Toggle("Inaccurate Readings", isOn: $state.newPlacementHasInaccurateReadings)
+                    }
                 }.listRowBackground(Color.chart)
 
                 Section {
