@@ -19,6 +19,7 @@ extension Stat {
         @State private var selectedView: StateModel.StatisticViewType = .glucose
         @State private var isGlucoseDaySelected: Bool = false
         @State private var showExportMenu = false
+        @State private var showFoodImpactInfo = false
 
         private var intervalOptions: [Stat.StateModel.StatsTimeIntervalWithToday] {
             state.selectedGlucoseChartType == .percentileByDay || state.selectedGlucoseChartType == .distributionByDay
@@ -465,12 +466,29 @@ extension Stat {
         }
 
         @ViewBuilder var foodImpactView: some View {
-            Picker("Duration", selection: $state.selectedIntervalForMealImpactStats) {
-                ForEach(StateModel.StatsTimeInterval.allCases, id: \.self) { timeInterval in
-                    Text(timeInterval.displayName)
+            HStack {
+                Picker("Duration", selection: $state.selectedIntervalForMealImpactStats) {
+                    ForEach(StateModel.StatsTimeInterval.allCases, id: \.self) { timeInterval in
+                        Text(timeInterval.displayName)
+                    }
                 }
+                .pickerStyle(.segmented)
+
+                Button {
+                    showFoodImpactInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.borderless)
+                .padding(.leading, 4)
             }
-            .pickerStyle(.segmented)
+            .popover(isPresented: $showFoodImpactInfo) {
+                Text(
+                    "Tracks each meal from prebolus through the BG peak to flattening back out. \"2nd rise\" flags meals where a later rise followed an earlier partial come-down -- often high-fat/protein meals."
+                )
+                .padding()
+                .presentationCompactAdaptation(.popover)
+            }
 
             StatCard {
                 if state.mealImpactEvents.isEmpty {
@@ -486,14 +504,6 @@ extension Stat {
                     )
                 }
             }
-
-            HStack {
-                Image(systemName: "info.circle").foregroundStyle(Color.primary)
-                Text(
-                    "Tracks each meal from prebolus through the BG peak to flattening back out. \"2nd rise\" flags meals where a later rise followed an earlier partial come-down -- often high-fat/protein meals."
-                )
-                .foregroundStyle(Color.secondary)
-            }.font(.footnote)
         }
     }
 }
