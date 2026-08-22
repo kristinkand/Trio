@@ -8,7 +8,8 @@ protocol PlacementLogStorage {
         location: PlacementLocation,
         hasSiteIssue: Bool,
         isPainful: Bool,
-        isPainfulGivingInsulin: Bool
+        isPainfulGivingInsulin: Bool,
+        hasInaccurateReadings: Bool
     ) async
     func updatePlacementLog(
         _ objectID: NSManagedObjectID,
@@ -16,7 +17,8 @@ protocol PlacementLogStorage {
         location: PlacementLocation,
         hasSiteIssue: Bool,
         isPainful: Bool,
-        isPainfulGivingInsulin: Bool
+        isPainfulGivingInsulin: Bool,
+        hasInaccurateReadings: Bool
     ) async
     func deletePlacementLog(_ objectID: NSManagedObjectID) async
 }
@@ -37,12 +39,14 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
     ///   - hasSiteIssue: Whether a site issue was noted for this placement.
     ///   - isPainful: Whether the placement was painful to wear.
     ///   - isPainfulGivingInsulin: Whether giving insulin at this site was painful (pump only).
+    ///   - hasInaccurateReadings: Whether this sensor placement produced inaccurate readings (sensor only).
     func addPlacementLog(
         deviceType: PlacementDeviceType,
         location: PlacementLocation,
         hasSiteIssue: Bool,
         isPainful: Bool,
-        isPainfulGivingInsulin: Bool
+        isPainfulGivingInsulin: Bool,
+        hasInaccurateReadings: Bool
     ) async {
         let context = makeContext()
         context.name = "addPlacementLog"
@@ -55,6 +59,7 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
             newEntry.hasSiteIssue = hasSiteIssue
             newEntry.isPainful = isPainful
             newEntry.isPainfulGivingInsulin = isPainfulGivingInsulin
+            newEntry.hasInaccurateReadings = hasInaccurateReadings
 
             do {
                 guard context.hasChanges else { return }
@@ -76,13 +81,15 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
     ///   - hasSiteIssue: Whether a site issue was noted for this placement.
     ///   - isPainful: Whether the placement was painful to wear.
     ///   - isPainfulGivingInsulin: Whether giving insulin at this site was painful (pump only).
+    ///   - hasInaccurateReadings: Whether this sensor placement produced inaccurate readings (sensor only).
     func updatePlacementLog(
         _ objectID: NSManagedObjectID,
         deviceType: PlacementDeviceType,
         location: PlacementLocation,
         hasSiteIssue: Bool,
         isPainful: Bool,
-        isPainfulGivingInsulin: Bool
+        isPainfulGivingInsulin: Bool,
+        hasInaccurateReadings: Bool
     ) async {
         let context = makeContext()
         context.name = "updatePlacementLog"
@@ -98,6 +105,7 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
             entry.hasSiteIssue = hasSiteIssue
             entry.isPainful = isPainful
             entry.isPainfulGivingInsulin = isPainfulGivingInsulin
+            entry.hasInaccurateReadings = hasInaccurateReadings
 
             do {
                 guard context.hasChanges else { return }
