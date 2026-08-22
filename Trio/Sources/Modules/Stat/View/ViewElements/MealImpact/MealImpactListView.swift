@@ -8,10 +8,12 @@ struct MealImpactListView: View {
     let events: [MealImpactEvent]
     let units: GlucoseUnits
 
-    /// A fixed viewport height, like the other Stats tabs' cards (Meals: 250, Bolus
-    /// Distribution: 280) -- rather than growing with the row count. The list scrolls
-    /// internally within this window instead of pushing the rest of the tab down.
-    private static let viewportHeight: CGFloat = 350
+    /// A fixed viewport height -- rather than growing with the row count. The list
+    /// scrolls internally within this window instead of pushing the rest of the tab
+    /// down. Taller than the other Stats tabs' chart cards (200-280) on purpose: each
+    /// row here carries far more text than a chart bar does, so matching those exact
+    /// values read as cramped in practice.
+    private static let viewportHeight: CGFloat = 600
 
     var body: some View {
         List {
