@@ -4,6 +4,7 @@ import LoopKit
 import LoopKitUI
 import SwiftUI
 import TidepoolServiceKit
+import UserNotifications
 
 extension Settings {
     final class StateModel: BaseStateModel<Provider> {
@@ -20,6 +21,7 @@ extension Settings {
         @Published var debugOptions = false
         @Published var serviceUIType: ServiceUI.Type?
         @Published var setupTidepool = false
+        @Published var useCriticalAlerts = false
 
         private(set) var buildNumber = ""
         private(set) var versionNumber = ""
@@ -31,6 +33,7 @@ extension Settings {
 
             subscribeSetting(\.debugOptions, on: $debugOptions) { debugOptions = $0 }
             subscribeSetting(\.closedLoop, on: $closedLoop) { closedLoop = $0 }
+            subscribeSetting(\.useCriticalAlerts, on: $useCriticalAlerts) { useCriticalAlerts = $0 }
             broadcaster.register(SettingsObserver.self, observer: self)
 
             buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
@@ -60,6 +63,19 @@ extension Settings {
 
         func hideSettingsModal() {
             hideModal()
+        }
+
+        /// Re-requests notification authorization, now including `.criticalAlert`. iOS only
+        /// prompts the user for options it hasn't already asked about, so this is safe to call
+        /// repeatedly — it's a no-op once the user has answered the critical alerts prompt.
+        ///
+        /// Calls `UNUserNotificationCenter` directly rather than going through the DI-managed
+        /// `UserNotificationsManager` singleton: that type isn't registered with `.inObjectScope(.container)`,
+        /// so resolving it a second time here would construct a whole second object graph — including a
+        /// second `APSManager` — alongside the app's real one. This needs nothing from that graph, so it
+        /// avoids the issue entirely instead of touching the DI wiring.
+        func requestCriticalAlertsPermission() {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.badge, .sound, .alert, .criticalAlert]) { _, _ in }
         }
 
         // Commenting this out for now, as not needed and possibly dangerous for users to be able to nuke their pump pairing informations via the debug menu

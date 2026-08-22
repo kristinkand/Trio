@@ -323,7 +323,8 @@ final class LiveActivityData: ObservableObject {
                                 minForecast: [],
                                 maxForecast: [],
                                 forecastLines: [],
-                                forecastDisplayType: ForecastDisplayType.cone.rawValue
+                                forecastDisplayType: ForecastDisplayType.cone.rawValue,
+                                showBubble: settings.showBubbleInLiveActivity
                             ),
                             isInitialState: true
                         ),

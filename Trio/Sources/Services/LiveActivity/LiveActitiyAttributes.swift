@@ -53,6 +53,7 @@ struct LiveActivityAttributes: ActivityAttributes {
         let maxForecast: [Int]
         let forecastLines: [ForecastLine]
         let forecastDisplayType: String
+        let showBubble: Bool
     }
 
     struct ChartItem: Codable, Hashable {

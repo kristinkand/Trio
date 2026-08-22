@@ -46,6 +46,8 @@ extension Stat {
                             loopingView
                         case .meals:
                             mealsView
+                        case .algorithmAdjustments:
+                            algorithmAdjustmentsView
                         }
                     }
                     .padding()
@@ -426,6 +428,37 @@ extension Stat {
                     Text("Swipe the chart to scroll through time.")
                     Text("Tap and hold a bar to reveal more details.")
                 }.foregroundStyle(Color.secondary)
+            }.font(.footnote)
+        }
+
+        @ViewBuilder var algorithmAdjustmentsView: some View {
+            Picker("Duration", selection: $state.selectedIntervalForAlgorithmStats) {
+                ForEach(StateModel.StatsTimeIntervalWithToday.allCases, id: \.self) { interval in
+                    Text(interval.displayName)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            StatCard {
+                if state.algorithmAdjustmentStats.isEmpty {
+                    ContentUnavailableView(
+                        String(localized: "No Algorithm Data"),
+                        systemImage: "slider.horizontal.3",
+                        description: Text("Algorithm adjustment history will appear here once data is available.")
+                    )
+                } else {
+                    AlgorithmAdjustmentsChartsView(
+                        points: state.algorithmAdjustmentStats,
+                        units: state.units,
+                        selectedInterval: state.selectedIntervalForAlgorithmStats
+                    )
+                }
+            }
+
+            HStack {
+                Image(systemName: "info.circle").foregroundStyle(Color.primary)
+                Text("Shows ISF, Carb Ratio, Autosens Ratio (AF), and basal rate as the algorithm adjusted them over time.")
+                    .foregroundStyle(Color.secondary)
             }.font(.footnote)
         }
     }

@@ -50,6 +50,13 @@ extension Formatter {
         return dateFormatter
     }()
 
+    static let placementLogDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
+    }()
+
     static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "d"
