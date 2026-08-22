@@ -486,6 +486,8 @@ extension Stat {
                 Text(
                     "Tracks each meal from prebolus through the BG peak to flattening back out. \"2nd rise\" flags meals where a later rise followed an earlier partial come-down -- often high-fat/protein meals."
                 )
+                .frame(width: 280)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding()
                 .presentationCompactAdaptation(.popover)
             }
