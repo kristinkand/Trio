@@ -48,6 +48,8 @@ extension Stat {
                             mealsView
                         case .algorithmAdjustments:
                             algorithmAdjustmentsView
+                        case .foodImpact:
+                            foodImpactView
                         }
                     }
                     .padding()
@@ -459,6 +461,38 @@ extension Stat {
                 Image(systemName: "info.circle").foregroundStyle(Color.primary)
                 Text("Shows ISF, Carb Ratio, Autosens Ratio (AF), and basal rate as the algorithm adjusted them over time.")
                     .foregroundStyle(Color.secondary)
+            }.font(.footnote)
+        }
+
+        @ViewBuilder var foodImpactView: some View {
+            Picker("Duration", selection: $state.selectedIntervalForMealImpactStats) {
+                ForEach(StateModel.StatsTimeInterval.allCases, id: \.self) { timeInterval in
+                    Text(timeInterval.displayName)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            StatCard {
+                if state.mealImpactEvents.isEmpty {
+                    ContentUnavailableView(
+                        String(localized: "No Meal Data"),
+                        systemImage: "fork.knife",
+                        description: Text("Food impact will appear here once meals with carb entries are logged.")
+                    )
+                } else {
+                    MealImpactListView(
+                        events: state.mealImpactEvents,
+                        units: state.units
+                    )
+                }
+            }
+
+            HStack {
+                Image(systemName: "info.circle").foregroundStyle(Color.primary)
+                Text(
+                    "Tracks each meal from prebolus through the BG peak to flattening back out. \"2nd rise\" flags meals where a later rise followed an earlier partial come-down -- often high-fat/protein meals."
+                )
+                .foregroundStyle(Color.secondary)
             }.font(.footnote)
         }
     }
