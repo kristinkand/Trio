@@ -33,6 +33,7 @@ extension History {
         var newPlacementHasSiteIssue: Bool = false
         var newPlacementIsPainful: Bool = false
         var newPlacementIsPainfulGivingInsulin: Bool = false
+        var newPlacementHasInaccurateReadings: Bool = false
         var editingPlacementLogObjectID: NSManagedObjectID?
 
         override func subscribe() {
@@ -63,6 +64,7 @@ extension History {
             newPlacementHasSiteIssue = entry.hasSiteIssue
             newPlacementIsPainful = entry.isPainful
             newPlacementIsPainfulGivingInsulin = entry.isPainfulGivingInsulin
+            newPlacementHasInaccurateReadings = entry.hasInaccurateReadings
         }
 
         func resetNewPlacementLogFields() {
@@ -72,6 +74,7 @@ extension History {
             newPlacementHasSiteIssue = false
             newPlacementIsPainful = false
             newPlacementIsPainfulGivingInsulin = false
+            newPlacementHasInaccurateReadings = false
         }
 
         func savePlacementLog() {
@@ -83,7 +86,8 @@ extension History {
                         location: newPlacementLocation,
                         hasSiteIssue: newPlacementHasSiteIssue,
                         isPainful: newPlacementIsPainful,
-                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin
+                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin,
+                        hasInaccurateReadings: newPlacementHasInaccurateReadings
                     )
                 } else {
                     await placementLogStorage.addPlacementLog(
@@ -91,7 +95,8 @@ extension History {
                         location: newPlacementLocation,
                         hasSiteIssue: newPlacementHasSiteIssue,
                         isPainful: newPlacementIsPainful,
-                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin
+                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin,
+                        hasInaccurateReadings: newPlacementHasInaccurateReadings
                     )
                 }
                 resetNewPlacementLogFields()
