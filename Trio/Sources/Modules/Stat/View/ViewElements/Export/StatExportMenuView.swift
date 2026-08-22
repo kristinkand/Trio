@@ -254,6 +254,9 @@ struct StatExportMenuView: View {
         case .algorithmAdjustments:
             // Not yet exportable to PDF reports.
             return nil
+        case .foodImpact:
+            // Not yet exportable to PDF reports.
+            return nil
         }
     }
 
@@ -348,6 +351,9 @@ struct StatExportMenuView: View {
         case .algorithmAdjustments:
             // Not yet exportable to PDF reports.
             optionRow(title: String(localized: "Algorithm Adjustments"), isSelected: false, isEnabled: false) {}
+        case .foodImpact:
+            // Not yet exportable to PDF reports.
+            optionRow(title: String(localized: "Food Impact"), isSelected: false, isEnabled: false) {}
         }
     }
 
