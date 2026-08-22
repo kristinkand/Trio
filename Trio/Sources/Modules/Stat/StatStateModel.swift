@@ -21,6 +21,7 @@ extension Stat {
         var loopStats: [LoopStatsProcessedData] = []
         var groupedLoopStats: [LoopStatsByPeriod] = []
         var algorithmAdjustmentStats: [AlgorithmAdjustmentPoint] = []
+        var mealImpactEvents: [MealImpactEvent] = []
         var bolusStats: [BolusStats] = []
         var hourlyStats: [HourlyStats] = []
         var glucoseRangeStats: [GlucoseRangeStats] = []
@@ -61,6 +62,13 @@ extension Stat {
         // Selected Duration for Meal Stats
         var selectedIntervalForMealStats: StatsTimeInterval = .day
 
+        // Selected Duration for Food Impact Stats
+        var selectedIntervalForMealImpactStats: StatsTimeInterval = .day {
+            didSet {
+                setupMealImpactStats()
+            }
+        }
+
         // Selected Duration for Loop Stats
         var selectedIntervalForLoopStats: StatsTimeIntervalWithToday = .today {
             didSet {
@@ -97,6 +105,7 @@ extension Stat {
             setupLoopStatRecords()
             setupAlgorithmAdjustmentStats()
             setupMealStats()
+            setupMealImpactStats()
             setupGlucoseDailyStats()
             units = settingsManager.settings.units
             eA1cDisplayUnit = settingsManager.settings.eA1cDisplayUnit
@@ -374,6 +383,8 @@ extension Stat.StateModel {
         case meals
         /// Algorithm adjustment history (ISF, CR, AF, basal rate) statistics
         case algorithmAdjustments
+        /// Food impact statistics -- BG excursion tracked per meal, from prebolus through peak to flattening out
+        case foodImpact
 
         var id: String { rawValue }
 
@@ -391,6 +402,11 @@ extension Stat.StateModel {
                 return String(
                     localized: "Algorithm",
                     comment: "Title for algorithm adjustment history statistics (ISF, CR, AF, basal rate)"
+                )
+            case .foodImpact:
+                return String(
+                    localized: "Food Impact",
+                    comment: "Title for food impact statistics (BG excursion per meal)"
                 )
             }
         }
