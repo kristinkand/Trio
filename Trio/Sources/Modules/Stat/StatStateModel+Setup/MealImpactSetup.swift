@@ -143,9 +143,9 @@ extension Stat.StateModel {
                 guard let date = $0.date else { return nil }
                 return (date, Double($0.glucose))
             }
-            let bolusPoints: [(date: Date, amount: Double)] = boluses.compactMap {
+            let bolusPoints: [(date: Date, amount: Double, isSMB: Bool)] = boluses.compactMap {
                 guard let date = $0.pumpEvent?.timestamp, let amount = $0.amount?.doubleValue else { return nil }
-                return (date, amount)
+                return (date, amount, $0.isSMB)
             }
 
             return carbEntries
@@ -197,12 +197,18 @@ private func buildMealImpactEvent(
     fat: Double,
     protein: Double,
     glucosePoints: [(date: Date, value: Double)],
-    bolusPoints: [(date: Date, amount: Double)]
+    bolusPoints: [(date: Date, amount: Double, isSMB: Bool)]
 ) -> MealImpactEvent {
-    // 1. Prebolus: the closest bolus landing in [mealDate - 30min, mealDate + 5min].
+    // 1. Prebolus: the closest MANUAL (non-SMB) bolus landing in the lookback/lookahead
+    // window. SMBs are excluded on purpose -- they're automatic micro-boluses the closed
+    // loop fires on its own (often every ~5 min while correcting), not a deliberate
+    // prebolus action, and one can easily land in this window if BG happened to be
+    // elevated before the meal for an unrelated reason (previous meal's tail, dawn
+    // phenomenon, etc). Without this filter an SMB could get mistaken for the prebolus.
     let prebolus = bolusPoints
         .filter {
-            $0.date >= mealDate.addingTimeInterval(-prebolusLookback) &&
+            !$0.isSMB &&
+                $0.date >= mealDate.addingTimeInterval(-prebolusLookback) &&
                 $0.date <= mealDate.addingTimeInterval(prebolusLookahead)
         }
         .min { abs($0.date.timeIntervalSince(mealDate)) < abs($1.date.timeIntervalSince(mealDate)) }
@@ -296,8 +302,13 @@ private func globalMax(
     points.filter { $0.date >= start && $0.date <= end }.max { $0.value < $1.value }
 }
 
+/// Sums ALL boluses in the window -- prebolus, meal bolus, and every SMB -- regardless of
+/// isSMB. Unlike prebolus identification (which deliberately excludes SMBs), "total insulin
+/// used" is meant to capture every drop of bolus-type insulin delivered during the meal's
+/// impact window, exactly as SMBs are still real insulin the algorithm gave in response to
+/// this meal.
 private func totalInsulin(
-    in points: [(date: Date, amount: Double)],
+    in points: [(date: Date, amount: Double, isSMB: Bool)],
     from start: Date,
     to end: Date
 ) -> Double {
