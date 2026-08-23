@@ -85,8 +85,12 @@ private struct MealImpactRow: View {
             Divider()
 
             HStack {
+                // Labeled "Prebolus" (rather than the generic "Start") whenever a prebolus
+                // was actually identified, so it's unambiguous at a glance which bolus/time
+                // the algorithm picked -- easy to spot-check against your own memory of
+                // when you actually prebolused.
                 impactStat(
-                    title: "Start",
+                    title: event.prebolusDate != nil ? "Prebolus" : "Start",
                     time: event.prebolusDate.map(Self.timeFormatter.string) ?? Self.timeFormatter.string(from: event.startDate),
                     value: bg(event.startBG)
                 )
