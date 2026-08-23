@@ -12,8 +12,8 @@ struct MealImpactEvent: Identifiable {
     let id: UUID
     /// The triggering carb entry's own date/time.
     let mealDate: Date
-    /// Nearest bolus delivered shortly before the meal, if one was found -- see
-    /// `prebolusLookback`/`prebolusLookahead` below for what counts as "before".
+    /// The most recent bolus given meaningfully before the meal, if one was found -- see
+    /// `prebolusLookback`/`prebolusMinGapBeforeMeal` below for what counts as "before".
     let prebolusDate: Date?
     let prebolusAmount: Double?
     let carbs: Double
@@ -168,10 +168,17 @@ extension Stat.StateModel {
 
 // MARK: - Detection algorithm (pure functions -- no Core Data access, no dosing side effects)
 
-/// How far before a meal a bolus still counts as its "prebolus". The user's own cadence is
-/// ~15 min before eating; this gives a little slack on both sides of that.
-private let prebolusLookback = TimeInterval(minutes: 30)
-private let prebolusLookahead = TimeInterval(minutes: 5)
+/// How far before a meal a bolus still counts as its "prebolus". A prebolus is typically
+/// given 10-15 min before eating; 20 min gives a little slack above that.
+private let prebolusLookback = TimeInterval(minutes: 20)
+/// A bolus has to land at least this long before the carb entry to count as a genuine
+/// prebolus. Without this, a bolus given at essentially the same moment as the carb entry
+/// (e.g. a top-up dosed at the table, on top of an earlier real prebolus) would always win
+/// under a plain "closest in time" comparison -- its time gap to the meal is ~0, which beats
+/// any real prebolus given meaningfully earlier. Requiring a minimum gap excludes same-time
+/// top-ups from candidacy entirely, so only boluses genuinely given *ahead* of the meal are
+/// considered.
+private let prebolusMinGapBeforeMeal = TimeInterval(minutes: 3)
 /// Base tracked window length -- the ~4h cycle the user described.
 private let baseWindowLength = TimeInterval(hours: 4)
 /// How far the window can be pushed out chasing a still-rising, delayed (fat/protein) peak.
@@ -199,19 +206,23 @@ private func buildMealImpactEvent(
     glucosePoints: [(date: Date, value: Double)],
     bolusPoints: [(date: Date, amount: Double, isSMB: Bool)]
 ) -> MealImpactEvent {
-    // 1. Prebolus: the closest MANUAL (non-SMB) bolus landing in the lookback/lookahead
-    // window. SMBs are excluded on purpose -- they're automatic micro-boluses the closed
-    // loop fires on its own (often every ~5 min while correcting), not a deliberate
-    // prebolus action, and one can easily land in this window if BG happened to be
-    // elevated before the meal for an unrelated reason (previous meal's tail, dawn
-    // phenomenon, etc). Without this filter an SMB could get mistaken for the prebolus.
+    // 1. Prebolus: the MOST RECENT qualifying bolus given at least `prebolusMinGapBeforeMeal`
+    // before the meal, within `prebolusLookback` of it. Two exclusions matter here:
+    //   - SMBs: automatic micro-boluses the closed loop fires on its own (often every ~5 min
+    //     while correcting), not a deliberate prebolus action -- one can easily land in this
+    //     window if BG happened to be elevated before the meal for an unrelated reason.
+    //   - Anything within `prebolusMinGapBeforeMeal` of the carb entry: this is what a
+    //     same-time "top-up" bolus (dosed right at the table, on top of an earlier real
+    //     prebolus) looks like. Since all remaining candidates are now guaranteed to be
+    //     before the meal by at least that gap, the one closest to the meal is simply the
+    //     one with the latest (most recent) date.
     let prebolus = bolusPoints
         .filter {
             !$0.isSMB &&
                 $0.date >= mealDate.addingTimeInterval(-prebolusLookback) &&
-                $0.date <= mealDate.addingTimeInterval(prebolusLookahead)
+                $0.date <= mealDate.addingTimeInterval(-prebolusMinGapBeforeMeal)
         }
-        .min { abs($0.date.timeIntervalSince(mealDate)) < abs($1.date.timeIntervalSince(mealDate)) }
+        .max { $0.date < $1.date }
 
     let startDate = min(prebolus?.date ?? mealDate, mealDate)
     let startBG = nearestGlucose(to: startDate, in: glucosePoints)?.value
