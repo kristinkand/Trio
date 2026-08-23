@@ -2,7 +2,7 @@ import CoreData
 import Foundation
 
 /// A single detected "food impact" event: the BG excursion following one real (non-FPU)
-/// carb entry, from prebolus through peak through flattening back out.
+/// carb entry, from prebolus through peak through the end of the tracked window.
 ///
 /// Purely a read-only, display-only reconstruction of data the app already stored
 /// (`CarbEntryStored`, `BolusStored`, `GlucoseStored`, `PumpEventStored`). Nothing here calls
@@ -16,6 +16,8 @@ struct MealImpactEvent: Identifiable {
     /// `prebolusLookback`/`prebolusMinGapBeforeMeal` below for what counts as "before".
     let prebolusDate: Date?
     let prebolusAmount: Double?
+    /// Carbs/fat/protein for this event, INCLUDING any later bolus-free carb entries folded
+    /// in as a continuation of this same meal -- see `groupMealTriggers` below.
     let carbs: Double
     let fat: Double
     let protein: Double
@@ -28,8 +30,11 @@ struct MealImpactEvent: Identifiable {
     /// peak", or a real delayed peak would get missed.
     let peakDate: Date?
     let peakBG: Double?
-    /// First point after the peak where the curve has flattened out (or the last available
-    /// reading in-window, if it never fully flattens before the window closes).
+    /// The last glucose reading at or before the window's close. Deliberately NOT "wherever
+    /// the curve first looks flat" -- an early plateau mid-digestion (common with high-fat/
+    /// protein meals) would otherwise get mistaken for the end and cut the window short.
+    /// Standard carb-ratio testing looks at the full ~4h+ window regardless of a mid-curve
+    /// lull, so `endDate`/`endBG` always land at the true window boundary.
     let endDate: Date?
     let endBG: Double?
     /// Total bolus insulin -- prebolus + meal bolus + every SMB delivered between `startDate`
@@ -61,8 +66,9 @@ extension Stat.StateModel {
 
     /// Fetches carb entries, glucose readings, and boluses covering the selected duration
     /// (padded on both edges so a meal near the edge still gets its full follow-through
-    /// window and prebolus lookback), then reduces them to one `MealImpactEvent` per
-    /// non-FPU carb entry.
+    /// window and prebolus lookback), groups carb entries into one trigger per real meal
+    /// (folding in any later bolus-free "more carbs coming" entries -- see
+    /// `groupMealTriggers`), then reduces each trigger to one `MealImpactEvent`.
     func fetchMealImpactEvents(for interval: StatsTimeInterval) async throws -> [MealImpactEvent] {
         let taskContext = CoreDataStack.shared.newTaskContext()
         taskContext.name = "StatStateModel.fetchMealImpactEvents"
@@ -138,7 +144,7 @@ extension Stat.StateModel {
 
             // Reduced to plain (date, value) tuples up front -- easier to reason about (and
             // to unit test) than repeatedly faulting into managed objects during the
-            // peak/flatten search below.
+            // peak search below.
             let glucosePoints: [(date: Date, value: Double)] = glucoseReadings.compactMap {
                 guard let date = $0.date else { return nil }
                 return (date, Double($0.glucose))
@@ -147,16 +153,19 @@ extension Stat.StateModel {
                 guard let date = $0.pumpEvent?.timestamp, let amount = $0.amount?.doubleValue else { return nil }
                 return (date, amount, $0.isSMB)
             }
+            let rawTriggers: [RawMealTrigger] = carbEntries.compactMap {
+                guard let date = $0.date else { return nil }
+                return RawMealTrigger(id: $0.id ?? UUID(), date: date, carbs: $0.carbs, fat: $0.fat, protein: $0.protein)
+            }
 
-            return carbEntries
-                .compactMap { entry -> MealImpactEvent? in
-                    guard let mealDate = entry.date else { return nil }
-                    return buildMealImpactEvent(
-                        id: entry.id ?? UUID(),
-                        mealDate: mealDate,
-                        carbs: entry.carbs,
-                        fat: entry.fat,
-                        protein: entry.protein,
+            return groupMealTriggers(rawTriggers, bolusPoints: bolusPoints)
+                .map { trigger in
+                    buildMealImpactEvent(
+                        id: trigger.id,
+                        mealDate: trigger.date,
+                        carbs: trigger.carbs,
+                        fat: trigger.fat,
+                        protein: trigger.protein,
                         glucosePoints: glucosePoints,
                         bolusPoints: bolusPoints
                     )
@@ -179,6 +188,11 @@ private let prebolusLookback = TimeInterval(minutes: 20)
 /// top-ups from candidacy entirely, so only boluses genuinely given *ahead* of the meal are
 /// considered.
 private let prebolusMinGapBeforeMeal = TimeInterval(minutes: 3)
+/// How far either side of a LATER carb entry counts as "this entry got its own insulin
+/// coverage". Used only for grouping (see `groupMealTriggers`) -- a carb entry with no bolus
+/// anywhere near it is a "heads up, more carbs coming" annotation for an already-covered
+/// meal, not a new, separately-dosed one.
+private let followUpBolusWindow = TimeInterval(minutes: 20)
 /// Base tracked window length -- the ~4h cycle the user described.
 private let baseWindowLength = TimeInterval(hours: 4)
 /// How far the window can be pushed out chasing a still-rising, delayed (fat/protein) peak.
@@ -193,9 +207,64 @@ private let secondaryRiseProminence: Double = 15
 /// Minimum time gap between an earlier local high point and the true peak for it to count as
 /// its own separate rise rather than just the tail of the same one.
 private let secondaryRiseMinSeparation = TimeInterval(minutes: 45)
-/// A stretch this long where BG barely moves counts as "flattened out".
-private let flatteningWindow = TimeInterval(minutes: 20)
-private let flatteningThreshold: Double = 8
+
+/// One raw, ungrouped carb entry as read straight from Core Data.
+private struct RawMealTrigger {
+    let id: UUID
+    let date: Date
+    let carbs: Double
+    let fat: Double
+    let protein: Double
+}
+
+/// Groups raw carb entries into one trigger per real meal.
+///
+/// Some entries aren't a new meal at all: logging carbs with no bolus attached, sometime
+/// after an already-covered meal, is a deliberate way to warn oref that a second, delayed
+/// rise is coming (e.g. for a high-fat/protein meal) -- without actually dosing more
+/// insulin for it. Left alone, every one of those would spawn its own phantom "meal" card
+/// with no prebolus and its own separate (and misleading) impact window.
+///
+/// A later entry gets folded into the meal right before it -- its carbs/fat/protein added
+/// on, no separate event created -- when BOTH hold:
+///   - it falls within `baseWindowLength` of that meal's own start (still plausibly the same
+///     digestion cycle), and
+///   - it has no bolus of its own within `followUpBolusWindow` (i.e. it wasn't actually given
+///     its own insulin coverage, which would make it a genuine second, separately-dosed meal).
+/// Otherwise it starts a new group of its own.
+private func groupMealTriggers(
+    _ rawTriggers: [RawMealTrigger],
+    bolusPoints: [(date: Date, amount: Double, isSMB: Bool)]
+) -> [RawMealTrigger] {
+    var groups: [RawMealTrigger] = []
+
+    for entry in rawTriggers.sorted(by: { $0.date < $1.date }) {
+        let hasOwnBolus = bolusPoints.contains {
+            !$0.isSMB &&
+                $0.date >= entry.date.addingTimeInterval(-followUpBolusWindow) &&
+                $0.date <= entry.date.addingTimeInterval(followUpBolusWindow)
+        }
+
+        if !hasOwnBolus,
+           let last = groups.last,
+           entry.date <= last.date.addingTimeInterval(baseWindowLength)
+        {
+            // Fold into the meal already open -- same digestion cycle, just a heads-up that
+            // more carbs are on the way, not a new, separately-dosed meal.
+            groups[groups.count - 1] = RawMealTrigger(
+                id: last.id,
+                date: last.date,
+                carbs: last.carbs + entry.carbs,
+                fat: last.fat + entry.fat,
+                protein: last.protein + entry.protein
+            )
+        } else {
+            groups.append(entry)
+        }
+    }
+
+    return groups
+}
 
 private func buildMealImpactEvent(
     id: UUID,
@@ -252,22 +321,12 @@ private func buildMealImpactEvent(
         )
     }
 
-    // 3. Flattening point: the first point strictly after the peak where BG barely moves
-    // over the following ~20 min. Falls back to the last in-window reading if it never
-    // flattens before the window closes.
-    let afterPeak = glucosePoints.filter { $0.date > confirmedPeak.date && $0.date <= windowEnd }
-    var end = afterPeak.last
-    for point in afterPeak {
-        let nearTerm = afterPeak.filter {
-            $0.date >= point.date && $0.date <= point.date.addingTimeInterval(flatteningWindow)
-        }
-        guard nearTerm.count >= 2 else { continue }
-        let spread = (nearTerm.map(\.value).max() ?? 0) - (nearTerm.map(\.value).min() ?? 0)
-        if spread <= flatteningThreshold {
-            end = point
-            break
-        }
-    }
+    // 3. End of window: the last available glucose reading at or before `windowEnd`. This is
+    // deliberately just the window boundary rather than an earlier "looks flattened out"
+    // heuristic -- a brief mid-digestion plateau (common well before a meal is fully
+    // absorbed) was getting mistaken for the end and cutting the tracked window short, well
+    // under the full ~4h a carb-ratio test actually needs to see.
+    let end = glucosePoints.last { $0.date > confirmedPeak.date && $0.date <= windowEnd }
 
     // 4. Secondary-rise flag: an earlier local high point, well before the true peak, with a
     // real dip in between -- i.e. genuinely a second rise, not just the leading edge of the
