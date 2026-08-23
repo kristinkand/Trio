@@ -502,7 +502,8 @@ extension Stat {
                 } else {
                     MealImpactListView(
                         events: state.mealImpactEvents,
-                        units: state.units
+                        units: state.units,
+                        onOverrideChanged: { state.setupMealImpactStats() }
                     )
                 }
             }
