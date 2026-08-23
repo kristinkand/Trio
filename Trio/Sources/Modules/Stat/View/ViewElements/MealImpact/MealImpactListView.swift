@@ -2,34 +2,38 @@ import SwiftUI
 
 /// Read-only list view for the "Food Impact" stats tab: one row per detected meal event,
 /// showing the prebolus/meal timestamps, start/peak/end BG, carbs, prebolus amount, and total
-/// bolus insulin used across the ~4h (or longer, if the rise ran late) cycle. Purely a display
-/// of data already computed in `MealImpactSetup.swift` -- no dosing, pump, or sensor code here.
+/// bolus insulin used across the ~4h (or longer, if the rise ran late) cycle. The "End" stat
+/// is tappable -- when the auto-detected end doesn't match what the graph actually shows (a
+/// slow high-fat/protein rise, say), it can be corrected by hand; see
+/// `MealImpactEndOverrideStore` in `MealImpactSetup.swift`. Otherwise purely a display of data
+/// already computed there -- no dosing, pump, or sensor code here.
 struct MealImpactListView: View {
     let events: [MealImpactEvent]
     let units: GlucoseUnits
-
-    /// A fixed viewport height -- rather than growing with the row count. The list
-    /// scrolls internally within this window instead of pushing the rest of the tab
-    /// down. Taller than the other Stats tabs' chart cards (200-280) on purpose: each
-    /// row here carries far more text than a chart bar does, so matching those exact
-    /// values read as cramped in practice.
-    private static let viewportHeight: CGFloat = 600
+    /// Called after the user saves or clears a manual "End" correction, so the caller can
+    /// re-fetch events and pick the correction back up -- pass e.g.
+    /// `{ state.setupMealImpactStats() }`.
+    let onOverrideChanged: () -> Void
 
     var body: some View {
         List {
             ForEach(events) { event in
-                MealImpactRow(event: event, units: units)
+                MealImpactRow(event: event, units: units, onOverrideChanged: onOverrideChanged)
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .frame(height: Self.viewportHeight)
+        .frame(minHeight: CGFloat(events.count) * 92)
     }
 }
 
 private struct MealImpactRow: View {
     let event: MealImpactEvent
     let units: GlucoseUnits
+    let onOverrideChanged: () -> Void
+
+    @State private var showEndEditor = false
+    @State private var draftEndDate = Date()
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -85,12 +89,8 @@ private struct MealImpactRow: View {
             Divider()
 
             HStack {
-                // Labeled "Prebolus" (rather than the generic "Start") whenever a prebolus
-                // was actually identified, so it's unambiguous at a glance which bolus/time
-                // the algorithm picked -- easy to spot-check against your own memory of
-                // when you actually prebolused.
                 impactStat(
-                    title: event.prebolusDate != nil ? "Prebolus" : "Start",
+                    title: "Start",
                     time: event.prebolusDate.map(Self.timeFormatter.string) ?? Self.timeFormatter.string(from: event.startDate),
                     value: bg(event.startBG)
                 )
@@ -101,11 +101,18 @@ private struct MealImpactRow: View {
                     value: bg(event.peakBG)
                 )
                 Spacer()
-                impactStat(
-                    title: "End",
-                    time: event.endDate.map(Self.timeFormatter.string),
-                    value: bg(event.endBG)
-                )
+                Button {
+                    draftEndDate = event.endDate ?? event.mealDate
+                    showEndEditor = true
+                } label: {
+                    impactStat(
+                        title: event.endIsOverridden ? "End (edited)" : "End",
+                        time: event.endDate.map(Self.timeFormatter.string),
+                        value: bg(event.endBG),
+                        isEditable: true
+                    )
+                }
+                .buttonStyle(.plain)
             }
 
             if event.hasSecondaryRise, let riseDate = event.secondaryRiseDate {
@@ -136,15 +143,69 @@ private struct MealImpactRow: View {
             }
         }
         .padding(.vertical, 6)
+        .sheet(isPresented: $showEndEditor) {
+            endEditorSheet
+        }
     }
 
-    @ViewBuilder private func impactStat(title: String, time: String?, value: String) -> some View {
+    @ViewBuilder private var endEditorSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker(
+                        "End time",
+                        selection: $draftEndDate,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                } footer: {
+                    Text(
+                        "Correct this if the detected end doesn't match what you see on the graph -- e.g. a slow rise that was cut off too early."
+                    )
+                }
+
+                if event.endIsOverridden {
+                    Section {
+                        Button("Reset to Auto-Detected", role: .destructive) {
+                            MealImpactEndOverrideStore.clearEnd(for: event.id)
+                            onOverrideChanged()
+                            showEndEditor = false
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Edit End Time")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showEndEditor = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        MealImpactEndOverrideStore.setEnd(draftEndDate, for: event.id)
+                        onOverrideChanged()
+                        showEndEditor = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    @ViewBuilder private func impactStat(title: String, time: String?, value: String, isEditable: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 3) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                if isEditable {
+                    Image(systemName: "pencil")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
             Text(value)
                 .font(.subheadline.bold())
+                .foregroundStyle(isEditable ? Color.accentColor : .primary)
             if let time = time {
                 Text(time)
                     .font(.caption2)
