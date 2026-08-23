@@ -9,8 +9,6 @@ struct LoopView: View {
 
     private enum Config {
         static let lag: TimeInterval = 30
-        /// Floor for how long the spin stays up, so a sub-second loop still reads as work.
-        static let minimumSpinDuration: TimeInterval = 2
     }
 
     let closedLoop: Bool
@@ -23,7 +21,7 @@ struct LoopView: View {
 
     private let rect = CGRect(x: 0, y: 0, width: 18, height: 18)
 
-    /// `isLooping`, but never shown for less than `Config.minimumSpinDuration`: a loop can
+    /// `isLooping`, but never shown for less than 2 seconds: a loop can
     /// finish in well under a second, and a pill that flickers on and off reads as a glitch
     /// rather than as work. A loop that runs longer than that ends the spin when it ends.
     @State private var showLooping: Bool = false
@@ -45,7 +43,7 @@ struct LoopView: View {
                         return
                     }
 
-                    let remaining = Config.minimumSpinDuration - Date().timeIntervalSince(spinStart)
+                    let remaining = 2 - Date().timeIntervalSince(spinStart)
                     if remaining > 0 {
                         try? await Task.sleep(for: .seconds(remaining))
                         guard !Task.isCancelled else { return }
