@@ -47,6 +47,48 @@ struct MealImpactEvent: Identifiable {
     let hasSecondaryRise: Bool
     let secondaryRiseDate: Date?
     let secondaryRiseBG: Double?
+    /// True when `endDate`/`endBG` reflect a manual correction (via `MealImpactEndOverrideStore`)
+    /// rather than the auto-detected window boundary.
+    let endIsOverridden: Bool
+}
+
+/// Lets the user correct the algorithm's detected "end" time for one specific meal event when
+/// they can see from the graph that digestion clearly continued past (or stopped short of)
+/// what got auto-detected -- e.g. a slow high-fat/protein rise the window's extension logic
+/// didn't chase far enough. Purely a display-layer override, keyed by the meal's own `id`: it
+/// never touches the underlying carb/bolus/glucose data, just which end timestamp
+/// `MealImpactEvent` reports (and, downstream, `endBG` and `totalInsulin`, which are both
+/// re-derived from it in `buildMealImpactEvent`).
+enum MealImpactEndOverrideStore {
+    private static let defaultsKey = "mealImpactEndOverrides"
+
+    private static func loadAll() -> [String: Date] {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let decoded = try? JSONDecoder().decode([String: Date].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    private static func saveAll(_ overrides: [String: Date]) {
+        guard let data = try? JSONEncoder().encode(overrides) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    static func end(for id: UUID) -> Date? {
+        loadAll()[id.uuidString]
+    }
+
+    static func setEnd(_ date: Date, for id: UUID) {
+        var all = loadAll()
+        all[id.uuidString] = date
+        saveAll(all)
+    }
+
+    static func clearEnd(for id: UUID) {
+        var all = loadAll()
+        all.removeValue(forKey: id.uuidString)
+        saveAll(all)
+    }
 }
 
 extension Stat.StateModel {
@@ -311,13 +353,15 @@ private func buildMealImpactEvent(
 
     guard let confirmedPeak = peak else {
         // No glucose data at all in-window -- still surface the meal/dosing facts, just
-        // without a BG-derived peak/end.
+        // without a BG-derived peak/end (unless the user has manually set one anyway).
+        let resolved = resolvedEnd(for: id, algorithmicEnd: nil, glucosePoints: glucosePoints)
         return MealImpactEvent(
             id: id, mealDate: mealDate, prebolusDate: prebolus?.date, prebolusAmount: prebolus?.amount,
             carbs: carbs, fat: fat, protein: protein, startDate: startDate, startBG: startBG,
-            peakDate: nil, peakBG: nil, endDate: nil, endBG: nil,
-            totalInsulin: totalInsulin(in: bolusPoints, from: startDate, to: windowEnd),
-            hasSecondaryRise: false, secondaryRiseDate: nil, secondaryRiseBG: nil
+            peakDate: nil, peakBG: nil, endDate: resolved.date, endBG: resolved.value,
+            totalInsulin: totalInsulin(in: bolusPoints, from: startDate, to: resolved.date ?? windowEnd),
+            hasSecondaryRise: false, secondaryRiseDate: nil, secondaryRiseBG: nil,
+            endIsOverridden: resolved.isOverridden
         )
     }
 
@@ -325,8 +369,12 @@ private func buildMealImpactEvent(
     // deliberately just the window boundary rather than an earlier "looks flattened out"
     // heuristic -- a brief mid-digestion plateau (common well before a meal is fully
     // absorbed) was getting mistaken for the end and cutting the tracked window short, well
-    // under the full ~4h a carb-ratio test actually needs to see.
-    let end = glucosePoints.last { $0.date > confirmedPeak.date && $0.date <= windowEnd }
+    // under the full ~4h a carb-ratio test actually needs to see. If the user has manually
+    // corrected this specific meal's end (see `MealImpactEndOverrideStore`), that correction
+    // wins instead -- e.g. a slow high-fat/protein rise the window extension logic still
+    // didn't chase far enough.
+    let algorithmicEnd = glucosePoints.last { $0.date > confirmedPeak.date && $0.date <= windowEnd }
+    let resolvedEndResult = resolvedEnd(for: id, algorithmicEnd: algorithmicEnd, glucosePoints: glucosePoints)
 
     // 4. Secondary-rise flag: an earlier local high point, well before the true peak, with a
     // real dip in between -- i.e. genuinely a second rise, not just the leading edge of the
@@ -348,13 +396,29 @@ private func buildMealImpactEvent(
         startBG: startBG,
         peakDate: confirmedPeak.date,
         peakBG: confirmedPeak.value,
-        endDate: end?.date,
-        endBG: end?.value,
-        totalInsulin: totalInsulin(in: bolusPoints, from: startDate, to: end?.date ?? windowEnd),
+        endDate: resolvedEndResult.date,
+        endBG: resolvedEndResult.value,
+        totalInsulin: totalInsulin(in: bolusPoints, from: startDate, to: resolvedEndResult.date ?? windowEnd),
         hasSecondaryRise: secondary != nil,
         secondaryRiseDate: secondary?.date,
-        secondaryRiseBG: secondary?.value
+        secondaryRiseBG: secondary?.value,
+        endIsOverridden: resolvedEndResult.isOverridden
     )
+}
+
+/// Applies a manual `MealImpactEndOverrideStore` correction (if one exists for this meal) in
+/// place of the algorithmically-detected end. When overridden, `endBG` is looked up fresh at
+/// the corrected time rather than reused from the algorithmic result, since the two dates
+/// will generally differ.
+private func resolvedEnd(
+    for id: UUID,
+    algorithmicEnd: (date: Date, value: Double)?,
+    glucosePoints: [(date: Date, value: Double)]
+) -> (date: Date?, value: Double?, isOverridden: Bool) {
+    if let overrideDate = MealImpactEndOverrideStore.end(for: id) {
+        return (overrideDate, nearestGlucose(to: overrideDate, in: glucosePoints)?.value, true)
+    }
+    return (algorithmicEnd?.date, algorithmicEnd?.value, false)
 }
 
 private func nearestGlucose(
