@@ -19,8 +19,6 @@ struct LoopView: View {
 
     let determination: [OrefDetermination]
 
-    private let rect = CGRect(x: 0, y: 0, width: 18, height: 18)
-
     /// `isLooping`, but never shown for less than 2 seconds: a loop can
     /// finish in well under a second, and a pill that flickers on and off reads as a glitch
     /// rather than as work. A loop that runs longer than that ends the spin when it ends.
@@ -63,7 +61,7 @@ struct LoopView: View {
             }
             if showLooping, reduceMotion {
                 // neither the spinning border nor the pulse runs here, so say it in words
-                Text("Looping", comment: "Loop status label while a loop cycle is running")
+                Text("looping")
             } else if manualTempBasal {
                 Text("Manual")
             } else if determination.first?
@@ -113,22 +111,6 @@ struct LoopView: View {
             return .loopYellow
         } else {
             return .loopRed
-        }
-    }
-}
-
-extension View {
-    func animateForever(
-        using animation: Animation = Animation.easeInOut(duration: 1),
-        autoreverses: Bool = false,
-        _ action: @escaping () -> Void
-    ) -> some View {
-        let repeated = animation.repeatForever(autoreverses: autoreverses)
-
-        return onAppear {
-            withAnimation(repeated) {
-                action()
-            }
         }
     }
 }
