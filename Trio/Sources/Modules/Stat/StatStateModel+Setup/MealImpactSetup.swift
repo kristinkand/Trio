@@ -50,6 +50,12 @@ struct MealImpactEvent: Identifiable {
     /// True when `endDate`/`endBG` reflect a manual correction (via `MealImpactEndOverrideStore`)
     /// rather than the auto-detected window boundary.
     let endIsOverridden: Bool
+    /// True when `startDate`/`startBG` reflect a manual correction (via
+    /// `MealImpactStartOverrideStore`) rather than the auto-detected prebolus/meal time.
+    let startIsOverridden: Bool
+    /// Free-text note the user attached to this meal (e.g. "pizza"), if any -- see
+    /// `MealImpactNoteStore`. Purely descriptive; never read by any detection logic.
+    let note: String?
 }
 
 /// Lets the user correct the algorithm's detected "end" time for one specific meal event when
@@ -85,6 +91,122 @@ enum MealImpactEndOverrideStore {
     }
 
     static func clearEnd(for id: UUID) {
+        var all = loadAll()
+        all.removeValue(forKey: id.uuidString)
+        saveAll(all)
+    }
+}
+
+/// Mirrors `MealImpactEndOverrideStore`, but for the window's START time -- lets the user
+/// correct the detected prebolus/meal start when the graph shows digestion clearly began
+/// earlier or later than what got auto-detected. Moving the start also shifts every downstream
+/// computation for this meal (peak search window, secondary-rise search, total insulin), since
+/// they're all derived from `startDate` -- exactly mirroring how an end correction already
+/// affects `totalInsulin` in `buildMealImpactEvent`.
+enum MealImpactStartOverrideStore {
+    private static let defaultsKey = "mealImpactStartOverrides"
+
+    private static func loadAll() -> [String: Date] {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let decoded = try? JSONDecoder().decode([String: Date].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    private static func saveAll(_ overrides: [String: Date]) {
+        guard let data = try? JSONEncoder().encode(overrides) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    static func start(for id: UUID) -> Date? {
+        loadAll()[id.uuidString]
+    }
+
+    static func setStart(_ date: Date, for id: UUID) {
+        var all = loadAll()
+        all[id.uuidString] = date
+        saveAll(all)
+    }
+
+    static func clearStart(for id: UUID) {
+        var all = loadAll()
+        all.removeValue(forKey: id.uuidString)
+        saveAll(all)
+    }
+}
+
+/// Lets the user dismiss a detected secondary rise that isn't a real one -- e.g. sensor noise
+/// or a dip/rebound the prominence heuristic mistook for a genuine second absorption wave.
+/// Keyed by the meal's own `id`, same as the other override stores. When dismissed,
+/// `buildMealImpactEvent` reports `hasSecondaryRise: false` regardless of what the detection
+/// heuristic found -- purely a display-layer suppression, same as the other overrides here.
+enum MealImpactSecondaryRiseOverrideStore {
+    private static let defaultsKey = "mealImpactDismissedSecondaryRises"
+
+    private static func loadAll() -> Set<String> {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let decoded = try? JSONDecoder().decode(Set<String>.self, from: data)
+        else { return [] }
+        return decoded
+    }
+
+    private static func saveAll(_ dismissed: Set<String>) {
+        guard let data = try? JSONEncoder().encode(dismissed) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    static func isDismissed(for id: UUID) -> Bool {
+        loadAll().contains(id.uuidString)
+    }
+
+    static func dismiss(for id: UUID) {
+        var all = loadAll()
+        all.insert(id.uuidString)
+        saveAll(all)
+    }
+
+    static func restore(for id: UUID) {
+        var all = loadAll()
+        all.remove(id.uuidString)
+        saveAll(all)
+    }
+}
+
+/// Free-text note the user can attach to a meal event (e.g. "pizza", "ate late"), keyed by the
+/// meal's own `id`. Purely descriptive -- stored and displayed only, never read by any
+/// detection logic.
+enum MealImpactNoteStore {
+    private static let defaultsKey = "mealImpactNotes"
+
+    private static func loadAll() -> [String: String] {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let decoded = try? JSONDecoder().decode([String: String].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    private static func saveAll(_ notes: [String: String]) {
+        guard let data = try? JSONEncoder().encode(notes) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    static func note(for id: UUID) -> String? {
+        let trimmed = loadAll()[id.uuidString]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (trimmed?.isEmpty ?? true) ? nil : trimmed
+    }
+
+    static func setNote(_ note: String, for id: UUID) {
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        var all = loadAll()
+        if trimmed.isEmpty {
+            all.removeValue(forKey: id.uuidString)
+        } else {
+            all[id.uuidString] = trimmed
+        }
+        saveAll(all)
+    }
+
+    static func clearNote(for id: UUID) {
         var all = loadAll()
         all.removeValue(forKey: id.uuidString)
         saveAll(all)
@@ -335,8 +457,11 @@ private func buildMealImpactEvent(
         }
         .max { $0.date < $1.date }
 
-    let startDate = min(prebolus?.date ?? mealDate, mealDate)
+    let algorithmicStartDate = min(prebolus?.date ?? mealDate, mealDate)
+    let resolvedStartResult = resolvedStart(for: id, algorithmicStart: algorithmicStartDate)
+    let startDate = resolvedStartResult.date
     let startBG = nearestGlucose(to: startDate, in: glucosePoints)?.value
+    let note = MealImpactNoteStore.note(for: id)
 
     // 2. Extend the window while the running global-max peak still sits too close to the
     // current edge to trust it as final -- i.e. the curve may still be climbing.
@@ -361,7 +486,9 @@ private func buildMealImpactEvent(
             peakDate: nil, peakBG: nil, endDate: resolved.date, endBG: resolved.value,
             totalInsulin: totalInsulin(in: bolusPoints, from: startDate, to: resolved.date ?? windowEnd),
             hasSecondaryRise: false, secondaryRiseDate: nil, secondaryRiseBG: nil,
-            endIsOverridden: resolved.isOverridden
+            endIsOverridden: resolved.isOverridden,
+            startIsOverridden: resolvedStartResult.isOverridden,
+            note: note
         )
     }
 
@@ -383,6 +510,9 @@ private func buildMealImpactEvent(
     let secondary = localMaxima(in: beforePeak, minProminence: secondaryRiseProminence)
         .filter { confirmedPeak.date.timeIntervalSince($0.date) >= secondaryRiseMinSeparation }
         .max { $0.value < $1.value }
+    // A user-dismissed secondary rise is reported as if the detector never found one -- see
+    // `MealImpactSecondaryRiseOverrideStore`.
+    let secondaryIsDismissed = MealImpactSecondaryRiseOverrideStore.isDismissed(for: id)
 
     return MealImpactEvent(
         id: id,
@@ -399,10 +529,12 @@ private func buildMealImpactEvent(
         endDate: resolvedEndResult.date,
         endBG: resolvedEndResult.value,
         totalInsulin: totalInsulin(in: bolusPoints, from: startDate, to: resolvedEndResult.date ?? windowEnd),
-        hasSecondaryRise: secondary != nil,
-        secondaryRiseDate: secondary?.date,
-        secondaryRiseBG: secondary?.value,
-        endIsOverridden: resolvedEndResult.isOverridden
+        hasSecondaryRise: secondaryIsDismissed ? false : secondary != nil,
+        secondaryRiseDate: secondaryIsDismissed ? nil : secondary?.date,
+        secondaryRiseBG: secondaryIsDismissed ? nil : secondary?.value,
+        endIsOverridden: resolvedEndResult.isOverridden,
+        startIsOverridden: resolvedStartResult.isOverridden,
+        note: note
     )
 }
 
@@ -419,6 +551,20 @@ private func resolvedEnd(
         return (overrideDate, nearestGlucose(to: overrideDate, in: glucosePoints)?.value, true)
     }
     return (algorithmicEnd?.date, algorithmicEnd?.value, false)
+}
+
+/// Applies a manual `MealImpactStartOverrideStore` correction (if one exists for this meal) in
+/// place of the algorithmically-detected start (prebolus time, or meal time if no prebolus was
+/// found). Unlike `resolvedEnd`, always returns a concrete `Date` -- the window has to start
+/// somewhere -- falling back to `algorithmicStart` when there's no override.
+private func resolvedStart(
+    for id: UUID,
+    algorithmicStart: Date
+) -> (date: Date, isOverridden: Bool) {
+    if let overrideDate = MealImpactStartOverrideStore.start(for: id) {
+        return (overrideDate, true)
+    }
+    return (algorithmicStart, false)
 }
 
 private func nearestGlucose(
