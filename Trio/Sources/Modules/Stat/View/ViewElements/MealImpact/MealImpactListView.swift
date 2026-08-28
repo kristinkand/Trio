@@ -1,12 +1,17 @@
 import SwiftUI
 
-/// Read-only list view for the "Food Impact" stats tab: one row per detected meal event,
-/// showing the prebolus/meal timestamps, start/peak/end BG, carbs, prebolus amount, and total
-/// bolus insulin used across the ~4h (or longer, if the rise ran late) cycle. The "End" stat
-/// is tappable -- when the auto-detected end doesn't match what the graph actually shows (a
-/// slow high-fat/protein rise, say), it can be corrected by hand; see
-/// `MealImpactEndOverrideStore` in `MealImpactSetup.swift`. Otherwise purely a display of data
-/// already computed there -- no dosing, pump, or sensor code here.
+/// List view for the "Food Impact" stats tab: one row per detected meal event, showing the
+/// prebolus/meal timestamps, start/peak/end BG, carbs, prebolus amount, and total bolus insulin
+/// used across the ~4h (or longer, if the rise ran late) cycle. Mostly a display of data already
+/// computed in `MealImpactSetup.swift` -- no dosing, pump, or sensor code here -- but a few
+/// pieces are user-editable, each backed by its own small UserDefaults-keyed override store:
+///   - "Start" and "End" are tappable -- correct either by hand when the auto-detected time
+///     doesn't match what the graph actually shows. See `MealImpactStartOverrideStore` /
+///     `MealImpactEndOverrideStore`.
+///   - A detected secondary rise can be dismissed (the ⓧ next to it) if it's not a real one --
+///     see `MealImpactSecondaryRiseOverrideStore`.
+///   - A free-text note (e.g. "pizza") can be attached via the note icon -- see
+///     `MealImpactNoteStore`.
 struct MealImpactListView: View {
     let events: [MealImpactEvent]
     let units: GlucoseUnits
@@ -34,6 +39,10 @@ private struct MealImpactRow: View {
 
     @State private var showEndEditor = false
     @State private var draftEndDate = Date()
+    @State private var showStartEditor = false
+    @State private var draftStartDate = Date()
+    @State private var showNoteEditor = false
+    @State private var draftNote = ""
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -75,6 +84,16 @@ private struct MealImpactRow: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
+
+                Button {
+                    draftNote = event.note ?? ""
+                    showNoteEditor = true
+                } label: {
+                    Image(systemName: event.note == nil ? "note.text.badge.plus" : "note.text")
+                        .font(.caption)
+                        .foregroundStyle(event.note == nil ? Color.secondary : Color.accentColor)
+                }
+                .buttonStyle(.plain)
             }
 
             HStack(spacing: 12) {
@@ -86,14 +105,28 @@ private struct MealImpactRow: View {
             .font(.caption)
             .foregroundStyle(.secondary)
 
+            if let note = event.note {
+                Text("📝 \(note)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .italic()
+            }
+
             Divider()
 
             HStack {
-                impactStat(
-                    title: "Start",
-                    time: event.prebolusDate.map(Self.timeFormatter.string) ?? Self.timeFormatter.string(from: event.startDate),
-                    value: bg(event.startBG)
-                )
+                Button {
+                    draftStartDate = event.startDate
+                    showStartEditor = true
+                } label: {
+                    impactStat(
+                        title: event.startIsOverridden ? "Start (edited)" : "Start",
+                        time: Self.timeFormatter.string(from: event.startDate),
+                        value: bg(event.startBG),
+                        isEditable: true
+                    )
+                }
+                .buttonStyle(.plain)
                 Spacer()
                 impactStat(
                     title: "Peak",
@@ -116,9 +149,20 @@ private struct MealImpactRow: View {
             }
 
             if event.hasSecondaryRise, let riseDate = event.secondaryRiseDate {
-                Text("Secondary rise at \(Self.timeFormatter.string(from: riseDate)) (\(bg(event.secondaryRiseBG)))")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+                HStack {
+                    Text("Secondary rise at \(Self.timeFormatter.string(from: riseDate)) (\(bg(event.secondaryRiseBG)))")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Button {
+                        MealImpactSecondaryRiseOverrideStore.dismiss(for: event.id)
+                        onOverrideChanged()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             Divider()
@@ -145,6 +189,12 @@ private struct MealImpactRow: View {
         .padding(.vertical, 6)
         .sheet(isPresented: $showEndEditor) {
             endEditorSheet
+        }
+        .sheet(isPresented: $showStartEditor) {
+            startEditorSheet
+        }
+        .sheet(isPresented: $showNoteEditor) {
+            noteEditorSheet
         }
     }
 
@@ -184,6 +234,86 @@ private struct MealImpactRow: View {
                         MealImpactEndOverrideStore.setEnd(draftEndDate, for: event.id)
                         onOverrideChanged()
                         showEndEditor = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    @ViewBuilder private var startEditorSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker(
+                        "Start time",
+                        selection: $draftStartDate,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                } footer: {
+                    Text(
+                        "Correct this if the detected start (prebolus or meal time) doesn't match what you see on the graph. Moving the start also shifts the peak, secondary-rise, and total-insulin calculations for this meal, since they're all measured from here."
+                    )
+                }
+
+                if event.startIsOverridden {
+                    Section {
+                        Button("Reset to Auto-Detected", role: .destructive) {
+                            MealImpactStartOverrideStore.clearStart(for: event.id)
+                            onOverrideChanged()
+                            showStartEditor = false
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Edit Start Time")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showStartEditor = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        MealImpactStartOverrideStore.setStart(draftStartDate, for: event.id)
+                        onOverrideChanged()
+                        showStartEditor = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    @ViewBuilder private var noteEditorSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("e.g. pizza", text: $draftNote)
+                } footer: {
+                    Text("A short note about this meal -- shown alongside its stats in this list.")
+                }
+
+                if event.note != nil {
+                    Section {
+                        Button("Remove Note", role: .destructive) {
+                            MealImpactNoteStore.clearNote(for: event.id)
+                            onOverrideChanged()
+                            showNoteEditor = false
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Meal Note")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showNoteEditor = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        MealImpactNoteStore.setNote(draftNote, for: event.id)
+                        onOverrideChanged()
+                        showNoteEditor = false
                     }
                 }
             }
