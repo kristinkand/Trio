@@ -890,6 +890,7 @@
 		DDD163182C4C694000CD525A /* AdjustmentsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */; };
 		E65F8866467027CD3D490165 /* WeekendProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */; };
 		BF4A82E6D4AB4B328B057976 /* WeekendProfileSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */; };
+		41DAFD84B0E1DE70A9D74C2C /* WeekendScheduleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA13DF48FA7D84A9C4E74C6 /* WeekendScheduleEditor.swift */; };
 		DDD1631A2C4C695E00CD525A /* EditOverrideForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163192C4C695E00CD525A /* EditOverrideForm.swift */; };
 		DDD1631C2C4C697400CD525A /* AddOverrideForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD1631B2C4C697400CD525A /* AddOverrideForm.swift */; };
 		DDD1631F2C4C6F6900CD525A /* TrioCoreDataPersistentContainer.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = DDD1631D2C4C6F6900CD525A /* TrioCoreDataPersistentContainer.xcdatamodeld */; };
@@ -1980,6 +1981,7 @@
 		DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsRootView.swift; sourceTree = "<group>"; };
 		316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendProfileStore.swift; sourceTree = "<group>"; };
 		62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendProfileSection.swift; sourceTree = "<group>"; };
+		8AA13DF48FA7D84A9C4E74C6 /* WeekendScheduleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendScheduleEditor.swift; sourceTree = "<group>"; };
 		DDD163192C4C695E00CD525A /* EditOverrideForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditOverrideForm.swift; sourceTree = "<group>"; };
 		DDD1631B2C4C697400CD525A /* AddOverrideForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddOverrideForm.swift; sourceTree = "<group>"; };
 		DDD1631E2C4C6F6900CD525A /* TrioCoreDataPersistentContainer.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = TrioCoreDataPersistentContainer.xcdatamodel; sourceTree = "<group>"; };
@@ -4638,6 +4640,7 @@
 				DD5DC9F52CF3DA8900AB8703 /* ViewElements */,
 				DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */,
 				62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */,
+				8AA13DF48FA7D84A9C4E74C6 /* WeekendScheduleEditor.swift */,
 				BD793CAD2CE7660C00D669AC /* Overrides */,
 				BD793CAE2CE7661D00D669AC /* TempTargets */,
 			);
@@ -5810,6 +5813,7 @@
 				1967DFBE29D052C200759F30 /* Icons.swift in Sources */,
 				DDD163182C4C694000CD525A /* AdjustmentsRootView.swift in Sources */,
 				BF4A82E6D4AB4B328B057976 /* WeekendProfileSection.swift in Sources */,
+				41DAFD84B0E1DE70A9D74C2C /* WeekendScheduleEditor.swift in Sources */,
 				389ECE052601144100D86C4F /* ConcurrentMap.swift in Sources */,
 				110AEDEC2C51A0AE00615CC9 /* ShortcutsConfigDataFlow.swift in Sources */,
 				CE7CA3562A064973004BE681 /* StateIntentRequest.swift in Sources */,

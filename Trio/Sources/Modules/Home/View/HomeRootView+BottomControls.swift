@@ -62,6 +62,9 @@ extension Home.RootView {
     var adjustmentTint: Color? {
         if overrideString != nil { return Color.purple }
         if tempTargetString != nil { return Color.loopGreen }
+        // Weekend Profile is mutually exclusive with a real Override/Temp Target (see
+        // WeekendProfileStore) so it only ever shows once neither of those is active.
+        if isWeekendProfileActive { return Color.mint }
         return nil
     }
 
@@ -276,6 +279,29 @@ extension Home.RootView {
             }
     }
 
+    @ViewBuilder func adjustmentsWeekendProfileView() -> some View {
+        Group {
+            adjustmentIcon("sun.max.fill", tint: Color.mint)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(WeekendProfileStore.name)
+                    .font(.subheadline).fontWeight(.semibold)
+                    .frame(alignment: .leading)
+
+                Text("Active")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Weekend Profile is started/stopped from Adjustments, not cancelled from here --
+            // clear icon keeps text aligned with the other adjustment states.
+            Image(systemName: "xmark.app")
+                .font(.title)
+                .foregroundStyle(Color.clear)
+        }
+    }
+
     @ViewBuilder func noActiveAdjustmentsView() -> some View {
         Group {
             adjustmentIcon("slider.horizontal.2.gobackward", tint: Color.secondary)
@@ -366,6 +392,8 @@ extension Home.RootView {
                         Spacer()
                         adjustmentsCancelTempTargetView()
                     }
+                } else if isWeekendProfileActive {
+                    adjustmentsWeekendProfileView()
                 } else {
                     noActiveAdjustmentsView()
                 }

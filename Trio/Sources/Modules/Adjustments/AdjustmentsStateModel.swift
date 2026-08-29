@@ -253,7 +253,50 @@ extension Adjustments.StateModel: SettingsObserver, PreferencesObserver {
     /// visible marker on the Nightscout chart without inventing any new upload machinery.
     func uploadWeekendProfileNote(started: Bool) {
         Task {
-            await nightscoutManager.uploadNoteTreatment(note: started ? "Weekend Profile started" : "Weekend Profile ended")
+            let note = "\(WeekendProfileStore.name) \(started ? "started" : "ended")"
+            await nightscoutManager.uploadNoteTreatment(note: note)
+        }
+    }
+}
+
+// MARK: - Weekend Profile
+
+extension Adjustments.StateModel {
+    /// The real basal schedule, exposed only so `WeekendProfileSection` can prefill its own draft
+    /// the first time the editor is opened (see `WeekendProfileStore.isConfigured`). Never written
+    /// to -- Weekend Profile's schedule lives entirely in `WeekendProfileStore`.
+    var currentBasalProfileForWeekendPrefill: [BasalProfileEntry] { provider.currentBasalProfile }
+
+    /// The real ISF schedule -- same prefill purpose as `currentBasalProfileForWeekendPrefill`.
+    var currentInsulinSensitivitiesForWeekendPrefill: InsulinSensitivities { provider.currentInsulinSensitivities }
+
+    /// Persists a full Weekend Profile draft in one shot -- the only place that writes
+    /// `WeekendProfileStore`'s configurable fields, called from `WeekendProfileSection`'s Save
+    /// button. Also posts a Nightscout Note so a schedule change is visible on the chart, and marks
+    /// the profile as configured so the next time the editor opens it loads these saved values
+    /// instead of prefilling from real settings again.
+    func saveWeekendProfile(
+        name: String,
+        target: Decimal,
+        smbMinutes: Decimal,
+        uamMinutes: Decimal,
+        basalProfile: [BasalProfileEntry],
+        insulinSensitivities: InsulinSensitivities
+    ) {
+        WeekendProfileStore.name = name
+        WeekendProfileStore.target = target
+        WeekendProfileStore.smbMinutes = smbMinutes
+        WeekendProfileStore.uamMinutes = uamMinutes
+        WeekendProfileStore.basalProfile = basalProfile
+        WeekendProfileStore.insulinSensitivities = insulinSensitivities
+        let wasConfigured = WeekendProfileStore.isConfigured
+        WeekendProfileStore.isConfigured = true
+        Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
+
+        Task {
+            await nightscoutManager.uploadNoteTreatment(
+                note: wasConfigured ? "\(name) updated" : "\(name) configured"
+            )
         }
     }
 }

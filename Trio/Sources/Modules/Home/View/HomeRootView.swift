@@ -36,6 +36,11 @@ extension Home {
         @State var showManualGlucose: Bool = false
         @State var showReleaseNotes: Bool = false
         @State var alarmsSnoozeUntil: Date = .distantPast
+        // Weekend Profile has no Core Data entity to @FetchRequest, so its Home indicator (see
+        // adjustmentView() in HomeRootView+BottomControls.swift) reflects this UserDefaults-backed
+        // flag via a plain Notification post instead -- WeekendProfileSection posts
+        // .didUpdateWeekendProfileConfiguration whenever it changes.
+        @State var isWeekendProfileActive: Bool = WeekendProfileStore.isActive
         @ObservedObject var releaseNotesService = ReleaseNotesService.shared
         // Pull-down-to-force-loop (see HomeRootView+Refresh.swift)
         @State var pullOffset: CGFloat = 0
@@ -529,6 +534,9 @@ extension Home {
                     localized: "Quick-Pick Treatments learns from your manual boluses and carb entries over time. Once you've logged a few, it will suggest amounts based on what you typically enter at this time of day.",
                     comment: "Alert body explaining that quick-pick treatments history is empty"
                 ))
+            }
+            .onReceive(Foundation.NotificationCenter.default.publisher(for: .didUpdateWeekendProfileConfiguration)) { _ in
+                isWeekendProfileActive = WeekendProfileStore.isActive
             }
         }
     }

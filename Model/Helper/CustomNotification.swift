@@ -6,6 +6,7 @@ extension Notification.Name {
     static let didUpdateOverrideConfiguration = Notification.Name("didUpdateOverrideConfiguration")
     static let willUpdateTempTargetConfiguration = Notification.Name("willUpdateTempTargetConfiguration")
     static let didUpdateTempTargetConfiguration = Notification.Name("didUpdateTempTargetConfiguration")
+    static let didUpdateWeekendProfileConfiguration = Notification.Name("didUpdateWeekendProfileConfiguration")
     static let liveActivityOrderDidChange = Notification.Name("liveActivityOrderDidChange")
     static let openFromGarminConnect = Notification.Name("Notification.Name.openFromGarminConnect")
 }
