@@ -888,6 +888,8 @@
 		DDD163142C4C68D300CD525A /* AdjustmentsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */; };
 		DDD163162C4C690300CD525A /* AdjustmentsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */; };
 		DDD163182C4C694000CD525A /* AdjustmentsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */; };
+		E65F8866467027CD3D490165 /* WeekendProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */; };
+		BF4A82E6D4AB4B328B057976 /* WeekendProfileSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */; };
 		DDD1631A2C4C695E00CD525A /* EditOverrideForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163192C4C695E00CD525A /* EditOverrideForm.swift */; };
 		DDD1631C2C4C697400CD525A /* AddOverrideForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD1631B2C4C697400CD525A /* AddOverrideForm.swift */; };
 		DDD1631F2C4C6F6900CD525A /* TrioCoreDataPersistentContainer.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = DDD1631D2C4C6F6900CD525A /* TrioCoreDataPersistentContainer.xcdatamodeld */; };
@@ -1976,6 +1978,8 @@
 		DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsProvider.swift; sourceTree = "<group>"; };
 		DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsDataFlow.swift; sourceTree = "<group>"; };
 		DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsRootView.swift; sourceTree = "<group>"; };
+		316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendProfileStore.swift; sourceTree = "<group>"; };
+		62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendProfileSection.swift; sourceTree = "<group>"; };
 		DDD163192C4C695E00CD525A /* EditOverrideForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditOverrideForm.swift; sourceTree = "<group>"; };
 		DDD1631B2C4C697400CD525A /* AddOverrideForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddOverrideForm.swift; sourceTree = "<group>"; };
 		DDD1631E2C4C6F6900CD525A /* TrioCoreDataPersistentContainer.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = TrioCoreDataPersistentContainer.xcdatamodel; sourceTree = "<group>"; };
@@ -4623,6 +4627,7 @@
 				DDD163112C4C689900CD525A /* AdjustmentsStateModel.swift */,
 				DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */,
 				DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */,
+				316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */,
 			);
 			path = Adjustments;
 			sourceTree = "<group>";
@@ -4632,6 +4637,7 @@
 			children = (
 				DD5DC9F52CF3DA8900AB8703 /* ViewElements */,
 				DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */,
+				62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */,
 				BD793CAD2CE7660C00D669AC /* Overrides */,
 				BD793CAE2CE7661D00D669AC /* TempTargets */,
 			);
@@ -5803,6 +5809,7 @@
 				9702FF92A09C53942F20D7EA /* TargetsEditorRootView.swift in Sources */,
 				1967DFBE29D052C200759F30 /* Icons.swift in Sources */,
 				DDD163182C4C694000CD525A /* AdjustmentsRootView.swift in Sources */,
+				BF4A82E6D4AB4B328B057976 /* WeekendProfileSection.swift in Sources */,
 				389ECE052601144100D86C4F /* ConcurrentMap.swift in Sources */,
 				110AEDEC2C51A0AE00615CC9 /* ShortcutsConfigDataFlow.swift in Sources */,
 				CE7CA3562A064973004BE681 /* StateIntentRequest.swift in Sources */,
@@ -5875,6 +5882,7 @@
 				DDF691052DA2CA23008BF16C /* AppDiagnosticsStateModel.swift in Sources */,
 				38A00B2325FC2B55006BC0B0 /* LRUCache.swift in Sources */,
 				DDD163122C4C689900CD525A /* AdjustmentsStateModel.swift in Sources */,
+				E65F8866467027CD3D490165 /* WeekendProfileStore.swift in Sources */,
 				BD47FDD72D8B64D20043966B /* CarbRatioStepView.swift in Sources */,
 				DD17A0322E3FEA1F008E1BF0 /* RemoteNotificationResponseManager.swift in Sources */,
 				3B2F77862D7E52ED005ED9FA /* TDD.swift in Sources */,
