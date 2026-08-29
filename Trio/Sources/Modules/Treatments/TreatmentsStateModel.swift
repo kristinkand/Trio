@@ -701,7 +701,8 @@ extension Treatments {
                     enteredBy: CarbsEntry.local,
                     isFPU: false,
                     fpuID: fat > 0 || protein > 0 ? UUID().uuidString : nil,
-                    isSuperBolus: useSuperBolus
+                    isSuperBolus: useSuperBolus,
+                    isReducedBolus: useFattyMealCorrectionFactor
                 )]
                 try await carbsStorage.storeCarbs(carbsToStore, areFetchedFromRemote: false)
 

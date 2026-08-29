@@ -36,7 +36,9 @@ struct CarbView: ChartContent {
                 )
                 .symbol {
                     Image(systemName: "arrowtriangle.down.fill").font(.system(size: size))
-                        .foregroundStyle(carb.isSuperBolus ? Color.pink : Color.orange)
+                        .foregroundStyle(
+                            carb.isSuperBolus ? Color.pink : (carb.isReducedBolus ? Color.green : Color.orange)
+                        )
                         .rotationEffect(.degrees(180))
                 }
                 .annotation(position: .bottom) {
