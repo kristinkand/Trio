@@ -9,7 +9,7 @@ import SwiftUI
 /// the "start/stop" action, and also posts a "<name> started"/"ended" Note marker to Nightscout via
 /// `state.uploadWeekendProfileNote(started:)`), but every other field here -- name, target,
 /// SMB/UAM minutes, and the basal/ISF schedules -- is a local draft that's only written to
-/// `WeekendProfileStore` when "Save Weekend Profile" is tapped, via `state.saveWeekendProfile`.
+/// `WeekendProfileStore` when "Save the profile" is tapped, via `state.saveWeekendProfile`.
 /// The very first time the editor is opened (before any Save), the draft's basal schedule, ISF
 /// schedule, and SMB/UAM minutes are prefilled from the real settings rather than starting empty,
 /// so there's a sensible starting point to tweak for the weekend. Carb ratio is never part of this
@@ -30,6 +30,7 @@ struct WeekendProfileSection: View {
     @State private var didLoadDraft = false
     @State private var justSaved = false
     @State private var showInfo = false
+    @FocusState private var isNameFieldFocused: Bool
 
     /// Finest raw step (1 mg/dL) in both unit systems -- matches the finest option Trio's own
     /// Override/Temp Target target pickers offer, instead of the coarse default (5 mg/dL / 9 raw
@@ -145,7 +146,19 @@ struct WeekendProfileSection: View {
                 if isActive {
                     HStack(spacing: 4) {
                         TextField("Weekend Profile", text: $name)
+                            .focused($isNameFieldFocused)
                             .onChange(of: name) { justSaved = false }
+                            .toolbar {
+                                // The keyboard otherwise covers the Save button below with no way
+                                // to dismiss it -- this adds a "Done" button above the keyboard so
+                                // editing the name doesn't strand you unable to scroll down.
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    Spacer()
+                                    Button("Done") {
+                                        isNameFieldFocused = false
+                                    }
+                                }
+                            }
                         Image(systemName: "pencil")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -248,7 +261,7 @@ struct WeekendProfileSection: View {
                 } label: {
                     HStack {
                         Spacer()
-                        Text(justSaved ? "Saved" : "Save Weekend Profile")
+                        Text(justSaved ? "Saved" : "Save the profile")
                         Spacer()
                     }
                 }
