@@ -56,6 +56,14 @@ struct MealImpactEvent: Identifiable {
     /// Free-text note the user attached to this meal (e.g. "pizza"), if any -- see
     /// `MealImpactNoteStore`. Purely descriptive; never read by any detection logic.
     let note: String?
+    /// Whether this meal's bolus was dosed with Super Bolus or Reduced Bolus active, read
+    /// straight from the triggering carb entry (`CarbEntryStored.isSuperBolus`/`.isReducedBolus`
+    /// -- see the Super Bolus / Reduced Bolus tag features). Purely informational, for spotting
+    /// patterns in your own bolus strategy over time; both false means a normal bolus. When a
+    /// later bolus-free carb entry gets folded into this meal (see `groupMealTriggers`), these
+    /// reflect the original, actually-bolused entry, not the follow-up.
+    let isSuperBolus: Bool
+    let isReducedBolus: Bool
 }
 
 /// Lets the user correct the algorithm's detected "end" time for one specific meal event when
@@ -319,7 +327,15 @@ extension Stat.StateModel {
             }
             let rawTriggers: [RawMealTrigger] = carbEntries.compactMap {
                 guard let date = $0.date else { return nil }
-                return RawMealTrigger(id: $0.id ?? UUID(), date: date, carbs: $0.carbs, fat: $0.fat, protein: $0.protein)
+                return RawMealTrigger(
+                    id: $0.id ?? UUID(),
+                    date: date,
+                    carbs: $0.carbs,
+                    fat: $0.fat,
+                    protein: $0.protein,
+                    isSuperBolus: $0.isSuperBolus,
+                    isReducedBolus: $0.isReducedBolus
+                )
             }
 
             return groupMealTriggers(rawTriggers, bolusPoints: bolusPoints)
@@ -330,6 +346,8 @@ extension Stat.StateModel {
                         carbs: trigger.carbs,
                         fat: trigger.fat,
                         protein: trigger.protein,
+                        isSuperBolus: trigger.isSuperBolus,
+                        isReducedBolus: trigger.isReducedBolus,
                         glucosePoints: glucosePoints,
                         bolusPoints: bolusPoints
                     )
@@ -379,6 +397,8 @@ private struct RawMealTrigger {
     let carbs: Double
     let fat: Double
     let protein: Double
+    let isSuperBolus: Bool
+    let isReducedBolus: Bool
 }
 
 /// Groups raw carb entries into one trigger per real meal.
@@ -414,13 +434,18 @@ private func groupMealTriggers(
            entry.date <= last.date.addingTimeInterval(baseWindowLength)
         {
             // Fold into the meal already open -- same digestion cycle, just a heads-up that
-            // more carbs are on the way, not a new, separately-dosed meal.
+            // more carbs are on the way, not a new, separately-dosed meal. isSuperBolus/
+            // isReducedBolus deliberately carry over from `last` (the entry that actually got
+            // bolused), not `entry` (the bolus-free follow-up), since the follow-up's own
+            // values don't reflect how this meal was actually dosed.
             groups[groups.count - 1] = RawMealTrigger(
                 id: last.id,
                 date: last.date,
                 carbs: last.carbs + entry.carbs,
                 fat: last.fat + entry.fat,
-                protein: last.protein + entry.protein
+                protein: last.protein + entry.protein,
+                isSuperBolus: last.isSuperBolus,
+                isReducedBolus: last.isReducedBolus
             )
         } else {
             groups.append(entry)
@@ -436,6 +461,8 @@ private func buildMealImpactEvent(
     carbs: Double,
     fat: Double,
     protein: Double,
+    isSuperBolus: Bool,
+    isReducedBolus: Bool,
     glucosePoints: [(date: Date, value: Double)],
     bolusPoints: [(date: Date, amount: Double, isSMB: Bool)]
 ) -> MealImpactEvent {
@@ -488,7 +515,8 @@ private func buildMealImpactEvent(
             hasSecondaryRise: false, secondaryRiseDate: nil, secondaryRiseBG: nil,
             endIsOverridden: resolved.isOverridden,
             startIsOverridden: resolvedStartResult.isOverridden,
-            note: note
+            note: note,
+            isSuperBolus: isSuperBolus, isReducedBolus: isReducedBolus
         )
     }
 
@@ -534,7 +562,9 @@ private func buildMealImpactEvent(
         secondaryRiseBG: secondaryIsDismissed ? nil : secondary?.value,
         endIsOverridden: resolvedEndResult.isOverridden,
         startIsOverridden: resolvedStartResult.isOverridden,
-        note: note
+        note: note,
+        isSuperBolus: isSuperBolus,
+        isReducedBolus: isReducedBolus
     )
 }
 
