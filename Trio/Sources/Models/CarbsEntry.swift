@@ -12,6 +12,7 @@ struct CarbsEntry: JSON, Equatable, Hashable, Identifiable {
     let isFPU: Bool?
     let fpuID: String?
     var isSuperBolus: Bool = false
+    var isReducedBolus: Bool = false
 
     static let local = "Trio"
     static let appleHealth = "applehealth"

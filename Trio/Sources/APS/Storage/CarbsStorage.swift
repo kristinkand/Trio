@@ -297,6 +297,7 @@ final class BaseCarbsStorage: CarbsStorage, Injectable {
             newItem.id = UUID()
             newItem.isFPU = false
             newItem.isSuperBolus = entry.isSuperBolus
+            newItem.isReducedBolus = entry.isReducedBolus
             newItem.isUploadedToNS = areFetchedFromRemote ? true : false
             newItem.isUploadedToHealth = false
             newItem.isUploadedToTidepool = false
