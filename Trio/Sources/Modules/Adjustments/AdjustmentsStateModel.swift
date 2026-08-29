@@ -245,4 +245,15 @@ extension Adjustments.StateModel: SettingsObserver, PreferencesObserver {
             await getCurrentGlucoseTarget()
         }
     }
+
+    /// Posts a plain Nightscout Note-treatment marker for Weekend Profile starting/stopping.
+    /// Weekend Profile (see `WeekendProfileStore`) lives entirely outside the Core Data/Override
+    /// system, so there's no automatic upload pipeline for it -- this mirrors the same
+    /// `uploadNoteTreatment` helper used elsewhere in the app for one-off events, giving a
+    /// visible marker on the Nightscout chart without inventing any new upload machinery.
+    func uploadWeekendProfileNote(started: Bool) {
+        Task {
+            await nightscoutManager.uploadNoteTreatment(note: started ? "Weekend Profile started" : "Weekend Profile ended")
+        }
+    }
 }

@@ -2,9 +2,12 @@ import SwiftUI
 
 /// A small, always-visible section (deliberately separate from the Overrides list) offering a
 /// single "Weekend Profile" on/off toggle -- see `WeekendProfileStore` for what it actually does
-/// and how it interacts with Overrides.
+/// and how it interacts with Overrides. Flipping the toggle also posts a "Weekend Profile
+/// started"/"ended" Note marker to Nightscout via `state.uploadWeekendProfileNote(started:)`.
 struct WeekendProfileSection: View {
-    let units: GlucoseUnits
+    let state: Adjustments.StateModel
+
+    private var units: GlucoseUnits { state.units }
 
     @State private var isActive = WeekendProfileStore.isActive
     @State private var percentage = WeekendProfileStore.percentage
@@ -54,6 +57,7 @@ struct WeekendProfileSection: View {
             }
             .onChange(of: isActive) {
                 WeekendProfileStore.isActive = isActive
+                state.uploadWeekendProfileNote(started: isActive)
             }
 
             if isActive {
