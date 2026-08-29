@@ -383,10 +383,30 @@ final class OpenAPS {
             // Fetch the last active Override
             let activeOverrides = try self.fetchActiveOverrides(on: context)
             let isOverrideActive = activeOverrides.first?.enabled ?? false
-            let overridePercentage = Decimal(activeOverrides.first?.percentage ?? 100)
+
+            // Weekend Profile: a separate, indefinite-until-stopped on/off toggle started and
+            // stopped by hand (see WeekendProfileStore). It never runs alongside a real Override
+            // -- whenever one is active, the Override's own values fully take over below and
+            // Weekend Profile is ignored, resuming automatically the moment the Override ends.
+            let useWeekendProfile = !isOverrideActive && WeekendProfileStore.isActive
+            let useOverrideOrWeekendProfile = isOverrideActive || useWeekendProfile
+
+            let overridePercentage = useWeekendProfile
+                ? WeekendProfileStore.percentage
+                : Decimal(activeOverrides.first?.percentage ?? 100)
             let isOverrideIndefinite = activeOverrides.first?.indefinite ?? true
             let disableSMBs = activeOverrides.first?.smbIsOff ?? false
-            let overrideTargetBG = activeOverrides.first?.target?.decimalValue ?? 0
+            let overrideTargetBG = useWeekendProfile
+                ? WeekendProfileStore.target
+                : (activeOverrides.first?.target?.decimalValue ?? 0)
+            let advancedSettings = useWeekendProfile ? true : (activeOverrides.first?.advancedSettings ?? false)
+            let affectsIsfAndCr = useWeekendProfile ? true : (activeOverrides.first?.isfAndCr ?? false)
+            let smbMinutesValue = useWeekendProfile
+                ? WeekendProfileStore.smbMinutes
+                : (activeOverrides.first?.smbMinutes?.decimalValue ?? maxSMBBasalMinutes)
+            let uamMinutesValue = useWeekendProfile
+                ? WeekendProfileStore.uamMinutes
+                : (activeOverrides.first?.uamMinutes?.decimalValue ?? maxUAMBasalMinutes)
 
             // Calculate averages for Total Daily Dose (TDD)
             let totalTDD = historicalTDDData.compactMap { ($0["total"] as? NSDecimalNumber)?.decimalValue }.reduce(0, +)
@@ -413,20 +433,20 @@ final class OpenAPS {
                 past2hoursAverage: currentTDD > 0 ? averageTDDLastTwoHours : 0,
                 date: Date(),
                 overridePercentage: overridePercentage,
-                useOverride: isOverrideActive,
+                useOverride: useOverrideOrWeekendProfile,
                 duration: activeOverrides.first?.duration?.decimalValue ?? 0,
                 unlimited: isOverrideIndefinite,
                 overrideTarget: overrideTargetBG,
                 smbIsOff: disableSMBs,
-                advancedSettings: activeOverrides.first?.advancedSettings ?? false,
-                isfAndCr: activeOverrides.first?.isfAndCr ?? false,
+                advancedSettings: advancedSettings,
+                isfAndCr: affectsIsfAndCr,
                 isf: activeOverrides.first?.isf ?? false,
                 cr: activeOverrides.first?.cr ?? false,
                 smbIsScheduledOff: activeOverrides.first?.smbIsScheduledOff ?? false,
                 start: (activeOverrides.first?.start ?? 0) as Decimal,
                 end: (activeOverrides.first?.end ?? 0) as Decimal,
-                smbMinutes: activeOverrides.first?.smbMinutes?.decimalValue ?? maxSMBBasalMinutes,
-                uamMinutes: activeOverrides.first?.uamMinutes?.decimalValue ?? maxUAMBasalMinutes
+                smbMinutes: smbMinutesValue,
+                uamMinutes: uamMinutesValue
             )
 
             // Save and return contents of Trio's custom oref variables
