@@ -12,6 +12,7 @@ import SwiftUI
 struct WeekendScheduleEditor: View {
     let title: String
     let footer: String
+    let tint: Color
     let valueValues: [Decimal]
     let valueLabel: (Decimal) -> String
     /// (minutes-since-midnight, value) pairs -- the same shape `BasalProfileEntry`/
@@ -23,6 +24,7 @@ struct WeekendScheduleEditor: View {
     private let timeValues = stride(from: 0.0, to: 1.days.timeInterval, by: 30.minutes.timeInterval).map { $0 }
 
     @State private var rows: [Row] = []
+    @State private var showInfo = false
 
     private struct Row: Identifiable, Equatable {
         let id = UUID()
@@ -126,10 +128,23 @@ struct WeekendScheduleEditor: View {
                 Label("Add Time", systemImage: "plus.circle")
             }
         } header: {
-            Text(title)
-        } footer: {
-            Text(footer)
+            HStack {
+                Text(title)
+                Spacer()
+                Button {
+                    showInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showInfo) {
+                    Text(footer)
+                        .padding()
+                        .presentationCompactAdaptation(.popover)
+                }
+            }
         }
+        .listRowBackground(tint.opacity(0.15))
         .onAppear {
             if rows.isEmpty {
                 rows = makeRows()

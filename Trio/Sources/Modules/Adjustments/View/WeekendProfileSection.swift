@@ -29,6 +29,7 @@ struct WeekendProfileSection: View {
     @State private var isfEntries: [(minutes: Int, value: Decimal)] = []
     @State private var didLoadDraft = false
     @State private var justSaved = false
+    @State private var showInfo = false
 
     /// Finest raw step (1 mg/dL) in both unit systems -- matches the finest option Trio's own
     /// Override/Temp Target target pickers offer, instead of the coarse default (5 mg/dL / 9 raw
@@ -132,21 +133,40 @@ struct WeekendProfileSection: View {
         justSaved = true
     }
 
+    private var displayName: String { name.isEmpty ? "Weekend Profile" : name }
+
+    private var infoText: String {
+        "A name, target, SMB/UAM minutes, and its own basal + ISF schedule, that you start and stop yourself, independent of Overrides -- meant for stretches like a weekend or vacation. Carb ratio is never changed -- it always comes from your normal settings. If a real Override or Temp Target is running, it fully takes over the dosing math and Weekend Profile is paused until it ends."
+    }
+
     var body: some View {
         Section {
-            Toggle(isOn: $isActive) {
-                Text(name.isEmpty ? "Weekend Profile" : name)
-            }
-            .onChange(of: isActive) {
-                WeekendProfileStore.isActive = isActive
-                state.uploadWeekendProfileNote(started: isActive)
-                Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
+            HStack {
+                if isActive {
+                    HStack(spacing: 4) {
+                        TextField("Weekend Profile", text: $name)
+                            .onChange(of: name) { justSaved = false }
+                        Image(systemName: "pencil")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text(displayName)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: $isActive)
+                    .labelsHidden()
+                    .accessibilityLabel(Text("\(displayName) Active"))
+                    .onChange(of: isActive) {
+                        WeekendProfileStore.isActive = isActive
+                        state.uploadWeekendProfileNote(started: isActive)
+                        Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
+                    }
             }
 
             if isActive {
-                TextField("Name", text: $name)
-                    .onChange(of: name) { justSaved = false }
-
                 Toggle(isOn: $overrideTarget) {
                     Text("Override Target")
                 }
@@ -182,19 +202,30 @@ struct WeekendProfileSection: View {
                 .onChange(of: uamMinutes) { justSaved = false }
             }
         } header: {
-            Text(name.isEmpty ? "Weekend Profile" : name)
-        } footer: {
-            Text(
-                "A name, target, SMB/UAM minutes, and its own basal + ISF schedule, that you start and stop yourself, independent of Overrides -- meant for stretches like a weekend or vacation. Carb ratio is never changed -- it always comes from your normal settings. If a real Override or Temp Target is running, it fully takes over the dosing math and Weekend Profile is paused until it ends."
-            )
+            HStack {
+                Text(displayName)
+                Spacer()
+                Button {
+                    showInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showInfo) {
+                    Text(infoText)
+                        .padding()
+                        .presentationCompactAdaptation(.popover)
+                }
+            }
         }
         .listRowBackground(isActive ? Color.mint.opacity(0.15) : nil)
         .onAppear { loadDraftIfNeeded() }
 
         if isActive {
             WeekendScheduleEditor(
-                title: "Weekend Basal",
+                title: "\(displayName) Basal",
                 footer: "Absolute basal rates, same as the real Basal Profile Editor. Only used while Weekend Profile is active.",
+                tint: .mint,
                 valueValues: Self.basalRateValues,
                 valueLabel: basalLabel,
                 initialEntries: basalEntries,
@@ -202,8 +233,9 @@ struct WeekendProfileSection: View {
             )
 
             WeekendScheduleEditor(
-                title: "Weekend ISF",
+                title: "\(displayName) ISF",
                 footer: "Absolute insulin sensitivities, same as the real ISF Editor. Only used while Weekend Profile is active.",
+                tint: .mint,
                 valueValues: isfValues,
                 valueLabel: isfLabel,
                 initialEntries: isfEntries,
