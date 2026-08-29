@@ -1,10 +1,13 @@
 import SwiftUI
 
 /// List view for the "Food Impact" stats tab: one row per detected meal event, showing the
-/// prebolus/meal timestamps, start/peak/end BG, carbs, prebolus amount, and total bolus insulin
-/// used across the ~4h (or longer, if the rise ran late) cycle. Mostly a display of data already
-/// computed in `MealImpactSetup.swift` -- no dosing, pump, or sensor code here -- but a few
-/// pieces are user-editable, each backed by its own small UserDefaults-keyed override store:
+/// prebolus/meal timestamps, start/peak/end BG, carbs, prebolus amount, total bolus insulin
+/// used across the ~4h (or longer, if the rise ran late) cycle, and -- next to the prebolus
+/// line -- whether the meal bolus was a Normal, Super, or Reduced Bolus (color-coded to match
+/// the carb triangle on the Home chart), for spotting patterns in your own bolus strategy over
+/// time. Mostly a display of data already computed in `MealImpactSetup.swift` -- no dosing,
+/// pump, or sensor code here -- but a few pieces are user-editable, each backed by its own
+/// small UserDefaults-keyed override store:
 ///   - "Start" and "End" are tappable -- correct either by hand when the auto-detected time
 ///     doesn't match what the graph actually shows. See `MealImpactStartOverrideStore` /
 ///     `MealImpactEndOverrideStore`.
@@ -66,6 +69,17 @@ private struct MealImpactRow: View {
     private func amount(_ value: Double?) -> String {
         guard let value = value else { return "–" }
         return String(format: "%.2f U", value)
+    }
+
+    /// Mirrors the color coding on the Home chart's carb triangle (`CarbView.swift`): pink for
+    /// Super Bolus, green for Reduced Bolus, orange otherwise -- so the two features read
+    /// consistently at a glance.
+    private var bolusTypeLabel: String {
+        event.isSuperBolus ? "Super Bolus" : (event.isReducedBolus ? "Reduced Bolus" : "Normal Bolus")
+    }
+
+    private var bolusTypeColor: Color {
+        event.isSuperBolus ? .pink : (event.isReducedBolus ? .green : .orange)
     }
 
     var body: some View {
@@ -176,6 +190,11 @@ private struct MealImpactRow: View {
                 } else {
                     Label("No prebolus detected", systemImage: "syringe.fill")
                 }
+
+                Spacer()
+
+                Label(bolusTypeLabel, systemImage: "arrowtriangle.down.fill")
+                    .foregroundStyle(bolusTypeColor)
             }
             .font(.caption)
             .foregroundStyle(.secondary)
