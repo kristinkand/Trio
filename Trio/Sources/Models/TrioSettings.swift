@@ -79,6 +79,12 @@ struct TrioSettings: JSON, Equatable, Encodable {
     /// urgent alarms (e.g. urgent-low glucose, not-looping) bypass Silent Mode and Do Not Disturb.
     var useCriticalAlerts: Bool = false
 
+    /// Whether a hardware volume-button press (while a critical alarm's own audio is
+    /// sounding) snoozes that alarm for 15 minutes. Off by default: an ordinary
+    /// volume-down press (e.g. during a call, or adjusting media volume) could
+    /// otherwise silence a genuine urgent-low alarm without the user meaning to.
+    var useVolumeButtonSnooze: Bool = false
+
     /// Selected Garmin watchface (Trio or SwissAlpine)
     var garminWatchface: GarminWatchface = .trio
     var garminDatafield: GarminDatafield = .none
@@ -286,6 +292,10 @@ extension TrioSettings: Decodable {
 
         if let useCriticalAlerts = try? container.decode(Bool.self, forKey: .useCriticalAlerts) {
             settings.useCriticalAlerts = useCriticalAlerts
+        }
+
+        if let useVolumeButtonSnooze = try? container.decode(Bool.self, forKey: .useVolumeButtonSnooze) {
+            settings.useVolumeButtonSnooze = useVolumeButtonSnooze
         }
 
         if let showPreviousDayGlucose = try? container.decode(Bool.self, forKey: .showPreviousDayGlucose) {

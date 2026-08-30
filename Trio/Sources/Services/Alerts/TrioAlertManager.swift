@@ -48,6 +48,7 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
 
     @Injected() private var alertHistoryStorage: AlertHistoryStorage!
     @Injected() private var broadcaster: Broadcaster!
+    @Injected() private var settingsManager: SettingsManager!
 
     let muter: AlertMuter
     private let throttler: AlertThrottler
@@ -155,6 +156,11 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
         // Honor `playsSound: false` (alert was issued with sound: nil) —
         // user explicitly opted out of audio on this alarm.
         guard let soundName = alert.sound?.filename else { return }
+        // Opt-in (Settings > Notifications): an ordinary volume-down press
+        // (e.g. mid-call, or adjusting media volume) while a critical alarm
+        // happens to be sounding would otherwise silence it without the
+        // user meaning to.
+        let volumeSnoozeEnabled = settingsManager.settings.useVolumeButtonSnooze
         Task { @MainActor in
             if criticalAudioPlayer == nil { criticalAudioPlayer = CriticalAlertAudioPlayer() }
             // A hardware volume-button press while this alarm is sounding is
@@ -164,9 +170,10 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
             // (per-tier / per-glucose-type snooze, full ack, stops this
             // audio). The other snooze surfaces (banner swipe/long-press, UN
             // actions, Snooze module) are untouched.
-            criticalAudioPlayer?.play(soundNamed: soundName) { [weak self] in
+            let volumeSnoozeCallback: (() -> Void)? = volumeSnoozeEnabled ? { [weak self] in
                 self?.requestSnooze(identifier: alert.identifier, duration: 15 * 60)
-            }
+            } : nil
+            criticalAudioPlayer?.play(soundNamed: soundName, onVolumeButtonPressed: volumeSnoozeCallback)
         }
     }
 
