@@ -28,6 +28,7 @@ extension History {
         var carbEntryToEdit: CarbEntryStored?
         var showCarbEntryEditor = false
 
+        var newPlacementDate: Date = Date()
         var newPlacementDeviceType: PlacementDeviceType = .pump
         var newPlacementLocation: PlacementLocation = .abdomenLeftHigh
         var newPlacementHasSiteIssue: Bool = false
@@ -59,6 +60,7 @@ extension History {
 
         func startEditingPlacementLog(_ entry: PlacementLogStored) {
             editingPlacementLogObjectID = entry.objectID
+            newPlacementDate = entry.date ?? Date()
             newPlacementDeviceType = entry.deviceTypeEnum
             newPlacementLocation = entry.locationEnum
             newPlacementHasSiteIssue = entry.hasSiteIssue
@@ -69,6 +71,7 @@ extension History {
 
         func resetNewPlacementLogFields() {
             editingPlacementLogObjectID = nil
+            newPlacementDate = Date()
             newPlacementDeviceType = .pump
             newPlacementLocation = .abdomenLeftHigh
             newPlacementHasSiteIssue = false
@@ -82,6 +85,7 @@ extension History {
                 if let objectID = editingPlacementLogObjectID {
                     await placementLogStorage.updatePlacementLog(
                         objectID,
+                        date: newPlacementDate,
                         deviceType: newPlacementDeviceType,
                         location: newPlacementLocation,
                         hasSiteIssue: newPlacementHasSiteIssue,
@@ -91,6 +95,7 @@ extension History {
                     )
                 } else {
                     await placementLogStorage.addPlacementLog(
+                        date: newPlacementDate,
                         deviceType: newPlacementDeviceType,
                         location: newPlacementLocation,
                         hasSiteIssue: newPlacementHasSiteIssue,

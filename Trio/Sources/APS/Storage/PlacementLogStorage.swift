@@ -4,6 +4,7 @@ import Swinject
 
 protocol PlacementLogStorage {
     func addPlacementLog(
+        date: Date,
         deviceType: PlacementDeviceType,
         location: PlacementLocation,
         hasSiteIssue: Bool,
@@ -13,6 +14,7 @@ protocol PlacementLogStorage {
     ) async
     func updatePlacementLog(
         _ objectID: NSManagedObjectID,
+        date: Date,
         deviceType: PlacementDeviceType,
         location: PlacementLocation,
         hasSiteIssue: Bool,
@@ -34,6 +36,8 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
     /// Stores a new pump/sensor placement log entry.
     ///
     /// - Parameters:
+    ///   - date: When the device was placed. Defaults to now from the caller, but is editable so a
+    ///     placement can be logged after the fact for the correct day/time.
     ///   - deviceType: Whether this entry is for a pump or a sensor.
     ///   - location: The body location the device was placed at.
     ///   - hasSiteIssue: Whether a site issue was noted for this placement.
@@ -41,6 +45,7 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
     ///   - isPainfulGivingInsulin: Whether giving insulin at this site was painful (pump only).
     ///   - hasInaccurateReadings: Whether this sensor placement produced inaccurate readings (sensor only).
     func addPlacementLog(
+        date: Date,
         deviceType: PlacementDeviceType,
         location: PlacementLocation,
         hasSiteIssue: Bool,
@@ -53,7 +58,7 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
         await context.perform {
             let newEntry = PlacementLogStored(context: context)
             newEntry.id = UUID()
-            newEntry.date = Date()
+            newEntry.date = date
             newEntry.deviceTypeEnum = deviceType
             newEntry.locationEnum = location
             newEntry.hasSiteIssue = hasSiteIssue
@@ -76,6 +81,7 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
     ///
     /// - Parameters:
     ///   - objectID: The `NSManagedObjectID` of the entry to update.
+    ///   - date: The (possibly corrected) date/time the device was placed.
     ///   - deviceType: Whether this entry is for a pump or a sensor.
     ///   - location: The body location the device was placed at.
     ///   - hasSiteIssue: Whether a site issue was noted for this placement.
@@ -84,6 +90,7 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
     ///   - hasInaccurateReadings: Whether this sensor placement produced inaccurate readings (sensor only).
     func updatePlacementLog(
         _ objectID: NSManagedObjectID,
+        date: Date,
         deviceType: PlacementDeviceType,
         location: PlacementLocation,
         hasSiteIssue: Bool,
@@ -100,6 +107,7 @@ final class BasePlacementLogStorage: PlacementLogStorage, Injectable {
                 )
                 return
             }
+            entry.date = date
             entry.deviceTypeEnum = deviceType
             entry.locationEnum = location
             entry.hasSiteIssue = hasSiteIssue
