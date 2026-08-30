@@ -9,6 +9,15 @@ extension History.RootView {
         NavigationView {
             Form {
                 Section {
+                    DatePicker(
+                        "Date",
+                        selection: $state.newPlacementDate,
+                        in: ...Date(),
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                }.listRowBackground(Color.chart)
+
+                Section {
                     Picker("Device", selection: $state.newPlacementDeviceType) {
                         ForEach(PlacementDeviceType.allCases) { type in
                             Text(type.displayName).tag(type)
