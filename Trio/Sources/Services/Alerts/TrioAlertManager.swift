@@ -157,7 +157,16 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
         guard let soundName = alert.sound?.filename else { return }
         Task { @MainActor in
             if criticalAudioPlayer == nil { criticalAudioPlayer = CriticalAlertAudioPlayer() }
-            criticalAudioPlayer?.play(soundNamed: soundName)
+            // A hardware volume-button press while this alarm is sounding is
+            // treated the same as swiping away the in-app banner: a 15-min
+            // snooze of this specific alert, going through the same
+            // requestSnooze(identifier:duration:) path used everywhere else
+            // (per-tier / per-glucose-type snooze, full ack, stops this
+            // audio). The other snooze surfaces (banner swipe/long-press, UN
+            // actions, Snooze module) are untouched.
+            criticalAudioPlayer?.play(soundNamed: soundName) { [weak self] in
+                self?.requestSnooze(identifier: alert.identifier, duration: 15 * 60)
+            }
         }
     }
 
