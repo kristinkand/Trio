@@ -22,6 +22,7 @@ extension Settings {
         @Published var serviceUIType: ServiceUI.Type?
         @Published var setupTidepool = false
         @Published var useCriticalAlerts = false
+        @Published var useVolumeButtonSnooze = false
 
         private(set) var buildNumber = ""
         private(set) var versionNumber = ""
@@ -34,6 +35,7 @@ extension Settings {
             subscribeSetting(\.debugOptions, on: $debugOptions) { debugOptions = $0 }
             subscribeSetting(\.closedLoop, on: $closedLoop) { closedLoop = $0 }
             subscribeSetting(\.useCriticalAlerts, on: $useCriticalAlerts) { useCriticalAlerts = $0 }
+            subscribeSetting(\.useVolumeButtonSnooze, on: $useVolumeButtonSnooze) { useVolumeButtonSnooze = $0 }
             broadcaster.register(SettingsObserver.self, observer: self)
 
             buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"

@@ -49,6 +49,8 @@ struct NotificationsView: BaseView {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .buttonStyle(.bordered)
                     }.padding(.vertical)
+
+                    volumeButtonSnoozeToggle
                 }
             ).listRowBackground(Color.chart)
 
@@ -125,6 +127,17 @@ struct NotificationsView: BaseView {
 }
 
 extension NotificationsView {
+    private var volumeButtonSnoozeToggle: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("Snooze with Volume Button", isOn: $state.useVolumeButtonSnooze)
+            Text(
+                "While a critical alarm is sounding, pressing the volume-down button snoozes it for 15 minutes. Only volume-down reliably works, since the alarm already plays at max volume. This also changes your phone's actual volume."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+
     private var criticalAlertsToggle: some View {
         VStack(alignment: .leading, spacing: 4) {
             Toggle("Critical Alerts", isOn: $state.useCriticalAlerts)
