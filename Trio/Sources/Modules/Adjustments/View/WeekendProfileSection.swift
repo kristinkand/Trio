@@ -37,12 +37,6 @@ struct WeekendProfileSection: View {
     /// units, ~0.5 mmol/L) they start with. Fixes the "can only change in 0.5 mmol/L jumps" issue.
     private var targetStep: Double { 1 }
 
-    private static let basalRateStep = Decimal(string: "0.05") ?? 0.05
-    /// 0.05...5.00 U/hr in 0.05 U/hr steps -- Weekend Profile's basal schedule feeds the dosing
-    /// algorithm directly (see `OpenAPS.createProfiles()`), not the pump, so this doesn't need to
-    /// match any specific pump's supported-rate list the way the real Basal Profile Editor does.
-    private static let basalRateValues: [Decimal] = (1 ... 100).map { Decimal($0) * basalRateStep }
-
     private var isfValues: [Decimal] {
         PickerSettingsProvider.shared.generatePickerValues(
             from: PickerSetting(value: 100, step: 1, min: 9, max: 540, type: .glucose),
@@ -241,7 +235,7 @@ struct WeekendProfileSection: View {
                 title: "\(displayName) Basal",
                 footer: "Absolute basal rates, same as the real Basal Profile Editor. Only used while Weekend Profile is active.",
                 tint: .mint,
-                valueValues: Self.basalRateValues,
+                valueValues: state.weekendBasalRateValues,
                 valueLabel: basalLabel,
                 initialEntries: basalEntries,
                 onChange: { basalEntries = $0; justSaved = false }

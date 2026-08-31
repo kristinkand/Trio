@@ -270,6 +270,26 @@ extension Adjustments.StateModel {
     /// The real ISF schedule -- same prefill purpose as `currentBasalProfileForWeekendPrefill`.
     var currentInsulinSensitivitiesForWeekendPrefill: InsulinSensitivities { provider.currentInsulinSensitivities }
 
+    /// Basal rate values Weekend Profile's schedule editor is allowed to offer. Prefers the
+    /// connected pump's real supported increments (same source the real Basal Profile Editor
+    /// uses) so a Weekend schedule can't drift from what the pump can actually approximate; falls
+    /// back to the same generous default the real editor uses when no pump is connected. Either
+    /// way, capped at the user's configured Max Basal safety setting -- that's an independent
+    /// ceiling from what the pump can mechanically do, and Weekend Profile's substituted schedule
+    /// feeds `currentBasal`/`maxDailyBasal` in the dosing algorithm (see `OpenAPS.createProfiles()`
+    /// and `TempBasalFunctions.getMaxSafeBasalRate()`), so keeping the raw schedule values
+    /// themselves within Max Basal avoids skewing that math even though delivered temp basals were
+    /// always separately capped there regardless.
+    var weekendBasalRateValues: [Decimal] {
+        let values = provider.supportedBasalRates
+            ?? stride(from: 5.0, to: 1001.0, by: 5.0).map { (Decimal($0)) / 100 }
+        let maxBasal = provider.maxBasalRate
+        let capped = values.filter { $0 <= maxBasal }
+        // Never return an empty list -- if Max Basal is set below every available increment,
+        // offering the uncapped list is safer than leaving the picker with no options at all.
+        return capped.isEmpty ? values : capped
+    }
+
     /// Persists a full Weekend Profile draft in one shot -- the only place that writes
     /// `WeekendProfileStore`'s configurable fields, called from `WeekendProfileSection`'s Save
     /// button. Also posts a Nightscout Note so a schedule change is visible on the chart, and marks
