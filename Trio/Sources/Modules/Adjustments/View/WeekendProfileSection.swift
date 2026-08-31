@@ -227,6 +227,8 @@ struct WeekendProfileSection: View {
                 .popover(isPresented: $showInfo) {
                     Text(infoText)
                         .padding()
+                        .frame(width: 280)
+                        .fixedSize(horizontal: false, vertical: true)
                         .presentationCompactAdaptation(.popover)
                 }
             }
