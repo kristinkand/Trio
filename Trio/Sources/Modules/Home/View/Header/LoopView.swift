@@ -5,6 +5,7 @@ import UIKit
 
 struct LoopView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Config {
         static let lag: TimeInterval = 30
@@ -18,27 +19,48 @@ struct LoopView: View {
 
     let determination: [OrefDetermination]
 
-    private let rect = CGRect(x: 0, y: 0, width: 18, height: 18)
+    /// `isLooping`, but never shown for less than 2 seconds: a loop can
+    /// finish in well under a second, and a pill that flickers on and off reads as a glitch
+    /// rather than as work. A loop that runs longer than that ends the spin when it ends.
+    @State private var showLooping: Bool = false
+    @State private var spinStart: Date? = nil
 
     var body: some View {
-        loopStatusWithMinutes
+        loopStatusContent
             .padding(.vertical, 5)
             .padding(.horizontal, 10)
-            .overlay(
-                Capsule()
-                    .stroke(color.opacity(0.4), lineWidth: 2)
-            )
+            .capsuleSpinner(isActive: showLooping, color: color)
+            .task(id: isLooping) {
+                if isLooping {
+                    spinStart = Date()
+                    showLooping = true
+                } else {
+                    // nothing was spinning (first run, or a stop that already elapsed)
+                    guard let spinStart else {
+                        showLooping = false
+                        return
+                    }
+
+                    let remaining = 2 - Date().timeIntervalSince(spinStart)
+                    if remaining > 0 {
+                        try? await Task.sleep(for: .seconds(remaining))
+                        guard !Task.isCancelled else { return }
+                    }
+
+                    showLooping = false
+                    self.spinStart = nil
+                }
+            }
     }
 
-    private var loopStatusWithMinutes: some View {
+    private var loopStatusContent: some View {
         HStack(alignment: .center) {
             ZStack {
                 Image(systemName: (!closedLoop || manualTempBasal) ? "circle.and.line.horizontal" : "circle")
-                if isLooping {
-                    ProgressView()
-                }
+                    .symbolEffect(.pulse, options: .repeating, isActive: showLooping && !reduceMotion)
             }
-            if isLooping {
+            if showLooping, reduceMotion {
+                // neither the spinning border nor the pulse runs here, so say it in words
                 Text("looping")
             } else if manualTempBasal {
                 Text("Manual")
@@ -89,22 +111,6 @@ struct LoopView: View {
             return .loopYellow
         } else {
             return .loopRed
-        }
-    }
-}
-
-extension View {
-    func animateForever(
-        using animation: Animation = Animation.easeInOut(duration: 1),
-        autoreverses: Bool = false,
-        _ action: @escaping () -> Void
-    ) -> some View {
-        let repeated = animation.repeatForever(autoreverses: autoreverses)
-
-        return onAppear {
-            withAnimation(repeated) {
-                action()
-            }
         }
     }
 }

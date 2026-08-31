@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		02F9F6D77C744064A84499EC /* MealsPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D88CA823E44925B05569EE /* MealsPDFChart.swift */; };
 		041D1E995A6AE92E9289DC49 /* TreatmentsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D1A7CA8C10C4403D4BBFA7 /* TreatmentsDataFlow.swift */; };
+		0998F4E33039C233005A2802 /* CapsuleSpinnerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0998F4E23039C233005A2802 /* CapsuleSpinnerView.swift */; };
 		0564226A038878780EF834EE /* AlertColdStartReplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73955E4A9E02D75D56359D21 /* AlertColdStartReplay.swift */; };
 		0AEE7647C251481C935F78A4 /* GlucosePercentileByDayPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0865B3A9AD5E4C11972DEE8E /* GlucosePercentileByDayPDFChart.swift */; };
 		0D9A5E34A899219C5C4CDFAF /* HistoryStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9455FA2D92E77A6C4AFED8A3 /* HistoryStateModel.swift */; };
@@ -1907,6 +1908,7 @@
 		DD4C581E2D73C43D001BFF2C /* LoopStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopStatsView.swift; sourceTree = "<group>"; };
 		DD4FFF322D458EE600B6CFF9 /* GarminWatchState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GarminWatchState.swift; sourceTree = "<group>"; };
 		DD500A712807000000000100 /* SnoozeAlertsSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoozeAlertsSheetView.swift; sourceTree = "<group>"; };
+		0998F4E23039C233005A2802 /* CapsuleSpinnerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsuleSpinnerView.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000170 /* GlassActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassActionSheet.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000014 /* ManualGlucoseEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualGlucoseEntryView.swift; sourceTree = "<group>"; };
 		DD5DC9F02CF3D96E00AB8703 /* AdjustmentsStateModel+Overrides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdjustmentsStateModel+Overrides.swift"; sourceTree = "<group>"; };
@@ -2893,6 +2895,7 @@
 				48B83503461B4F8D97B30115 /* SettingsSearchHighlight.swift */,
 				DD17452A2C556E8100211FAC /* SettingInputHintView.swift */,
 				DD500A712807000000000100 /* SnoozeAlertsSheetView.swift */,
+				0998F4E23039C233005A2802 /* CapsuleSpinnerView.swift */,
 				7A11AC0DE000000000000170 /* GlassActionSheet.swift */,
 				7A11AC0DE000000000000014 /* ManualGlucoseEntryView.swift */,
 			);
@@ -5654,6 +5657,7 @@
 				1935364028496F7D001E0B16 /* TrioCustomOrefVariables.swift in Sources */,
 				CE2FAD3A297D93F0001A872C /* BloodGlucoseExtensions.swift in Sources */,
 				38E4453A274E411700EC9A94 /* Disk+[UIImage].swift in Sources */,
+				0998F4E33039C233005A2802 /* CapsuleSpinnerView.swift in Sources */,
 				DD73FA0F2D74F58E00D19D1E /* BackgroundTask+Helper.swift in Sources */,
 				72F1BD388F42FCA6C52E4500 /* ConfigEditorProvider.swift in Sources */,
 				E39E418C56A5A46B61D960EE /* ConfigEditorStateModel.swift in Sources */,
