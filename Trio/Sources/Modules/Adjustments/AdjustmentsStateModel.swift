@@ -246,18 +246,65 @@ extension Adjustments.StateModel: SettingsObserver, PreferencesObserver {
         }
     }
 
-    /// Posts a plain Nightscout Note-treatment marker for Weekend Profile starting/stopping.
-    /// Weekend Profile (see `WeekendProfileStore`) lives entirely outside the Core Data/Override
-    /// system, so there's no automatic upload pipeline for it -- this mirrors the same
-    /// `uploadNoteTreatment` helper used elsewhere in the app for one-off events, giving a
-    /// visible marker on the Nightscout chart without inventing any new upload machinery.
-    func uploadWeekendProfileNote(started: Bool) {
+    /// Starts Weekend Profile: records the real start time -- both locally, so the run can be
+    /// anchored in History > Adjustments and its real duration computed when it's stopped, and on
+    /// Nightscout, as an "Exercise" event (Trio's own Override eventType) with an indefinite
+    /// ~30-day duration. Reusing "Exercise" means Loop Follow (and any Nightscout-based viewer that
+    /// already understands Trio Overrides) picks this up automatically, with the profile's name as
+    /// the note; `weekendProfileEnteredBy` is a marker distinct from a real Override's "Trio" so it
+    /// can still be told apart downstream and shown with its own color.
+    func startWeekendProfile() {
+        let start = Date()
+        WeekendProfileStore.activeStartDate = start
         Task {
-            let note = "\(WeekendProfileStore.name) \(started ? "started" : "ended")"
-            await nightscoutManager.uploadNoteTreatment(note: note)
+            let event = NightscoutExercise(
+                duration: weekendProfileIndefiniteDurationMinutes,
+                eventType: .nsExercise,
+                createdAt: start,
+                enteredBy: weekendProfileEnteredBy,
+                notes: WeekendProfileStore.name
+            )
+            await nightscoutManager.uploadWeekendProfileEvent(event, replacingPrevious: false)
+        }
+    }
+
+    /// Stops Weekend Profile: records the completed run locally (so it's anchored in History >
+    /// Adjustments with its real start/end, like an Override or Temp Target) and corrects the
+    /// Nightscout entry `startWeekendProfile` posted from its indefinite duration to the real
+    /// elapsed one, so Loop Follow (and any other Nightscout-based viewer) shows the real end time
+    /// instead of ~30 days out.
+    func stopWeekendProfile() {
+        let end = Date()
+        let name = WeekendProfileStore.name
+        guard let start = WeekendProfileStore.activeStartDate else {
+            // Nothing to close out -- e.g. Weekend Profile was already active before this version's
+            // start-tracking existed. Nothing was recorded to correct on Nightscout either.
+            return
+        }
+        WeekendProfileStore.activeStartDate = nil
+        WeekendProfileStore.recordCompletedRun(name: name, start: start, end: end)
+
+        let elapsedMinutes = max(1, Int(end.timeIntervalSince(start) / 60))
+        Task {
+            let event = NightscoutExercise(
+                duration: elapsedMinutes,
+                eventType: .nsExercise,
+                createdAt: start,
+                enteredBy: weekendProfileEnteredBy,
+                notes: name
+            )
+            await nightscoutManager.uploadWeekendProfileEvent(event, replacingPrevious: true)
         }
     }
 }
+
+/// Trio represents an indefinite Override as a ~30-day (43200 minute) duration (see
+/// `OverrideStorage.getOverrideRunsNotYetUploadedToNightscout`); Weekend Profile's start posting
+/// matches that convention so downstream viewers already treat it as "ongoing, no known end".
+private let weekendProfileIndefiniteDurationMinutes = 43200
+/// Distinguishes a Weekend Profile run from a real Override on Nightscout even though both share
+/// the "Exercise" eventType and Trio's usual `enteredBy` of "Trio".
+private let weekendProfileEnteredBy = "Trio Weekend Profile"
 
 // MARK: - Weekend Profile
 

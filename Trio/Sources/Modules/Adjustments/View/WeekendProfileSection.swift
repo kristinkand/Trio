@@ -168,7 +168,11 @@ struct WeekendProfileSection: View {
                     .accessibilityLabel(Text("\(displayName) Active"))
                     .onChange(of: isActive) {
                         WeekendProfileStore.isActive = isActive
-                        state.uploadWeekendProfileNote(started: isActive)
+                        if isActive {
+                            state.startWeekendProfile()
+                        } else {
+                            state.stopWeekendProfile()
+                        }
                         Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
                     }
             }

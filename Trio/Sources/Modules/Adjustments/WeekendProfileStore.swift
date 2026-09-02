@@ -25,6 +25,8 @@ enum WeekendProfileStore {
 
     private static let isActiveKey = "weekendProfileIsActive"
     private static let isConfiguredKey = "weekendProfileIsConfigured"
+    private static let activeStartDateKey = "weekendProfileActiveStartDate"
+    private static let runHistoryKey = "weekendProfileRunHistory"
     private static let nameKey = "weekendProfileName"
     private static let targetKey = "weekendProfileTarget"
     private static let smbMinutesKey = "weekendProfileSMBMinutes"
@@ -49,6 +51,48 @@ enum WeekendProfileStore {
     static var isConfigured: Bool {
         get { defaults.bool(forKey: isConfiguredKey) }
         set { defaults.set(newValue, forKey: isConfiguredKey) }
+    }
+
+    /// When the current (in-progress) run started, i.e. the moment `isActive` last flipped to
+    /// `true`. `nil` while inactive. Kept separate from `isActive` so a completed run's exact
+    /// start/end can be recorded in `runHistory` -- and the matching Nightscout entry corrected to
+    /// its real duration -- once it's stopped. Survives app relaunch since it's UserDefaults-backed.
+    static var activeStartDate: Date? {
+        get { defaults.object(forKey: activeStartDateKey) as? Date }
+        set { defaults.set(newValue, forKey: activeStartDateKey) }
+    }
+
+    /// One completed Weekend Profile run: an on/off pair with the name it had at the time.
+    struct Run: Codable, Identifiable {
+        var id = UUID()
+        let name: String
+        let startDate: Date
+        let endDate: Date
+    }
+
+    /// Past completed runs, most-recent-last. Lets Trio's own History > Adjustments list show
+    /// Weekend Profile the same way it shows Overrides and Temp Targets -- anchored to real
+    /// start/end times -- even though Weekend Profile itself has no Core Data record. Capped to the
+    /// most recent 200 runs so this doesn't grow unbounded in UserDefaults.
+    static var runHistory: [Run] {
+        get {
+            guard let data = defaults.data(forKey: runHistoryKey),
+                  let decoded = try? JSONDecoder().decode([Run].self, from: data)
+            else { return [] }
+            return decoded
+        }
+        set {
+            let capped = Array(newValue.suffix(200))
+            guard let data = try? JSONEncoder().encode(capped) else { return }
+            defaults.set(data, forKey: runHistoryKey)
+        }
+    }
+
+    /// Appends a completed run to `runHistory`. No-ops for a zero/negative-length run (e.g. toggled
+    /// on and immediately off) so the history doesn't fill up with noise.
+    static func recordCompletedRun(name: String, start: Date, end: Date) {
+        guard end > start else { return }
+        runHistory.append(Run(name: name, startDate: start, endDate: end))
     }
 
     /// User-editable label. Defaults to "Weekend Profile"; shown in the section header, the Save
