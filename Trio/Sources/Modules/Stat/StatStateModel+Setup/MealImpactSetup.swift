@@ -45,7 +45,12 @@ struct MealImpactEvent: Identifiable {
     let endBG: Double?
     /// Total bolus insulin -- prebolus + meal bolus + every SMB delivered between `startDate`
     /// and `endDate`. Deliberately excludes basal: oref doesn't tag basal as "for this meal"
-    /// vs. background, so this only sums discrete bolus-type deliveries.
+    /// vs. background, so this only sums discrete bolus-type deliveries. When the prebolus was
+    /// corrected by hand (`prebolusIsOverridden`) and that correction has no matching
+    /// `BolusStored` record nearby -- i.e. it wasn't just mistimed, the app never recorded it at
+    /// all -- the manually entered amount is added in on top of whatever real records this
+    /// window sums, so a hand-added prebolus actually counts toward the meal's total instead of
+    /// only shifting the window. See `totalInsulinIncludingManualPrebolus` below.
     let totalInsulin: Double
     /// True when the curve shows two distinct rises separated by a real dip -- e.g. a fast
     /// early rise from the carbs, a partial come-down, then a later second rise (often from a
@@ -195,10 +200,19 @@ enum MealImpactSecondaryRiseOverrideStore {
 /// `MealImpactEvent` reports as this meal's prebolus. It DOES feed into `algorithmicStartDate` in
 /// `buildMealImpactEvent` exactly like an auto-detected prebolus already does, so recording a
 /// missed prebolus here also correctly shifts this meal's tracked window -- and everything
-/// measured from it (peak, secondary-rise, total-insulin) -- to start at the real prebolus time,
-/// without needing a *second*, separate Start correction for the same fix. An explicit separate
-/// Start correction (`MealImpactStartOverrideStore`), if also set, still wins for the window's
-/// start -- this only changes what's reported/used as the prebolus itself.
+/// measured from it (peak, secondary-rise) -- to start at the real prebolus time, without needing
+/// a *second*, separate Start correction for the same fix. An explicit separate Start correction
+/// (`MealImpactStartOverrideStore`), if also set, still wins for the window's start -- this only
+/// changes what's reported/used as the prebolus itself.
+///
+/// `totalInsulin` gets slightly more help than a plain window shift can give: if the real bolus
+/// this correction describes simply landed outside `prebolusLookback`, widening the window is
+/// enough -- `BolusStored` already has it, and it's now inside `[startDate, endDate]`. But when
+/// the detector found nothing at all because the dose was never recorded as a bolus in the first
+/// place (a manual injection, say), there's no record for the wider window to pick up -- so
+/// `totalInsulinIncludingManualPrebolus` adds the entered amount in directly, unless a real
+/// record already sits at essentially the same moment (then it's already being counted, and
+/// adding it again would double it).
 enum MealImpactPrebolusOverrideStore {
     private static let defaultsKey = "mealImpactPrebolusOverrides"
 
@@ -445,6 +459,11 @@ private let secondaryRiseProminence: Double = 15
 /// Minimum time gap between an earlier local high point and the true peak for it to count as
 /// its own separate rise rather than just the tail of the same one.
 private let secondaryRiseMinSeparation = TimeInterval(minutes: 45)
+/// How close a real `BolusStored` record has to sit to a manually-entered prebolus correction to
+/// count as "this is that same dose, just found by the window widening" rather than a genuinely
+/// unrecorded one. A couple minutes' slack covers rounding/entry imprecision without risking a
+/// match against some unrelated nearby dose.
+private let manualPrebolusMatchTolerance = TimeInterval(minutes: 2)
 
 /// One raw, ungrouped carb entry as read straight from Core Data.
 private struct RawMealTrigger {
@@ -543,6 +562,15 @@ private func buildMealImpactEvent(
     // detector found -- including replacing "no prebolus detected" with a real one the window
     // logic below can then correctly start from.
     let resolvedPrebolusResult = resolvedPrebolus(for: id, algorithmic: autoDetectedPrebolus)
+    // Only set when the prebolus was corrected by hand -- feeds `totalInsulinIncludingManualPrebolus`
+    // below so a hand-added prebolus with no matching real bolus record still counts toward the total.
+    let manualPrebolus: (date: Date, amount: Double)? = {
+        guard resolvedPrebolusResult.isOverridden,
+              let date = resolvedPrebolusResult.date,
+              let amount = resolvedPrebolusResult.amount
+        else { return nil }
+        return (date, amount)
+    }()
 
     let algorithmicStartDate = min(resolvedPrebolusResult.date ?? mealDate, mealDate)
     let resolvedStartResult = resolvedStart(for: id, algorithmicStart: algorithmicStartDate)
@@ -573,7 +601,10 @@ private func buildMealImpactEvent(
             prebolusIsOverridden: resolvedPrebolusResult.isOverridden,
             carbs: carbs, fat: fat, protein: protein, startDate: startDate, startBG: startBG,
             peakDate: nil, peakBG: nil, endDate: resolved.date, endBG: resolved.value,
-            totalInsulin: totalInsulin(in: bolusPoints, from: startDate, to: resolved.date ?? windowEnd),
+            totalInsulin: totalInsulinIncludingManualPrebolus(
+                bolusPoints: bolusPoints, start: startDate, end: resolved.date ?? windowEnd,
+                manualPrebolus: manualPrebolus
+            ),
             hasSecondaryRise: false, secondaryRiseDate: nil, secondaryRiseBG: nil,
             endIsOverridden: resolved.isOverridden,
             startIsOverridden: resolvedStartResult.isOverridden,
@@ -619,7 +650,10 @@ private func buildMealImpactEvent(
         peakBG: confirmedPeak.value,
         endDate: resolvedEndResult.date,
         endBG: resolvedEndResult.value,
-        totalInsulin: totalInsulin(in: bolusPoints, from: startDate, to: resolvedEndResult.date ?? windowEnd),
+        totalInsulin: totalInsulinIncludingManualPrebolus(
+            bolusPoints: bolusPoints, start: startDate, end: resolvedEndResult.date ?? windowEnd,
+            manualPrebolus: manualPrebolus
+        ),
         hasSecondaryRise: secondaryIsDismissed ? false : secondary != nil,
         secondaryRiseDate: secondaryIsDismissed ? nil : secondary?.date,
         secondaryRiseBG: secondaryIsDismissed ? nil : secondary?.value,
@@ -701,6 +735,23 @@ private func totalInsulin(
     to end: Date
 ) -> Double {
     points.filter { $0.date >= start && $0.date <= end }.reduce(0) { $0 + $1.amount }
+}
+
+/// `totalInsulin`, plus a manually-entered prebolus correction that has no matching real
+/// `BolusStored` record nearby -- see the long comment on `MealImpactPrebolusOverrideStore` for
+/// why a plain window-widened sum isn't always enough on its own.
+private func totalInsulinIncludingManualPrebolus(
+    bolusPoints: [(date: Date, amount: Double, isSMB: Bool)],
+    start: Date,
+    end: Date,
+    manualPrebolus: (date: Date, amount: Double)?
+) -> Double {
+    let recorded = totalInsulin(in: bolusPoints, from: start, to: end)
+    guard let manualPrebolus else { return recorded }
+    let alreadyCountedByARealRecord = bolusPoints.contains {
+        abs($0.date.timeIntervalSince(manualPrebolus.date)) <= manualPrebolusMatchTolerance
+    }
+    return alreadyCountedByARealRecord ? recorded : recorded + manualPrebolus.amount
 }
 
 /// Finds local maxima in time order: a point at least as high as both its immediate
