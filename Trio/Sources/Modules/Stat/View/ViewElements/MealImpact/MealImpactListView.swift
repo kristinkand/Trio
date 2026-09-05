@@ -11,6 +11,10 @@ import SwiftUI
 ///   - "Start" and "End" are tappable -- correct either by hand when the auto-detected time
 ///     doesn't match what the graph actually shows. See `MealImpactStartOverrideStore` /
 ///     `MealImpactEndOverrideStore`.
+///   - "Prebolus" (or "No prebolus detected") is tappable too -- record one by hand with its own
+///     timestamp and insulin amount when the detector missed a real prebolus (most often because
+///     it was given further ahead of the meal than it looks for) or mistimed it. See
+///     `MealImpactPrebolusOverrideStore`.
 ///   - A detected secondary rise can be dismissed (the ⓧ next to it) if it's not a real one --
 ///     see `MealImpactSecondaryRiseOverrideStore`.
 ///   - A free-text note (e.g. "pizza") can be attached via the note icon -- see
@@ -46,6 +50,9 @@ private struct MealImpactRow: View {
     @State private var draftStartDate = Date()
     @State private var showNoteEditor = false
     @State private var draftNote = ""
+    @State private var showPrebolusEditor = false
+    @State private var draftPrebolusDate = Date()
+    @State private var draftPrebolusAmountText = ""
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -182,14 +189,25 @@ private struct MealImpactRow: View {
             Divider()
 
             HStack(spacing: 12) {
-                if let prebolusDate = event.prebolusDate {
-                    Label(
-                        "Prebolus \(amount(event.prebolusAmount)) at \(Self.timeFormatter.string(from: prebolusDate))",
-                        systemImage: "syringe"
-                    )
-                } else {
-                    Label("No prebolus detected", systemImage: "syringe.fill")
+                Button {
+                    draftPrebolusDate = event.prebolusDate ?? event.mealDate
+                    draftPrebolusAmountText = event.prebolusAmount.map { String(format: "%.2f", $0) } ?? ""
+                    showPrebolusEditor = true
+                } label: {
+                    HStack(spacing: 3) {
+                        if let prebolusDate = event.prebolusDate {
+                            Label(
+                                "Prebolus\(event.prebolusIsOverridden ? " (edited)" : "") \(amount(event.prebolusAmount)) at \(Self.timeFormatter.string(from: prebolusDate))",
+                                systemImage: "syringe"
+                            )
+                        } else {
+                            Label("No prebolus detected", systemImage: "syringe.fill")
+                        }
+                        Image(systemName: "pencil")
+                            .font(.caption2)
+                    }
                 }
+                .buttonStyle(.plain)
 
                 Spacer()
 
@@ -214,6 +232,9 @@ private struct MealImpactRow: View {
         }
         .sheet(isPresented: $showNoteEditor) {
             noteEditorSheet
+        }
+        .sheet(isPresented: $showPrebolusEditor) {
+            prebolusEditorSheet
         }
     }
 
@@ -297,6 +318,67 @@ private struct MealImpactRow: View {
                         onOverrideChanged()
                         showStartEditor = false
                     }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    /// Whether `draftPrebolusAmountText` parses to a usable insulin amount -- Save is disabled
+    /// otherwise so a stray/empty entry can't record a nonsensical prebolus.
+    private var draftPrebolusAmountIsValid: Bool {
+        guard let value = Double(draftPrebolusAmountText) else { return false }
+        return value > 0
+    }
+
+    @ViewBuilder private var prebolusEditorSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker(
+                        "Prebolus time",
+                        selection: $draftPrebolusDate,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    HStack {
+                        Text("Amount")
+                        Spacer()
+                        TextField("e.g. 1.50", text: $draftPrebolusAmountText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                        Text("U")
+                            .foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    Text(
+                        "Record this if you gave a prebolus that wasn't detected -- most often because it was given further ahead of the meal than the detector looks for. This also corrects this meal's tracked start time (and everything measured from it: peak, secondary rise, total insulin), the same as editing Start directly would."
+                    )
+                }
+
+                if event.prebolusIsOverridden {
+                    Section {
+                        Button("Reset to Auto-Detected", role: .destructive) {
+                            MealImpactPrebolusOverrideStore.clearPrebolus(for: event.id)
+                            onOverrideChanged()
+                            showPrebolusEditor = false
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Edit Prebolus")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showPrebolusEditor = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        guard let value = Double(draftPrebolusAmountText), value > 0 else { return }
+                        MealImpactPrebolusOverrideStore.setPrebolus(date: draftPrebolusDate, amount: value, for: event.id)
+                        onOverrideChanged()
+                        showPrebolusEditor = false
+                    }
+                    .disabled(!draftPrebolusAmountIsValid)
                 }
             }
         }

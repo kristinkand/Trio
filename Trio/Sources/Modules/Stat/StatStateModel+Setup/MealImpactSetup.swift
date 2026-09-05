@@ -13,9 +13,15 @@ struct MealImpactEvent: Identifiable {
     /// The triggering carb entry's own date/time.
     let mealDate: Date
     /// The most recent bolus given meaningfully before the meal, if one was found -- see
-    /// `prebolusLookback`/`prebolusMinGapBeforeMeal` below for what counts as "before".
+    /// `prebolusLookback`/`prebolusMinGapBeforeMeal` below for what counts as "before". Can be
+    /// corrected by hand via `MealImpactPrebolusOverrideStore` when the detector missed a real
+    /// prebolus (e.g. given further ahead of the meal than `prebolusLookback` allows for, or
+    /// otherwise mistimed) or never finds one at all.
     let prebolusDate: Date?
     let prebolusAmount: Double?
+    /// True when `prebolusDate`/`prebolusAmount` reflect a manual correction (via
+    /// `MealImpactPrebolusOverrideStore`) rather than the auto-detected prebolus.
+    let prebolusIsOverridden: Bool
     /// Carbs/fat/protein for this event, INCLUDING any later bolus-free carb entries folded
     /// in as a continuation of this same meal -- see `groupMealTriggers` below.
     let carbs: Double
@@ -176,6 +182,56 @@ enum MealImpactSecondaryRiseOverrideStore {
     static func restore(for id: UUID) {
         var all = loadAll()
         all.remove(id.uuidString)
+        saveAll(all)
+    }
+}
+
+/// Lets the user record a prebolus (timestamp + insulin amount) by hand for one specific meal --
+/// for when the auto-detection in `buildMealImpactEvent` missed a real prebolus entirely (most
+/// often because it was given further ahead of the meal than `prebolusLookback` allows for) or
+/// picked the wrong bolus. Keyed by the meal's own `id`, same as the other override stores.
+///
+/// Purely a display-layer correction -- it never touches `BolusStored`/pump history, just what
+/// `MealImpactEvent` reports as this meal's prebolus. It DOES feed into `algorithmicStartDate` in
+/// `buildMealImpactEvent` exactly like an auto-detected prebolus already does, so recording a
+/// missed prebolus here also correctly shifts this meal's tracked window -- and everything
+/// measured from it (peak, secondary-rise, total-insulin) -- to start at the real prebolus time,
+/// without needing a *second*, separate Start correction for the same fix. An explicit separate
+/// Start correction (`MealImpactStartOverrideStore`), if also set, still wins for the window's
+/// start -- this only changes what's reported/used as the prebolus itself.
+enum MealImpactPrebolusOverrideStore {
+    private static let defaultsKey = "mealImpactPrebolusOverrides"
+
+    struct Override: Codable {
+        let date: Date
+        let amount: Double
+    }
+
+    private static func loadAll() -> [String: Override] {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let decoded = try? JSONDecoder().decode([String: Override].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    private static func saveAll(_ overrides: [String: Override]) {
+        guard let data = try? JSONEncoder().encode(overrides) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    static func prebolus(for id: UUID) -> Override? {
+        loadAll()[id.uuidString]
+    }
+
+    static func setPrebolus(date: Date, amount: Double, for id: UUID) {
+        var all = loadAll()
+        all[id.uuidString] = Override(date: date, amount: amount)
+        saveAll(all)
+    }
+
+    static func clearPrebolus(for id: UUID) {
+        var all = loadAll()
+        all.removeValue(forKey: id.uuidString)
         saveAll(all)
     }
 }
@@ -476,15 +532,19 @@ private func buildMealImpactEvent(
     //     prebolus) looks like. Since all remaining candidates are now guaranteed to be
     //     before the meal by at least that gap, the one closest to the meal is simply the
     //     one with the latest (most recent) date.
-    let prebolus = bolusPoints
+    let autoDetectedPrebolus = bolusPoints
         .filter {
             !$0.isSMB &&
                 $0.date >= mealDate.addingTimeInterval(-prebolusLookback) &&
                 $0.date <= mealDate.addingTimeInterval(-prebolusMinGapBeforeMeal)
         }
         .max { $0.date < $1.date }
+    // A manual correction (see `MealImpactPrebolusOverrideStore`) wins over whatever the
+    // detector found -- including replacing "no prebolus detected" with a real one the window
+    // logic below can then correctly start from.
+    let resolvedPrebolusResult = resolvedPrebolus(for: id, algorithmic: autoDetectedPrebolus)
 
-    let algorithmicStartDate = min(prebolus?.date ?? mealDate, mealDate)
+    let algorithmicStartDate = min(resolvedPrebolusResult.date ?? mealDate, mealDate)
     let resolvedStartResult = resolvedStart(for: id, algorithmicStart: algorithmicStartDate)
     let startDate = resolvedStartResult.date
     let startBG = nearestGlucose(to: startDate, in: glucosePoints)?.value
@@ -508,7 +568,9 @@ private func buildMealImpactEvent(
         // without a BG-derived peak/end (unless the user has manually set one anyway).
         let resolved = resolvedEnd(for: id, algorithmicEnd: nil, glucosePoints: glucosePoints)
         return MealImpactEvent(
-            id: id, mealDate: mealDate, prebolusDate: prebolus?.date, prebolusAmount: prebolus?.amount,
+            id: id, mealDate: mealDate,
+            prebolusDate: resolvedPrebolusResult.date, prebolusAmount: resolvedPrebolusResult.amount,
+            prebolusIsOverridden: resolvedPrebolusResult.isOverridden,
             carbs: carbs, fat: fat, protein: protein, startDate: startDate, startBG: startBG,
             peakDate: nil, peakBG: nil, endDate: resolved.date, endBG: resolved.value,
             totalInsulin: totalInsulin(in: bolusPoints, from: startDate, to: resolved.date ?? windowEnd),
@@ -545,8 +607,9 @@ private func buildMealImpactEvent(
     return MealImpactEvent(
         id: id,
         mealDate: mealDate,
-        prebolusDate: prebolus?.date,
-        prebolusAmount: prebolus?.amount,
+        prebolusDate: resolvedPrebolusResult.date,
+        prebolusAmount: resolvedPrebolusResult.amount,
+        prebolusIsOverridden: resolvedPrebolusResult.isOverridden,
         carbs: carbs,
         fat: fat,
         protein: protein,
@@ -595,6 +658,21 @@ private func resolvedStart(
         return (overrideDate, true)
     }
     return (algorithmicStart, false)
+}
+
+/// Applies a manual `MealImpactPrebolusOverrideStore` correction (if one exists for this meal) in
+/// place of the algorithmically-detected prebolus. Unlike `resolvedEnd`/`resolvedStart`, this can
+/// turn a "no prebolus detected" (nil) result into a real one -- the whole point, since the
+/// detector missing a real prebolus entirely (not just mistiming it) is exactly the case this
+/// exists for.
+private func resolvedPrebolus(
+    for id: UUID,
+    algorithmic: (date: Date, amount: Double, isSMB: Bool)?
+) -> (date: Date?, amount: Double?, isOverridden: Bool) {
+    if let override = MealImpactPrebolusOverrideStore.prebolus(for: id) {
+        return (override.date, override.amount, true)
+    }
+    return (algorithmic?.date, algorithmic?.amount, false)
 }
 
 private func nearestGlucose(
