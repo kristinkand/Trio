@@ -19,29 +19,62 @@ import SwiftUI
 ///     see `MealImpactSecondaryRiseOverrideStore`.
 ///   - A free-text note (e.g. "pizza") can be attached via the note icon -- see
 ///     `MealImpactNoteStore`.
+///   - A whole event can be swiped away and deleted (with a confirmation) if it's mis-detected
+///     entirely -- see `MealImpactDismissedEventStore`. This only ever hides the event from this
+///     list; it never touches the underlying carb/bolus/glucose records.
 struct MealImpactListView: View {
     let events: [MealImpactEvent]
     let units: GlucoseUnits
-    /// Called after the user saves or clears a manual "End" correction, so the caller can
-    /// re-fetch events and pick the correction back up -- pass e.g.
+    /// Called after the user saves or clears a manual override (including a delete), so the
+    /// caller can re-fetch events and pick the correction back up -- pass e.g.
     /// `{ state.setupMealImpactStats() }`.
     let onOverrideChanged: () -> Void
 
+    /// Event ids the user just deleted, applied to this list immediately. `events` itself only
+    /// updates once the caller's `onOverrideChanged()` re-fetch lands (an async Core Data query),
+    /// which arrives a moment later than the swipe gesture that triggered it. Without this, the
+    /// row's animated swipe-to-delete transaction and List's underlying UICollectionView finish
+    /// their removal animation before the actual data source (`events`) has caught up, and the
+    /// two disagree about the item count -- which is exactly what crashed
+    /// ("Invalid Number Of Items In Section") when this was first wired straight to
+    /// `onOverrideChanged()` alone. Tracking the deletion locally, in the same update as the
+    /// swipe/confirm, keeps what List renders in lockstep with what UICollectionView expects.
+    /// Once the re-fetch arrives, `events` no longer contains the dismissed event either (it's
+    /// filtered server-side by `MealImpactDismissedEventStore`), so merging the two here is a
+    /// no-op rather than a second removal.
+    @State private var locallyDeletedIDs: Set<UUID> = []
+
+    private var displayedEvents: [MealImpactEvent] {
+        events.filter { !locallyDeletedIDs.contains($0.id) }
+    }
+
     var body: some View {
         List {
-            ForEach(events) { event in
-                MealImpactRow(event: event, units: units, onOverrideChanged: onOverrideChanged)
+            ForEach(displayedEvents) { event in
+                MealImpactRow(
+                    event: event,
+                    units: units,
+                    onDelete: {
+                        locallyDeletedIDs.insert(event.id)
+                        MealImpactDismissedEventStore.dismiss(for: event.id)
+                        onOverrideChanged()
+                    },
+                    onOverrideChanged: onOverrideChanged
+                )
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .frame(minHeight: CGFloat(events.count) * 92)
+        .frame(minHeight: CGFloat(displayedEvents.count) * 92)
     }
 }
 
 private struct MealImpactRow: View {
     let event: MealImpactEvent
     let units: GlucoseUnits
+    /// Removes this event from the list immediately (see `MealImpactListView.locallyDeletedIDs`)
+    /// and persists the dismissal -- called from the delete confirmation below.
+    let onDelete: () -> Void
     let onOverrideChanged: () -> Void
 
     @State private var showEndEditor = false
@@ -250,8 +283,7 @@ private struct MealImpactRow: View {
             titleVisibility: .visible
         ) {
             Button("Delete", role: .destructive) {
-                MealImpactDismissedEventStore.dismiss(for: event.id)
-                onOverrideChanged()
+                onDelete()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
