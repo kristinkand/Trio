@@ -109,8 +109,8 @@ private struct AnimatedTrendIcon: View {
 
     var body: some View {
         Text(mood.emoji)
-            .font(.system(size: 34))
-            .padding(18)
+            .font(.system(size: 46))
+            .padding(16)
             .background(
                 Circle()
                     .fill(.ultraThinMaterial)
