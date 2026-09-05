@@ -52,7 +52,7 @@ private struct MealImpactRow: View {
     @State private var draftNote = ""
     @State private var showPrebolusEditor = false
     @State private var draftPrebolusDate = Date()
-    @State private var draftPrebolusAmountText = ""
+    @State private var draftPrebolusAmount: Decimal = 0
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -191,7 +191,7 @@ private struct MealImpactRow: View {
             HStack(spacing: 12) {
                 Button {
                     draftPrebolusDate = event.prebolusDate ?? event.mealDate
-                    draftPrebolusAmountText = event.prebolusAmount.map { String(format: "%.2f", $0) } ?? ""
+                    draftPrebolusAmount = event.prebolusAmount.map { Decimal($0) } ?? 0
                     showPrebolusEditor = true
                 } label: {
                     HStack(spacing: 3) {
@@ -324,11 +324,21 @@ private struct MealImpactRow: View {
         .presentationDetents([.medium])
     }
 
-    /// Whether `draftPrebolusAmountText` parses to a usable insulin amount -- Save is disabled
-    /// otherwise so a stray/empty entry can't record a nonsensical prebolus.
-    private var draftPrebolusAmountIsValid: Bool {
-        guard let value = Double(draftPrebolusAmountText) else { return false }
-        return value > 0
+    /// Whether `draftPrebolusAmount` is a usable insulin amount -- Save is disabled otherwise so
+    /// a stray/empty entry can't record a nonsensical prebolus.
+    private var draftPrebolusAmountIsValid: Bool { draftPrebolusAmount > 0 }
+
+    /// Locale-aware, same pattern as the app's other numeric entry fields (see
+    /// `TextFieldWithToolBar`) -- a plain `TextField` + `Double(string)` (what this used to be)
+    /// only ever parses "." as the decimal separator, so on any device set to a locale that
+    /// types a comma for decimals, entering e.g. "1,50" silently fails to parse and Save stays
+    /// disabled, while a whole number like "1" still works by accident (no separator involved).
+    private var prebolusAmountFormatter: NumberFormatter {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumIntegerDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter
     }
 
     @ViewBuilder private var prebolusEditorSheet: some View {
@@ -343,11 +353,12 @@ private struct MealImpactRow: View {
                     HStack {
                         Text("Amount")
                         Spacer()
-                        TextField("e.g. 1.50", text: $draftPrebolusAmountText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                        Text("U")
-                            .foregroundStyle(.secondary)
+                        TextFieldWithToolBar(
+                            text: $draftPrebolusAmount,
+                            placeholder: "e.g. 1.50",
+                            numberFormatter: prebolusAmountFormatter,
+                            unitsText: "U"
+                        )
                     }
                 } footer: {
                     Text(
@@ -373,8 +384,12 @@ private struct MealImpactRow: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        guard let value = Double(draftPrebolusAmountText), value > 0 else { return }
-                        MealImpactPrebolusOverrideStore.setPrebolus(date: draftPrebolusDate, amount: value, for: event.id)
+                        guard draftPrebolusAmountIsValid else { return }
+                        MealImpactPrebolusOverrideStore.setPrebolus(
+                            date: draftPrebolusDate,
+                            amount: Double(truncating: draftPrebolusAmount as NSNumber),
+                            for: event.id
+                        )
                         onOverrideChanged()
                         showPrebolusEditor = false
                     }
