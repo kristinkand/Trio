@@ -53,6 +53,7 @@ private struct MealImpactRow: View {
     @State private var showPrebolusEditor = false
     @State private var draftPrebolusDate = Date()
     @State private var draftPrebolusAmount: Decimal = 0
+    @State private var showDeleteConfirm = false
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -235,6 +236,28 @@ private struct MealImpactRow: View {
         }
         .sheet(isPresented: $showPrebolusEditor) {
             prebolusEditorSheet
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                showDeleteConfirm = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .confirmationDialog(
+            "Delete this Food Impact event?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                MealImpactDismissedEventStore.dismiss(for: event.id)
+                onOverrideChanged()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            // Matches the wording every other override store here uses: nothing about the
+            // meal itself (carbs, insulin, glucose history) is touched, only this list.
+            Text("This only removes it from the Food Impact list -- your carb entry, boluses, and glucose history are unaffected. This can't be undone from here.")
         }
     }
 
