@@ -250,6 +250,49 @@ enum MealImpactPrebolusOverrideStore {
     }
 }
 
+/// Lets the user delete a whole meal event from the Food Impact list when it's flat-out wrongly
+/// detected -- e.g. a bolus-free "heads up" carb entry that should've folded into a neighboring
+/// meal but didn't, or a phantom rise from sensor noise. Keyed by the meal's own `id`, same as the
+/// other override stores.
+///
+/// Deliberately just a display-layer suppression, same spirit as every other store in this file:
+/// it never touches the real `CarbEntryStored`/`BolusStored`/`GlucoseStored` records, so nothing
+/// elsewhere in Trio that reads actual carb/insulin history (COB, IOB, the main chart, Nightscout
+/// sync, ...) is affected -- only this one stats list stops showing the event. `fetchMealImpactEvents`
+/// filters dismissed events out entirely, so a dismissed meal simply never appears rather than
+/// showing in some "disabled" state.
+enum MealImpactDismissedEventStore {
+    private static let defaultsKey = "mealImpactDismissedEvents"
+
+    private static func loadAll() -> Set<String> {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let decoded = try? JSONDecoder().decode(Set<String>.self, from: data)
+        else { return [] }
+        return decoded
+    }
+
+    private static func saveAll(_ dismissed: Set<String>) {
+        guard let data = try? JSONEncoder().encode(dismissed) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    static func isDismissed(for id: UUID) -> Bool {
+        loadAll().contains(id.uuidString)
+    }
+
+    static func dismiss(for id: UUID) {
+        var all = loadAll()
+        all.insert(id.uuidString)
+        saveAll(all)
+    }
+
+    static func restore(for id: UUID) {
+        var all = loadAll()
+        all.remove(id.uuidString)
+        saveAll(all)
+    }
+}
+
 /// Free-text note the user can attach to a meal event (e.g. "pizza", "ate late"), keyed by the
 /// meal's own `id`. Purely descriptive -- stored and displayed only, never read by any
 /// detection logic.
@@ -422,6 +465,9 @@ extension Stat.StateModel {
                         bolusPoints: bolusPoints
                     )
                 }
+                // Deleted events (see MealImpactDismissedEventStore) are dropped here, before
+                // sorting/display -- a dismissed meal never appears rather than showing disabled.
+                .filter { !MealImpactDismissedEventStore.isDismissed(for: $0.id) }
                 .sorted { $0.mealDate > $1.mealDate }
         }
     }
