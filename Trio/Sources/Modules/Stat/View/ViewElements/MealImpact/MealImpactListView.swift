@@ -19,7 +19,7 @@ import SwiftUI
 ///     see `MealImpactSecondaryRiseOverrideStore`.
 ///   - A free-text note (e.g. "pizza") can be attached via the note icon -- see
 ///     `MealImpactNoteStore`.
-///   - A whole event can be swiped away and deleted (with a confirmation) if it's mis-detected
+///   - A whole event can be deleted (tap the trash icon, then confirm) if it's mis-detected
 ///     entirely -- see `MealImpactDismissedEventStore`. This only ever hides the event from this
 ///     list; it never touches the underlying carb/bolus/glucose records.
 struct MealImpactListView: View {
@@ -32,49 +32,94 @@ struct MealImpactListView: View {
 
     /// Event ids the user just deleted, applied to this list immediately. `events` itself only
     /// updates once the caller's `onOverrideChanged()` re-fetch lands (an async Core Data query),
-    /// which arrives a moment later than the swipe gesture that triggered it. Without this, the
-    /// row's animated swipe-to-delete transaction and List's underlying UICollectionView finish
-    /// their removal animation before the actual data source (`events`) has caught up, and the
-    /// two disagree about the item count -- which is exactly what crashed
-    /// ("Invalid Number Of Items In Section") when this was first wired straight to
-    /// `onOverrideChanged()` alone. Tracking the deletion locally, in the same update as the
-    /// swipe/confirm, keeps what List renders in lockstep with what UICollectionView expects.
-    /// Once the re-fetch arrives, `events` no longer contains the dismissed event either (it's
-    /// filtered server-side by `MealImpactDismissedEventStore`), so merging the two here is a
-    /// no-op rather than a second removal.
+    /// which arrives a moment later than the tap/confirm that triggered it. Once the re-fetch
+    /// arrives, `events` no longer contains the dismissed event either (it's filtered server-side
+    /// by `MealImpactDismissedEventStore`), so merging the two here is a no-op, not a second
+    /// removal.
     @State private var locallyDeletedIDs: Set<UUID> = []
+
+    /// Which event the user tapped delete on, awaiting confirmation. Presenting the confirmation
+    /// dialog here -- on the outer view -- rather than on the individual row that's about to be
+    /// removed keeps the dialog's own presentation/dismissal from being entangled with that row's
+    /// removal.
+    @State private var pendingDeleteEvent: MealImpactEvent?
 
     private var displayedEvents: [MealImpactEvent] {
         events.filter { !locallyDeletedIDs.contains($0.id) }
     }
 
     var body: some View {
-        List {
-            ForEach(displayedEvents) { event in
-                MealImpactRow(
-                    event: event,
-                    units: units,
-                    onDelete: {
-                        locallyDeletedIDs.insert(event.id)
-                        MealImpactDismissedEventStore.dismiss(for: event.id)
-                        onOverrideChanged()
-                    },
-                    onOverrideChanged: onOverrideChanged
-                )
+        // Plain ScrollView + LazyVStack, not List -- deleting an event used to go through
+        // List/swipeActions, but every row-removal here (even after two rounds of narrowing the
+        // change down: decoupling the frame resize, moving the confirmation dialog off the row,
+        // disabling the removal's animation) still crashed on device with "Invalid Number Of
+        // Items In Section", inside the animated batch-update machinery List's UICollectionView
+        // uses under the hood on this iOS version. A LazyVStack never goes through that
+        // UICollectionView batch-update path at all for a ForEach change -- it's plain SwiftUI
+        // view diffing -- so this sidesteps the whole crash class rather than continuing to
+        // narrow down which exact timing detail inside it was the trigger. Delete is now a
+        // regular button (the trash icon at the top of each row) instead of a swipe action, since
+        // swipeActions only exists on List.
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(displayedEvents) { event in
+                    MealImpactRow(
+                        event: event,
+                        units: units,
+                        onRequestDelete: { pendingDeleteEvent = event },
+                        onOverrideChanged: onOverrideChanged
+                    )
+                    if event.id != displayedEvents.last?.id {
+                        Divider()
+                    }
+                }
             }
+            .padding(.horizontal)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .frame(minHeight: CGFloat(displayedEvents.count) * 92)
+        // Deliberately keyed off `events.count` (the prop from the caller), not
+        // `displayedEvents.count`, so this only resizes once the caller's re-fetch actually lands
+        // a moment later -- decoupled in time from the delete's own local update.
+        .frame(minHeight: CGFloat(events.count) * 92)
+        .confirmationDialog(
+            "Delete this Food Impact event?",
+            isPresented: Binding(
+                get: { pendingDeleteEvent != nil },
+                set: { isPresented in
+                    if !isPresented { pendingDeleteEvent = nil }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let event = pendingDeleteEvent {
+                    // No animation for this one -- the row's removal doesn't need to be animated,
+                    // and skipping it avoids the animated collection-view batch-update path
+                    // entirely (the same path implicated in the crash above).
+                    withTransaction(Transaction(animation: nil)) {
+                        locallyDeletedIDs.insert(event.id)
+                    }
+                    MealImpactDismissedEventStore.dismiss(for: event.id)
+                    onOverrideChanged()
+                }
+                pendingDeleteEvent = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDeleteEvent = nil
+            }
+        } message: {
+            // Matches the wording every other override store here uses: nothing about the
+            // meal itself (carbs, insulin, glucose history) is touched, only this list.
+            Text("This only removes it from the Food Impact list -- your carb entry, boluses, and glucose history are unaffected. This can't be undone from here.")
+        }
     }
 }
 
 private struct MealImpactRow: View {
     let event: MealImpactEvent
     let units: GlucoseUnits
-    /// Removes this event from the list immediately (see `MealImpactListView.locallyDeletedIDs`)
-    /// and persists the dismissal -- called from the delete confirmation below.
-    let onDelete: () -> Void
+    /// The trash icon was tapped -- asks the parent `MealImpactListView` to show the delete
+    /// confirmation (see `pendingDeleteEvent` there), rather than presenting it from this row.
+    let onRequestDelete: () -> Void
     let onOverrideChanged: () -> Void
 
     @State private var showEndEditor = false
@@ -86,7 +131,6 @@ private struct MealImpactRow: View {
     @State private var showPrebolusEditor = false
     @State private var draftPrebolusDate = Date()
     @State private var draftPrebolusAmount: Decimal = 0
-    @State private var showDeleteConfirm = false
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -147,6 +191,15 @@ private struct MealImpactRow: View {
                     Image(systemName: event.note == nil ? "note.text.badge.plus" : "note.text")
                         .font(.caption)
                         .foregroundStyle(event.note == nil ? Color.secondary : Color.accentColor)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    onRequestDelete()
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.caption)
+                        .foregroundStyle(Color.secondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -269,27 +322,6 @@ private struct MealImpactRow: View {
         }
         .sheet(isPresented: $showPrebolusEditor) {
             prebolusEditorSheet
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                showDeleteConfirm = true
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-        .confirmationDialog(
-            "Delete this Food Impact event?",
-            isPresented: $showDeleteConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Delete", role: .destructive) {
-                onDelete()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            // Matches the wording every other override store here uses: nothing about the
-            // meal itself (carbs, insulin, glucose history) is touched, only this list.
-            Text("This only removes it from the Food Impact list -- your carb entry, boluses, and glucose history are unaffected. This can't be undone from here.")
         }
     }
 
