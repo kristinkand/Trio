@@ -8,9 +8,11 @@ import SwiftUI
 /// time. Mostly a display of data already computed in `MealImpactSetup.swift` -- no dosing,
 /// pump, or sensor code here -- but a few pieces are user-editable, each backed by its own
 /// small UserDefaults-keyed override store:
-///   - "Start" and "End" are tappable -- correct either by hand when the auto-detected time
-///     doesn't match what the graph actually shows. See `MealImpactStartOverrideStore` /
-///     `MealImpactEndOverrideStore`.
+///   - "Start", "Peak", and "End" are all tappable -- correct any of them by hand when the
+///     auto-detected time doesn't match what the graph actually shows. Only the timestamp is
+///     ever editable; the paired BG value is always looked up automatically from the real
+///     glucose reading at that time. See `MealImpactStartOverrideStore` /
+///     `MealImpactPeakOverrideStore` / `MealImpactEndOverrideStore`.
 ///   - "Prebolus" (or "No prebolus detected") is tappable too -- record one by hand with its own
 ///     timestamp and insulin amount when the detector missed a real prebolus (most often because
 ///     it was given further ahead of the meal than it looks for) or mistimed it. See
@@ -126,6 +128,8 @@ private struct MealImpactRow: View {
     @State private var draftEndDate = Date()
     @State private var showStartEditor = false
     @State private var draftStartDate = Date()
+    @State private var showPeakEditor = false
+    @State private var draftPeakDate = Date()
     @State private var showNoteEditor = false
     @State private var draftNote = ""
     @State private var showPrebolusEditor = false
@@ -236,11 +240,18 @@ private struct MealImpactRow: View {
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                impactStat(
-                    title: "Peak",
-                    time: event.peakDate.map(Self.timeFormatter.string),
-                    value: bg(event.peakBG)
-                )
+                Button {
+                    draftPeakDate = event.peakDate ?? event.mealDate
+                    showPeakEditor = true
+                } label: {
+                    impactStat(
+                        title: event.peakIsOverridden ? "Peak (edited)" : "Peak",
+                        time: event.peakDate.map(Self.timeFormatter.string),
+                        value: bg(event.peakBG),
+                        isEditable: true
+                    )
+                }
+                .buttonStyle(.plain)
                 Spacer()
                 Button {
                     draftEndDate = event.endDate ?? event.mealDate
@@ -316,6 +327,9 @@ private struct MealImpactRow: View {
         }
         .sheet(isPresented: $showStartEditor) {
             startEditorSheet
+        }
+        .sheet(isPresented: $showPeakEditor) {
+            peakEditorSheet
         }
         .sheet(isPresented: $showNoteEditor) {
             noteEditorSheet
@@ -404,6 +418,49 @@ private struct MealImpactRow: View {
                         MealImpactStartOverrideStore.setStart(draftStartDate, for: event.id)
                         onOverrideChanged()
                         showStartEditor = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    @ViewBuilder private var peakEditorSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    DatePicker(
+                        "Peak time",
+                        selection: $draftPeakDate,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                } footer: {
+                    Text(
+                        "Correct this if the detected peak doesn't match the true high point on the graph -- e.g. a brief sensor-noise spike outscored the real one. Only the timestamp is editable; the BG value is looked up automatically from your actual glucose reading at that time. Moving the peak also reshapes the secondary-rise search and the auto-detected end for this meal, since both are measured from here."
+                    )
+                }
+
+                if event.peakIsOverridden {
+                    Section {
+                        Button("Reset to Auto-Detected", role: .destructive) {
+                            MealImpactPeakOverrideStore.clearPeak(for: event.id)
+                            onOverrideChanged()
+                            showPeakEditor = false
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Edit Peak Time")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showPeakEditor = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        MealImpactPeakOverrideStore.setPeak(draftPeakDate, for: event.id)
+                        onOverrideChanged()
+                        showPeakEditor = false
                     }
                 }
             }

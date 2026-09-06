@@ -33,9 +33,17 @@ struct MealImpactEvent: Identifiable {
     /// The GLOBAL maximum BG reached in the (possibly extended) window -- not simply the
     /// first local high point. A meal high in fat/protein can dip after an initial rise and
     /// then rise again later to a higher point; only the true maximum should count as "the
-    /// peak", or a real delayed peak would get missed.
+    /// peak", or a real delayed peak would get missed. Can be corrected by hand via
+    /// `MealImpactPeakOverrideStore` when the auto-detected peak doesn't match what the graph
+    /// actually shows (e.g. a noise spike got picked over the real absorption peak) --
+    /// correcting just the timestamp re-derives `peakBG` from the actual glucose reading at
+    /// that time, and also reshapes the secondary-rise search and the auto-detected end to
+    /// measure from the corrected peak instead of the wrong one.
     let peakDate: Date?
     let peakBG: Double?
+    /// True when `peakDate`/`peakBG` reflect a manual correction (via
+    /// `MealImpactPeakOverrideStore`) rather than the auto-detected global maximum.
+    let peakIsOverridden: Bool
     /// The last glucose reading at or before the window's close. Deliberately NOT "wherever
     /// the curve first looks flat" -- an early plateau mid-digestion (common with high-fat/
     /// protein meals) would otherwise get mistaken for the end and cut the window short.
@@ -148,6 +156,49 @@ enum MealImpactStartOverrideStore {
     }
 
     static func clearStart(for id: UUID) {
+        var all = loadAll()
+        all.removeValue(forKey: id.uuidString)
+        saveAll(all)
+    }
+}
+
+/// Lets the user correct the algorithm's detected PEAK time for one specific meal event when
+/// the graph clearly shows the true high point somewhere other than what got auto-detected --
+/// e.g. a brief sensor-noise spike outscored the real absorption peak, or a slow high-fat/
+/// protein rise crested later than the window's own global-max search caught. Purely a
+/// display-layer override, keyed by the meal's own `id`, same as the other override stores: it
+/// never touches the underlying glucose data, just which timestamp `MealImpactEvent` reports as
+/// the peak (and, downstream, `peakBG`, which `buildMealImpactEvent` re-derives from the actual
+/// glucose reading nearest the corrected time -- there's no separate BG field to edit by hand).
+/// Correcting the peak also reshapes the secondary-rise search and the auto-detected end, since
+/// both are measured relative to the peak -- exactly mirroring how a start correction already
+/// reshapes everything measured from it.
+enum MealImpactPeakOverrideStore {
+    private static let defaultsKey = "mealImpactPeakOverrides"
+
+    private static func loadAll() -> [String: Date] {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let decoded = try? JSONDecoder().decode([String: Date].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    private static func saveAll(_ overrides: [String: Date]) {
+        guard let data = try? JSONEncoder().encode(overrides) else { return }
+        UserDefaults.standard.set(data, forKey: defaultsKey)
+    }
+
+    static func peak(for id: UUID) -> Date? {
+        loadAll()[id.uuidString]
+    }
+
+    static func setPeak(_ date: Date, for id: UUID) {
+        var all = loadAll()
+        all[id.uuidString] = date
+        saveAll(all)
+    }
+
+    static func clearPeak(for id: UUID) {
         var all = loadAll()
         all.removeValue(forKey: id.uuidString)
         saveAll(all)
@@ -637,16 +688,25 @@ private func buildMealImpactEvent(
         peak = globalMax(in: glucosePoints, from: startDate, to: windowEnd)
     }
 
-    guard let confirmedPeak = peak else {
-        // No glucose data at all in-window -- still surface the meal/dosing facts, just
-        // without a BG-derived peak/end (unless the user has manually set one anyway).
+    // A manual peak correction (see `MealImpactPeakOverrideStore`) wins over whatever the
+    // window-extension search above found -- including turning a "no peak found" result into a
+    // real one, same as a prebolus correction can. `confirmedPeakDate`/`confirmedPeakBG` (not
+    // the raw `peak` local) are what everything below -- the auto-end search, the secondary-rise
+    // search, and the reported event -- is measured from, so a peak correction reshapes those
+    // exactly the way a start correction already reshapes everything measured from it.
+    let resolvedPeakResult = resolvedPeak(for: id, algorithmicPeak: peak, glucosePoints: glucosePoints)
+
+    guard let confirmedPeakDate = resolvedPeakResult.date else {
+        // No glucose data at all in-window, and no manual override either -- still surface the
+        // meal/dosing facts, just without a BG-derived peak/end.
         let resolved = resolvedEnd(for: id, algorithmicEnd: nil, glucosePoints: glucosePoints)
         return MealImpactEvent(
             id: id, mealDate: mealDate,
             prebolusDate: resolvedPrebolusResult.date, prebolusAmount: resolvedPrebolusResult.amount,
             prebolusIsOverridden: resolvedPrebolusResult.isOverridden,
             carbs: carbs, fat: fat, protein: protein, startDate: startDate, startBG: startBG,
-            peakDate: nil, peakBG: nil, endDate: resolved.date, endBG: resolved.value,
+            peakDate: nil, peakBG: nil, peakIsOverridden: false,
+            endDate: resolved.date, endBG: resolved.value,
             totalInsulin: totalInsulinIncludingManualPrebolus(
                 bolusPoints: bolusPoints, start: startDate, end: resolved.date ?? windowEnd,
                 manualPrebolus: manualPrebolus
@@ -658,6 +718,7 @@ private func buildMealImpactEvent(
             isSuperBolus: isSuperBolus, isReducedBolus: isReducedBolus
         )
     }
+    let confirmedPeakBG = resolvedPeakResult.value
 
     // 3. End of window: the last available glucose reading at or before `windowEnd`. This is
     // deliberately just the window boundary rather than an earlier "looks flattened out"
@@ -667,15 +728,15 @@ private func buildMealImpactEvent(
     // corrected this specific meal's end (see `MealImpactEndOverrideStore`), that correction
     // wins instead -- e.g. a slow high-fat/protein rise the window extension logic still
     // didn't chase far enough.
-    let algorithmicEnd = glucosePoints.last { $0.date > confirmedPeak.date && $0.date <= windowEnd }
+    let algorithmicEnd = glucosePoints.last { $0.date > confirmedPeakDate && $0.date <= windowEnd }
     let resolvedEndResult = resolvedEnd(for: id, algorithmicEnd: algorithmicEnd, glucosePoints: glucosePoints)
 
     // 4. Secondary-rise flag: an earlier local high point, well before the true peak, with a
     // real dip in between -- i.e. genuinely a second rise, not just the leading edge of the
     // same one.
-    let beforePeak = glucosePoints.filter { $0.date >= startDate && $0.date <= confirmedPeak.date }
+    let beforePeak = glucosePoints.filter { $0.date >= startDate && $0.date <= confirmedPeakDate }
     let secondary = localMaxima(in: beforePeak, minProminence: secondaryRiseProminence)
-        .filter { confirmedPeak.date.timeIntervalSince($0.date) >= secondaryRiseMinSeparation }
+        .filter { confirmedPeakDate.timeIntervalSince($0.date) >= secondaryRiseMinSeparation }
         .max { $0.value < $1.value }
     // A user-dismissed secondary rise is reported as if the detector never found one -- see
     // `MealImpactSecondaryRiseOverrideStore`.
@@ -692,8 +753,9 @@ private func buildMealImpactEvent(
         protein: protein,
         startDate: startDate,
         startBG: startBG,
-        peakDate: confirmedPeak.date,
-        peakBG: confirmedPeak.value,
+        peakDate: confirmedPeakDate,
+        peakBG: confirmedPeakBG,
+        peakIsOverridden: resolvedPeakResult.isOverridden,
         endDate: resolvedEndResult.date,
         endBG: resolvedEndResult.value,
         totalInsulin: totalInsulinIncludingManualPrebolus(
@@ -724,6 +786,22 @@ private func resolvedEnd(
         return (overrideDate, nearestGlucose(to: overrideDate, in: glucosePoints)?.value, true)
     }
     return (algorithmicEnd?.date, algorithmicEnd?.value, false)
+}
+
+/// Applies a manual `MealImpactPeakOverrideStore` correction (if one exists for this meal) in
+/// place of the algorithmically-detected peak. When overridden, `peakBG` is looked up fresh at
+/// the corrected time rather than reused from the algorithmic result, since the two dates will
+/// generally differ -- there's no separate BG field for the user to enter by hand, same as
+/// `resolvedEnd`.
+private func resolvedPeak(
+    for id: UUID,
+    algorithmicPeak: (date: Date, value: Double)?,
+    glucosePoints: [(date: Date, value: Double)]
+) -> (date: Date?, value: Double?, isOverridden: Bool) {
+    if let overrideDate = MealImpactPeakOverrideStore.peak(for: id) {
+        return (overrideDate, nearestGlucose(to: overrideDate, in: glucosePoints)?.value, true)
+    }
+    return (algorithmicPeak?.date, algorithmicPeak?.value, false)
 }
 
 /// Applies a manual `MealImpactStartOverrideStore` correction (if one exists for this meal) in
