@@ -944,16 +944,6 @@ extension MainChartCanvas {
                 units: state.units
             )
 
-            GlucoseChartView(
-                glucoseData: glucose,
-                units: state.units,
-                highGlucose: state.highGlucose,
-                lowGlucose: state.lowGlucose,
-                currentGlucoseTarget: state.currentGlucoseTarget,
-                isSmoothingEnabled: state.isSmoothingEnabled,
-                glucoseColorScheme: state.glucoseColorScheme
-            )
-
             InsulinView(
                 glucoseData: glucose,
                 insulinData: insulin,
@@ -978,6 +968,16 @@ extension MainChartCanvas {
                 maxValue: state.maxYAxisValue,
                 forecastDisplayType: state.forecastDisplayType,
                 lastDeterminationDate: state.determinationsFromPersistence.first?.deliverAt ?? .distantPast
+            )
+
+            GlucoseChartView(
+                glucoseData: glucose,
+                units: state.units,
+                highGlucose: state.highGlucose,
+                lowGlucose: state.lowGlucose,
+                currentGlucoseTarget: state.currentGlucoseTarget,
+                isSmoothingEnabled: state.isSmoothingEnabled,
+                glucoseColorScheme: state.glucoseColorScheme
             )
         }
         .frame(width: canvasWidth, height: mainHeight)
