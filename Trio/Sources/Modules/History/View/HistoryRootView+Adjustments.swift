@@ -152,12 +152,8 @@ extension History.RootView {
                 VStack(alignment: .leading) {
                     HStack {
                         Image(systemName: item.type.symbolName)
-<<<<<<< HEAD
                             .foregroundStyle(item.type.symbolColor)
-=======
-                            .foregroundStyle(item.type == .override ? Color.purple : Color.green)
                             .accessibilityHidden(true)
->>>>>>> upstream/dev
                         Text(item.name)
                             .font(.headline)
                         Spacer()

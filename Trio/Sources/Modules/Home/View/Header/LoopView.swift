@@ -29,7 +29,6 @@ struct LoopView: View {
         loopStatusContent
             .padding(.vertical, 5)
             .padding(.horizontal, 10)
-<<<<<<< HEAD
             .capsuleSpinner(isActive: showLooping, color: color)
             .task(id: isLooping) {
                 if isLooping {
@@ -52,7 +51,6 @@ struct LoopView: View {
                     self.spinStart = nil
                 }
             }
-=======
             .overlay(
                 Capsule()
                     .stroke(color.opacity(0.4), lineWidth: 2)
@@ -97,7 +95,6 @@ struct LoopView: View {
         return [String(localized: "Loop", comment: "Accessibility: loop pill label"), status, age]
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
->>>>>>> upstream/dev
     }
 
     private var loopStatusContent: some View {
