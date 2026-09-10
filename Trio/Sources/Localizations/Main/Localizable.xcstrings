@@ -192035,6 +192035,9 @@
         }
       }
     },
+    "No Bolus, Log Carbs": {
+      "comment": "Button Label to Log Carbs on Watch"
+    },
     "No Contact Trick Entries.": {
       "localizations": {
         "bg": {
