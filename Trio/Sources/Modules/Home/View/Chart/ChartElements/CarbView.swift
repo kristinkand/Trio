@@ -41,6 +41,12 @@ struct CarbView: ChartContent {
                         )
                         .rotationEffect(.degrees(180))
                 }
+
+                PointMark(
+                    x: .value("Time", carbDate, unit: .second),
+                    y: .value("Value", yPosition)
+                )
+                .symbolSize(0)
                 .annotation(position: .bottom) {
                     Text(Formatter.integerFormatter.string(from: carbAmount as NSNumber)!).font(.caption2)
                         .foregroundStyle(Color.primary)
