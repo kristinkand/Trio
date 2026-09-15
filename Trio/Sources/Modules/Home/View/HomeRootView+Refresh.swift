@@ -29,10 +29,24 @@ struct HomePullOffsetReader: ViewModifier {
 // MARK: - Pull-down-to-force-loop
 
 extension Home.RootView {
-    /// Only ever visible while pulled: the running loop is shown by the loop icon
-    /// spinner, so pulling down again mid-loop just peeks at that status.
+    /// Forcing a cycle only means something where Trio enacts one.
+    var canForceLoop: Bool { state.dosingMode.automation != .off }
+
+    /// Pull hint while dragging; spinner while the loop runs.
     @ViewBuilder var pullToRefreshIndicator: some View {
-        if pullOffset > 4 {
+        if !canForceLoop {
+            EmptyView()
+        } else if isForcingLoop {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("Forcing loop…")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(height: HomeLayout.refreshIndicatorHeight)
+            .frame(maxWidth: .infinity)
+            .transition(.opacity)
+        } else if pullOffset > 4 {
             let progress = min(pullOffset / HomeLayout.refreshTriggerDistance, 1)
             HStack(spacing: 8) {
                 if isForcingLoop {
@@ -55,7 +69,7 @@ extension Home.RootView {
     /// Arms once per pull at the threshold; re-arms after the pull settles.
     func handlePullChange(_ offset: CGFloat) {
         pullOffset = offset
-        guard !isForcingLoop else { return }
+        guard canForceLoop, !isForcingLoop else { return }
         if offset >= HomeLayout.refreshTriggerDistance, !isRefreshArmed {
             isRefreshArmed = true
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()

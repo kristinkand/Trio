@@ -7,56 +7,138 @@ struct LoopView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private enum Config {
+    fileprivate enum Config {
         static let lag: TimeInterval = 30
     }
 
-    let closedLoop: Bool
+    let dosingMode: DosingMode
     let timerDate: Date
     let isLooping: Bool
     let lastLoopDate: Date
     let manualTempBasal: Bool
+    let lastGlucoseDate: Date?
+    let lastPumpCommsDate: Date?
+    let hasDeviceIssue: Bool
 
     let determination: [OrefDetermination]
 
     /// `isLooping`, but never shown for less than 2 seconds: a loop can
     /// finish in well under a second, and a pill that flickers on and off reads as a glitch
     /// rather than as work. A loop that runs longer than that ends the spin when it ends.
+    /// Only meaningful in the `showsCaption` (closed loop) case below -- the capsule spinner
+    /// is a capsule-shaped border, and only that case renders a capsule at all.
     @State private var showLooping: Bool = false
     @State private var spinStart: Date? = nil
 
-    var body: some View {
-        loopStatusContent
-            .padding(.vertical, 5)
-            .padding(.horizontal, 10)
-            .capsuleSpinner(isActive: showLooping, color: color)
-            .task(id: isLooping) {
-                if isLooping {
-                    spinStart = Date()
-                    showLooping = true
-                } else {
-                    // nothing was spinning (first run, or a stop that already elapsed)
-                    guard let spinStart else {
+    /// Fraction of the ring removed at *each* of the two horizontal gaps (3 and 9 o'clock),
+    /// leaving a top and a bottom arc. Anything short of full automation reads as an open ring;
+    /// the centre symbol says why.
+    static let openRingGap: CGFloat = 0.12
+
+    static func ringGap(automation: AutomationLevel, manualTempBasal: Bool) -> CGFloat {
+        guard !manualTempBasal else { return openRingGap }
+        return automation == .full ? 0 : openRingGap
+    }
+
+    /// Symbol inside the ring for the modes that still dose, but only under a constraint.
+    static func centerSymbol(automation: AutomationLevel) -> String? {
+        switch automation {
+        case .reductionsOnly:
+            return "hand.raised.fill"
+        case .hypoSuspendOnly:
+            return "waveform"
+        case .full,
+             .off:
+            return nil
+        }
+    }
+
+    /// Ring colour. Closed-loop freshness is meaningless when nothing is enacted, so open loop
+    /// reports device health instead: green while the devices talk to Trio, red when they do not.
+    static func ringColor(
+        automation: AutomationLevel,
+        manualTempBasal: Bool,
+        hasDeviceIssue: Bool,
+        hasEnactedDetermination: Bool,
+        secondsSinceLastLoop: TimeInterval
+    ) -> Color {
+        guard !manualTempBasal else { return .loopManualTemp }
+        guard automation != .off else { return hasDeviceIssue ? .loopRed : .loopGreen }
+        // .timestamp only updates when reportEnacted runs
+        guard hasEnactedDetermination else { return .secondary }
+
+        let delta = secondsSinceLastLoop - Config.lag
+        if delta <= 5.minutes.timeInterval {
+            return .loopGreen
+        } else if delta <= 10.minutes.timeInterval {
+            return .loopYellow
+        } else {
+            return .loopRed
+        }
+    }
+
+    private var ringGap: CGFloat {
+        Self.ringGap(automation: dosingMode.automation, manualTempBasal: manualTempBasal)
+    }
+
+    private var centerSymbol: String? {
+        manualTempBasal ? nil : Self.centerSymbol(automation: dosingMode.automation)
+    }
+
+    /// Newest sign of life from either device, which is what freshness means when nothing is enacted.
+    private var lastDeviceDate: Date? {
+        [lastGlucoseDate, lastPumpCommsDate].compactMap { $0 }.max()
+    }
+
+    /// Only full automation carries a "last loop" caption. The constrained modes drop it and show
+    /// the bare ring; their freshness still comes through in the ring colour.
+    static func showsCaption(automation: AutomationLevel) -> Bool { automation == .full }
+
+    private var showsCaption: Bool { Self.showsCaption(automation: dosingMode.automation) }
+
+    @ViewBuilder var body: some View {
+        if showsCaption {
+            // Closed loop is the only case with a capsule caption, so it's the only case that
+            // wears the capsule spinner border -- it fades between a spinning and a solid
+            // capsule as `showLooping` flips, taking over what the plain `.overlay` used to
+            // draw on its own before the spinner was added.
+            loopStatus
+                .padding(.vertical, 5)
+                .padding(.horizontal, 10)
+                .capsuleSpinner(isActive: showLooping, color: color)
+                .task(id: isLooping) {
+                    if isLooping {
+                        spinStart = Date()
+                        showLooping = true
+                    } else {
+                        // nothing was spinning (first run, or a stop that already elapsed)
+                        guard let spinStart else {
+                            showLooping = false
+                            return
+                        }
+
+                        let remaining = 2 - Date().timeIntervalSince(spinStart)
+                        if remaining > 0 {
+                            try? await Task.sleep(for: .seconds(remaining))
+                            guard !Task.isCancelled else { return }
+                        }
+
                         showLooping = false
-                        return
+                        self.spinStart = nil
                     }
-
-                    let remaining = 2 - Date().timeIntervalSince(spinStart)
-                    if remaining > 0 {
-                        try? await Task.sleep(for: .seconds(remaining))
-                        guard !Task.isCancelled else { return }
-                    }
-
-                    showLooping = false
-                    self.spinStart = nil
                 }
-            }
-            .overlay(
-                Capsule()
-                    .stroke(color.opacity(0.4), lineWidth: 2)
-            )
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(loopAccessibilityLabel))
+                .overlay(
+                    Capsule()
+                        .stroke(color.opacity(0.4), lineWidth: 2)
+                )
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(loopAccessibilityLabel))
+        } else {
+            // open loop, LGS and basal testing carry no caption; no capsule, so no spinner either
+            loopStatus
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(loopAccessibilityLabel))
+        }
     }
 
     /// Spoken description of loop state — mirrors the color/text logic so the
@@ -65,10 +147,11 @@ struct LoopView: View {
         let status: String
         if manualTempBasal {
             status = String(localized: "manual temporary basal running", comment: "Accessibility: loop status")
+        } else if dosingMode.automation == .off {
+            // checked before the determination, which never carries a timestamp in open loop
+            status = String(localized: "not dosing", comment: "Accessibility: loop status")
         } else if determination.first?.timestamp == nil {
             status = String(localized: "not looping", comment: "Accessibility: loop status")
-        } else if !closedLoop {
-            status = String(localized: "open loop", comment: "Accessibility: loop status")
         } else {
             let delta = timerDate.timeIntervalSince(lastLoopDate) - Config.lag
             if delta <= 5.minutes.timeInterval {
@@ -83,6 +166,14 @@ struct LoopView: View {
         let age: String
         if isLooping {
             age = String(localized: "in progress", comment: "Accessibility: loop currently running")
+        } else if dosingMode.automation == .off {
+            // loop age says nothing when nothing is enacted; report device contact instead
+            age = lastDeviceDate.map {
+                String(
+                    format: String(localized: "last device communication %@", comment: "Accessibility: device age"),
+                    TimeAgoFormatter.minutesAgoAccessible(from: $0)
+                )
+            } ?? ""
         } else if determination.first?.deliverAt != nil, timeString != "--" {
             age = String(
                 format: String(localized: "last loop %@", comment: "Accessibility: loop age"),
@@ -92,30 +183,50 @@ struct LoopView: View {
             age = ""
         }
 
-        return [String(localized: "Loop", comment: "Accessibility: loop pill label"), status, age]
+        return [dosingMode.displayName, status, age]
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
     }
 
-    private var loopStatusContent: some View {
+    @ScaledMetric(relativeTo: .callout) private var compactRingDiameter: CGFloat = 18
+    @ScaledMetric(relativeTo: .callout) private var expandedRingDiameter: CGFloat = 26
+
+    private var ringDiameter: CGFloat { showsCaption ? compactRingDiameter : expandedRingDiameter }
+    private var ringLineWidth: CGFloat { max(2, ringDiameter * 0.08) }
+
+    private var loopStatus: some View {
         HStack(alignment: .center) {
             ZStack {
-                Image(systemName: (!closedLoop || manualTempBasal) ? "circle.and.line.horizontal" : "circle")
-                    .symbolEffect(.pulse, options: .repeating, isActive: showLooping && !reduceMotion)
+                if dosingMode == .closed, !manualTempBasal {
+                    Image(systemName: "circle")
+                } else {
+                    Circle()
+                        .trim(from: ringGap / 2, to: 0.5 - ringGap / 2)
+                        .stroke(style: StrokeStyle(lineWidth: ringLineWidth, lineCap: .round))
+                    Circle()
+                        .trim(from: 0.5 + ringGap / 2, to: 1 - ringGap / 2)
+                        .stroke(style: StrokeStyle(lineWidth: ringLineWidth, lineCap: .round))
+                }
+                if isLooping {
+                    ProgressView()
+                } else if let centerSymbol {
+                    Image(systemName: centerSymbol)
+                        .font(.system(size: ringDiameter * 0.6, weight: .bold))
+                }
             }
-            if showLooping, reduceMotion {
-                // neither the spinning border nor the pulse runs here, so say it in words
-                Text("looping")
-            } else if manualTempBasal {
-                Text("Manual")
-            } else if determination.first?
-                .deliverAt !=
-                nil
-            {
-                // previously the .timestamp property was used here because this only gets updated when the reportenacted function in the aps manager gets called
-                Text(timeString)
-            } else {
-                Text("--")
+            .frame(width: ringDiameter, height: ringDiameter)
+            // A caption would imply an action that did not happen in open loop, LGS, or basal testing.
+            // Show timestamp only in closed loop, when determination is enacted.
+            if showsCaption {
+                if isLooping {
+                    Text("looping")
+                } else if manualTempBasal {
+                    Text("Manual")
+                } else if determination.first?.deliverAt != nil {
+                    Text(timeString)
+                } else {
+                    Text("--")
+                }
             }
         }
         .font(.callout).fontWeight(.bold).fontDesign(.rounded)
@@ -132,29 +243,12 @@ struct LoopView: View {
     }
 
     private var color: Color {
-        guard determination.first?.timestamp != nil
-        else {
-            // previously the .timestamp property was used here because this only gets updated when the reportenacted function in the aps manager gets called
-            return .secondary
-        }
-        guard manualTempBasal == false else {
-            return .loopManualTemp
-        }
-        guard closedLoop == true else {
-            return .secondary
-        }
-
-        let delta = timerDate.timeIntervalSince(lastLoopDate) - Config.lag
-
-        if delta <= 5.minutes.timeInterval {
-            guard determination.first?.timestamp != nil else {
-                return .loopYellow
-            }
-            return .loopGreen
-        } else if delta <= 10.minutes.timeInterval {
-            return .loopYellow
-        } else {
-            return .loopRed
-        }
+        Self.ringColor(
+            automation: dosingMode.automation,
+            manualTempBasal: manualTempBasal,
+            hasDeviceIssue: hasDeviceIssue,
+            hasEnactedDetermination: determination.first?.timestamp != nil,
+            secondsSinceLastLoop: timerDate.timeIntervalSince(lastLoopDate)
+        )
     }
 }
