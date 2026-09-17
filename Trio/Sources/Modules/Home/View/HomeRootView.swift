@@ -241,7 +241,7 @@ extension Home {
             .overlay(alignment: .center) {
                 TrendAnimationOverlay(
                     direction: state.latestTwoGlucoseValues.last?.directionEnum,
-                    readingDate: state.latestTwoGlucoseValues.last?.date
+                    isEnabled: state.showTrendAnimation
                 )
             }
             .onAppear {

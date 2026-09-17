@@ -57,33 +57,34 @@ enum TrendMood: CaseIterable {
     }
 }
 
-/// A small, centered, self-dismissing animation that echoes the current trend arrow with a
-/// themed vehicle -- a rocket taking straight up, a plane climbing or descending on a diagonal, a
-/// hovering UFO for flat, and a parachute drifting straight down. Reappears whenever a fresh
-/// glucose reading changes the trend, and taps anywhere within its frame (i.e. anywhere on the
-/// Home dashboard, per how this is placed in `HomeLayout.swift`) dismiss it until the next
-/// reading.
+/// A small, self-dismissing animation that echoes the current trend arrow with a themed
+/// vehicle -- a rocket taking straight up, a plane climbing or descending on a diagonal, a
+/// hovering UFO for flat, and a parachute drifting straight down. Shows once, briefly, each
+/// time the Home dashboard is opened (not on every glucose reading while it's already open),
+/// then fades away on its own; a tap anywhere within its frame (i.e. anywhere on the Home
+/// dashboard, per how this is placed in `HomeRootView.swift`) dismisses it early. Controlled
+/// by the "Show Trend Animation" toggle in Settings (`TrioSettings.showTrendAnimation`).
 struct TrendAnimationOverlay: View {
     let direction: BloodGlucose.Direction?
-    let readingDate: Date?
+    let isEnabled: Bool
 
-    @State private var isDismissed = false
-    @State private var lastReadingDate: Date?
+    /// How long the animation stays up before it dismisses itself.
+    private static let displayDuration: TimeInterval = 3
+
+    @State private var isVisible = false
+    @State private var hasShownThisAppearance = false
+    @State private var dismissTask: Task<Void, Never>?
 
     private var mood: TrendMood? { TrendMood(direction: direction) }
 
     var body: some View {
         ZStack {
-            if let mood, !isDismissed {
+            if let mood, isVisible {
                 // Fills the whole dashboard area so a tap anywhere on the Home screen dismisses
                 // the animation, not just a tap directly on the icon.
                 Color.clear
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            isDismissed = true
-                        }
-                    }
+                    .onTapGesture { dismiss() }
 
                 AnimatedTrendIcon(mood: mood)
                     .allowsHitTesting(false)
@@ -91,10 +92,45 @@ struct TrendAnimationOverlay: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onChange(of: readingDate) {
-            guard readingDate != lastReadingDate else { return }
-            lastReadingDate = readingDate
-            isDismissed = false
+        .onAppear {
+            // A fresh appearance of the Home dashboard -- e.g. switching back to the Home tab,
+            // or launching the app -- earns one showing.
+            hasShownThisAppearance = false
+            showOnceIfPossible()
+        }
+        .onDisappear {
+            dismissTask?.cancel()
+        }
+        .onChange(of: direction) {
+            // The trend is often not known yet the instant the view appears (the first glucose
+            // reading hasn't loaded), so also catch it the moment it becomes available -- but
+            // only once per appearance, never again just because a later reading changed it.
+            showOnceIfPossible()
+        }
+    }
+
+    private func showOnceIfPossible() {
+        guard isEnabled, !hasShownThisAppearance, mood != nil else { return }
+        hasShownThisAppearance = true
+
+        withAnimation(.easeIn(duration: 0.2)) {
+            isVisible = true
+        }
+
+        dismissTask?.cancel()
+        dismissTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(Self.displayDuration * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.3)) {
+                isVisible = false
+            }
+        }
+    }
+
+    private func dismiss() {
+        dismissTask?.cancel()
+        withAnimation(.easeOut(duration: 0.2)) {
+            isVisible = false
         }
     }
 }
