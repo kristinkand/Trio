@@ -95,12 +95,12 @@ enum WeekendProfileStore {
         runHistory.append(Run(name: name, startDate: start, endDate: end))
     }
 
-    /// User-editable label. Defaults to "Weekend Profile"; shown in the section header, the Save
+    /// User-editable label. Defaults to "Profile"; shown in the section header, the Save
     /// button's confirmation, the Nightscout Note marker, and the Home screen indicator.
     static var name: String {
         get {
             let stored = defaults.string(forKey: nameKey) ?? ""
-            return stored.isEmpty ? "Weekend Profile" : stored
+            return stored.isEmpty ? "Profile" : stored
         }
         set { defaults.set(newValue, forKey: nameKey) }
     }

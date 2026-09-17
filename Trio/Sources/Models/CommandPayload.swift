@@ -89,9 +89,9 @@ struct CommandPayload: Decodable, Sendable {
         case .cancelOverride:
             description += "Cancel Override command."
         case .startWeekendProfile:
-            description += "Start Weekend Profile command."
+            description += "Start Profile command."
         case .stopWeekendProfile:
-            description += "Stop Weekend Profile command."
+            description += "Stop Profile command."
         }
 
         if let scheduledTime = scheduledTime {
@@ -133,9 +133,9 @@ extension TrioRemoteControl {
             case .cancelOverride:
                 return "Cancel Override"
             case .startWeekendProfile:
-                return "Start Weekend Profile"
+                return "Start Profile"
             case .stopWeekendProfile:
-                return "Stop Weekend Profile"
+                return "Stop Profile"
             }
         }
     }

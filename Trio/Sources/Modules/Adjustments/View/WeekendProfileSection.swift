@@ -118,7 +118,7 @@ struct WeekendProfileSection: View {
         let insulinSensitivities = InsulinSensitivities(units: .mgdL, userPreferredUnits: .mgdL, sensitivities: sensitivities)
 
         state.saveWeekendProfile(
-            name: trimmedName.isEmpty ? "Weekend Profile" : trimmedName,
+            name: trimmedName.isEmpty ? "Profile" : trimmedName,
             target: overrideTarget ? target : 0,
             smbMinutes: smbMinutes,
             uamMinutes: uamMinutes,
@@ -128,10 +128,10 @@ struct WeekendProfileSection: View {
         justSaved = true
     }
 
-    private var displayName: String { name.isEmpty ? "Weekend Profile" : name }
+    private var displayName: String { name.isEmpty ? "Profile" : name }
 
     private var infoText: String {
-        "A name, target, SMB/UAM minutes, and its own basal + ISF schedule, that you start and stop yourself, independent of Overrides -- meant for stretches like a weekend or vacation. Carb ratio is never changed -- it always comes from your normal settings. If a real Override or Temp Target is running, it fully takes over the dosing math and Weekend Profile is paused until it ends."
+        "A name, target, SMB/UAM minutes, and its own basal + ISF schedule, that you start and stop yourself, independent of Overrides -- meant for stretches like a weekend or vacation. Carb ratio is never changed -- it always comes from your normal settings. If a real Override or Temp Target is running, it fully takes over the dosing math and Profile is paused until it ends."
     }
 
     var body: some View {
@@ -139,7 +139,7 @@ struct WeekendProfileSection: View {
             HStack {
                 if isActive {
                     HStack(spacing: 4) {
-                        TextField("Weekend Profile", text: $name)
+                        TextField("Profile", text: $name)
                             .focused($isNameFieldFocused)
                             .onChange(of: name) { justSaved = false }
                             .toolbar {
@@ -237,7 +237,7 @@ struct WeekendProfileSection: View {
         if isActive {
             WeekendScheduleEditor(
                 title: "\(displayName) Basal",
-                footer: "Absolute basal rates, same as the real Basal Profile Editor. Only used while Weekend Profile is active.",
+                footer: "Absolute basal rates, same as the real Basal Profile Editor. Only used while Profile is active.",
                 tint: .mint,
                 valueValues: state.weekendBasalRateValues,
                 valueLabel: basalLabel,
@@ -247,7 +247,7 @@ struct WeekendProfileSection: View {
 
             WeekendScheduleEditor(
                 title: "\(displayName) ISF",
-                footer: "Absolute insulin sensitivities, same as the real ISF Editor. Only used while Weekend Profile is active.",
+                footer: "Absolute insulin sensitivities, same as the real ISF Editor. Only used while Profile is active.",
                 tint: .mint,
                 valueValues: isfValues,
                 valueLabel: isfLabel,

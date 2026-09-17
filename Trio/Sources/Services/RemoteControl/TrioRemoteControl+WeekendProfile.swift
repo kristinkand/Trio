@@ -8,7 +8,7 @@ extension TrioRemoteControl {
     @MainActor internal func handleStartWeekendProfileCommand(_ payload: CommandPayload) async {
         guard WeekendProfileStore.isConfigured else {
             await logError(
-                "Command rejected: Weekend Profile hasn't been set up in the app yet. Open Adjustments > Weekend Profile and save a profile first.",
+                "Command rejected: Profile hasn't been set up in the app yet. Open Adjustments > Profile and save a profile first.",
                 payload: payload
             )
             return
