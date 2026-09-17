@@ -176,6 +176,76 @@ enum WeekendProfileStore {
     }
 }
 
+// MARK: - Shared start/stop sequence
+
+extension WeekendProfileStore {
+    /// ~30 days, in minutes -- Trio's convention for representing an indefinite-duration entry
+    /// (see `OverrideStorage.getOverrideRunsNotYetUploadedToNightscout`). `activate` posts a
+    /// Nightscout entry with this duration; `deactivate` corrects it to the real elapsed time.
+    static let indefiniteDurationMinutes = 43200
+
+    /// Distinguishes a Weekend Profile run from a real Override on Nightscout even though both
+    /// share the "Exercise" eventType and Trio's usual `enteredBy` of "Trio".
+    static let enteredBy = "Trio Weekend Profile"
+
+    /// Turns Weekend Profile on: flips `isActive`, records the real start time (so the run can be
+    /// anchored in History > Adjustments and its real duration computed once stopped), and posts an
+    /// indefinite-duration "Exercise" entry to Nightscout so Loop Follow (and any Nightscout-based
+    /// viewer that already understands Trio Overrides) picks it up automatically. No-ops if already
+    /// active.
+    ///
+    /// This is the combined sequence used by the Trio Remote Control command handler
+    /// (`TrioRemoteControl+WeekendProfile.swift`), which has no SwiftUI view to drive it. The in-app
+    /// toggle in `WeekendProfileSection` performs the same steps itself -- setting `isActive`
+    /// directly from its `Toggle` binding, then calling `Adjustments.StateModel.startWeekendProfile()`
+    /// for the timing/Nightscout side effects -- rather than going through this helper, but both
+    /// paths leave Weekend Profile in the identical state.
+    static func activate(nightscoutManager: NightscoutManager) {
+        guard !isActive else { return }
+        isActive = true
+        let start = Date()
+        activeStartDate = start
+        Task {
+            let event = NightscoutExercise(
+                duration: indefiniteDurationMinutes,
+                eventType: .nsExercise,
+                createdAt: start,
+                enteredBy: enteredBy,
+                notes: name
+            )
+            await nightscoutManager.uploadWeekendProfileEvent(event, replacingPrevious: false)
+        }
+    }
+
+    /// Turns Weekend Profile off: flips `isActive`, records the completed run (so it's anchored in
+    /// History > Adjustments with its real start/end), and corrects the Nightscout entry `activate`
+    /// posted from its indefinite duration to the real elapsed one. No-ops if already inactive, or if
+    /// there's no recorded start time to close out (e.g. Weekend Profile was active before this
+    /// version's start-tracking existed) -- see the counterpart in `Adjustments.StateModel
+    /// .stopWeekendProfile()` for the same guard.
+    static func deactivate(nightscoutManager: NightscoutManager) {
+        guard isActive else { return }
+        isActive = false
+        let end = Date()
+        let runName = name
+        guard let start = activeStartDate else { return }
+        activeStartDate = nil
+        recordCompletedRun(name: runName, start: start, end: end)
+
+        let elapsedMinutes = max(1, Int(end.timeIntervalSince(start) / 60))
+        Task {
+            let event = NightscoutExercise(
+                duration: elapsedMinutes,
+                eventType: .nsExercise,
+                createdAt: start,
+                enteredBy: enteredBy,
+                notes: runName
+            )
+            await nightscoutManager.uploadWeekendProfileEvent(event, replacingPrevious: true)
+        }
+    }
+}
+
 private extension Decimal {
     func clamped(to range: ClosedRange<Decimal>) -> Decimal {
         min(max(self, range.lowerBound), range.upperBound)
