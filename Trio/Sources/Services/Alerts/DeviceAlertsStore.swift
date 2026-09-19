@@ -14,21 +14,37 @@ final class DeviceAlertsStore: ObservableObject {
     @Published var configs: [DeviceAlertSeverityConfig]
     /// Per-tier snooze expirations keyed by `DeviceAlertSeverity.rawValue`.
     @Published var tierSnoozes: [String: Date]
+    /// Master override: when true, every Device Alarm severity — including
+    /// Critical — fires silently, regardless of that tier's own `playsSound`
+    /// setting. Unlike `AlertMuter`'s snooze window (which is temporary and
+    /// which Critical alarms explicitly pierce), this is a persistent,
+    /// user-chosen preference that applies to Critical too, and it works
+    /// identically whether or not this build/user has the Critical Alerts
+    /// entitlement: `TrioAlertManager.applyDeviceSeverityConfig` folds it
+    /// into the same `sound: nil` path `playsSound: false` already uses, so
+    /// it silences all three delivery channels (AlarmKit, the in-process
+    /// `CriticalAlertAudioPlayer` fallback, and the UN notification, which
+    /// falls back to a critical sound at volume 0 rather than losing its
+    /// interruption level).
+    @Published var muteAllSounds: Bool
 
     private let defaults: UserDefaults
     private let configsKey: String
     private let snoozesKey: String
+    private let muteAllSoundsKey: String
 
     private var subscriptions = Set<AnyCancellable>()
 
     init(
         defaults: UserDefaults = .standard,
         configsKey: String = "trio.deviceAlertSeverityConfigs.v1",
-        snoozesKey: String = "trio.deviceAlertTierSnoozes.v1"
+        snoozesKey: String = "trio.deviceAlertTierSnoozes.v1",
+        muteAllSoundsKey: String = "trio.deviceAlertsMuteAllSounds.v1"
     ) {
         self.defaults = defaults
         self.configsKey = configsKey
         self.snoozesKey = snoozesKey
+        self.muteAllSoundsKey = muteAllSoundsKey
         let loaded = Self.decode([DeviceAlertSeverityConfig].self, from: defaults, key: configsKey) ?? []
         var seeded = loaded
         for severity in DeviceAlertSeverity.allCases
@@ -39,6 +55,7 @@ final class DeviceAlertsStore: ObservableObject {
         configs = Self.sorted(seeded)
         let snoozes = Self.decode([String: Date].self, from: defaults, key: snoozesKey) ?? [:]
         tierSnoozes = snoozes.filter { $0.value > Date() }
+        muteAllSounds = defaults.bool(forKey: muteAllSoundsKey)
         bind()
     }
 
@@ -67,6 +84,14 @@ final class DeviceAlertsStore: ObservableObject {
             .dropFirst()
             .removeDuplicates()
             .sink { [weak self] value in self?.encode(value, to: self?.snoozesKey ?? "") }
+            .store(in: &subscriptions)
+        $muteAllSounds
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] value in
+                guard let self else { return }
+                self.defaults.set(value, forKey: self.muteAllSoundsKey)
+            }
             .store(in: &subscriptions)
     }
 

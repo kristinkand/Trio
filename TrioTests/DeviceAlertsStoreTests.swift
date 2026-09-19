@@ -331,6 +331,52 @@ import Testing
         #expect(effective.sound == nil)
     }
 
+    /// `muteAllSounds` reads through `DeviceAlertsStore.shared`, a process-wide
+    /// singleton — not the per-test `makeStore()` instance — because that's
+    /// what `applyDeviceSeverityConfig` itself consults. Restored in `defer`
+    /// so this doesn't leak into other suites; the enclosing suite is
+    /// `.serialized` so nothing else in this file runs concurrently with it.
+    @Test("Mute All Sounds silences a Critical tier even with Play Sound on") func muteAllSoundsSilencesCritical() throws {
+        let originalMuteAllSounds = DeviceAlertsStore.shared.muteAllSounds
+        defer { DeviceAlertsStore.shared.muteAllSounds = originalMuteAllSounds }
+        DeviceAlertsStore.shared.muteAllSounds = true
+
+        let entry = try #require(AlertCatalogRegistry.lookup(Self.patchEmpty))
+        var config = DeviceAlertSeverityConfig(severity: .critical)
+        config.soundFilename = "synth.caf"
+        config.playsSound = true
+        config.overridesSilenceAndDND = true
+
+        let effective = BaseTrioAlertManager.applyDeviceSeverityConfig(
+            config,
+            entry: entry,
+            to: Self.pluginAlert(Self.patchEmpty)
+        )
+        #expect(effective.sound == nil, "Mute All Sounds must silence audio even on the Critical tier")
+        // Unaffected: Mute All Sounds silences audio only, not the
+        // interruption level -- the alarm still pierces Silence/Focus and
+        // still shows, just without sound.
+        #expect(effective.interruptionLevel == .critical)
+    }
+
+    @Test("Mute All Sounds off leaves each tier's own Play Sound setting in control") func muteAllSoundsOffIsNoOp() throws {
+        let originalMuteAllSounds = DeviceAlertsStore.shared.muteAllSounds
+        defer { DeviceAlertsStore.shared.muteAllSounds = originalMuteAllSounds }
+        DeviceAlertsStore.shared.muteAllSounds = false
+
+        let entry = try #require(AlertCatalogRegistry.lookup(Self.patchEmpty))
+        var config = DeviceAlertSeverityConfig(severity: .critical)
+        config.soundFilename = "synth.caf"
+        config.playsSound = true
+
+        let effective = BaseTrioAlertManager.applyDeviceSeverityConfig(
+            config,
+            entry: entry,
+            to: Self.pluginAlert(Self.patchEmpty)
+        )
+        #expect(effective.sound == .sound(name: "synth.caf"))
+    }
+
     // MARK: - Override Silence & Focus
 
     @Test("Override Silence & Focus escalates to .critical") func overrideEscalates() throws {
