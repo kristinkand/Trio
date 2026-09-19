@@ -39,6 +39,9 @@ enum PlacementLocation: String, CaseIterable, Identifiable, Codable {
     case abdomenLeftLow
     case abdomenRightHigh
     case abdomenRightLow
+    /// Sensor-only abdomen placement. Unlike the four pump abdomen quadrants above, sensors don't
+    /// need that level of rotation detail, so this is a single, undivided "Abdomen" option.
+    case abdomenSensor
     case buttockLeftHigh
     case buttockLeftLow
     case buttockRightHigh
@@ -60,7 +63,8 @@ enum PlacementLocation: String, CaseIterable, Identifiable, Codable {
         case .abdomenLeftHigh,
              .abdomenLeftLow,
              .abdomenRightHigh,
-             .abdomenRightLow:
+             .abdomenRightLow,
+             .abdomenSensor:
             return .abdomen
         case .buttockLeftHigh,
              .buttockLeftLow,
@@ -85,6 +89,7 @@ enum PlacementLocation: String, CaseIterable, Identifiable, Codable {
         case .abdomenLeftLow: return String(localized: "Left Low", comment: "Placement location")
         case .abdomenRightHigh: return String(localized: "Right High", comment: "Placement location")
         case .abdomenRightLow: return String(localized: "Right Low", comment: "Placement location")
+        case .abdomenSensor: return String(localized: "Abdomen", comment: "Placement location")
         case .buttockLeftHigh: return String(localized: "Left High", comment: "Placement location")
         case .buttockLeftLow: return String(localized: "Left Low", comment: "Placement location")
         case .buttockRightHigh: return String(localized: "Right High", comment: "Placement location")
@@ -99,11 +104,30 @@ enum PlacementLocation: String, CaseIterable, Identifiable, Codable {
     }
 
     /// Full name including region, e.g. "Abdomen \u00b7 Left High" -- used in list rows.
+    /// `.abdomenSensor` has no sub-location of its own, so it's shown as plain "Abdomen" rather
+    /// than the redundant "Abdomen · Abdomen".
     var fullDisplayName: String {
-        "\(region.displayName) · \(displayName)"
+        self == .abdomenSensor ? region.displayName : "\(region.displayName) · \(displayName)"
     }
 
-    static func locations(in region: PlacementBodyRegion) -> [PlacementLocation] {
-        allCases.filter { $0.region == region }
+    /// Which device type(s) this specific location applies to. Almost every location applies to
+    /// both pump and sensor placements; the two exceptions are the detailed pump abdomen quadrants
+    /// (pump only) and the simplified `.abdomenSensor` entry (sensor only) that replaces them.
+    var deviceTypes: Set<PlacementDeviceType> {
+        switch self {
+        case .abdomenLeftHigh,
+             .abdomenLeftLow,
+             .abdomenRightHigh,
+             .abdomenRightLow:
+            return [.pump]
+        case .abdomenSensor:
+            return [.sensor]
+        default:
+            return [.pump, .sensor]
+        }
+    }
+
+    static func locations(in region: PlacementBodyRegion, for deviceType: PlacementDeviceType) -> [PlacementLocation] {
+        allCases.filter { $0.region == region && $0.deviceTypes.contains(deviceType) }
     }
 }
