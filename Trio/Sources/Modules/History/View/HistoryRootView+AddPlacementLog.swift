@@ -2,7 +2,7 @@ import SwiftUI
 
 extension History.RootView {
     var visiblePlacementRegions: [PlacementBodyRegion] {
-        state.newPlacementDeviceType == .sensor ? [.upperArm, .thigh] : PlacementBodyRegion.allCases
+        state.newPlacementDeviceType == .sensor ? [.upperArm, .abdomen, .thigh] : PlacementBodyRegion.allCases
     }
 
     @ViewBuilder func addPlacementLogView() -> some View {
@@ -24,10 +24,17 @@ extension History.RootView {
                         }
                     }.pickerStyle(SegmentedPickerStyle())
                         .onChange(of: state.newPlacementDeviceType) { newValue in
+                            // Reset the selected location whenever it isn't valid for the new
+                            // device type -- either its region is hidden for this type (e.g.
+                            // Buttocks for sensor), or the location itself doesn't apply (e.g.
+                            // the pump-only abdomen quadrants vs. the sensor-only single
+                            // Abdomen entry).
+                            if !visiblePlacementRegions.contains(state.newPlacementLocation.region) ||
+                                !state.newPlacementLocation.deviceTypes.contains(newValue)
+                            {
+                                state.newPlacementLocation = .upperArmLeft
+                            }
                             if newValue == .sensor {
-                                if !visiblePlacementRegions.contains(state.newPlacementLocation.region) {
-                                    state.newPlacementLocation = .upperArmLeft
-                                }
                                 state.newPlacementIsPainfulGivingInsulin = false
                             } else {
                                 state.newPlacementHasInaccurateReadings = false
@@ -37,7 +44,7 @@ extension History.RootView {
 
                 ForEach(visiblePlacementRegions) { region in
                     Section(region.displayName) {
-                        ForEach(PlacementLocation.locations(in: region)) { location in
+                        ForEach(PlacementLocation.locations(in: region, for: state.newPlacementDeviceType)) { location in
                             HStack {
                                 Text(location.displayName)
                                 Spacer()
