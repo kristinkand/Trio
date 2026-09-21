@@ -478,7 +478,8 @@ struct StatExportMenuView: View {
                     highLimit: state.highLimit,
                     timeInRangeType: state.timeInRangeType,
                     units: state.units,
-                    hourlyStats: data.hourlyStats
+                    hourlyStats: data.hourlyStats,
+                    eA1cDisplayUnit: state.eA1cDisplayUnit
                 )
             })
 
