@@ -330,7 +330,12 @@ extension Adjustments.StateModel {
     /// themselves within Max Basal avoids skewing that math even though delivered temp basals were
     /// always separately capped there regardless.
     var weekendBasalRateValues: [Decimal] {
-        let values = provider.supportedBasalRates
+        // `??` only substitutes on nil -- `pumpManager?.supportedBasalRates` can come back as a
+        // real, non-nil EMPTY array (a pump reporting no supported rates yet, or every rate
+        // filtered out), which used to sail straight through as `values = []` and defeat the
+        // "never empty" guard below before it ever ran. Treat nil and empty the same way here.
+        let supported = provider.supportedBasalRates
+        let values = (supported?.isEmpty == false ? supported : nil)
             ?? stride(from: 5.0, to: 1001.0, by: 5.0).map { (Decimal($0)) / 100 }
         let maxBasal = provider.maxBasalRate
         let capped = values.filter { $0 <= maxBasal }
