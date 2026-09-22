@@ -48,18 +48,45 @@ struct WeekendScheduleEditor: View {
         valueValues.indices.min(by: { abs(valueValues[$0] - value) < abs(valueValues[$1] - value) }) ?? 0
     }
 
+    /// Nearest 30-minute slot to a source entry's start time. The real Basal Profile Editor / ISF
+    /// Editor this prefills from allow start times that don't land on this editor's coarser
+    /// half-hour grid (e.g. an entry saved at an odd minute) -- round to the closest slot instead
+    /// of losing that distinction.
+    private func closestTimeIndex(to minutes: Int) -> Int {
+        let seconds = Double(minutes * 60)
+        return timeValues.indices.min(by: { abs(timeValues[$0] - seconds) < abs(timeValues[$1] - seconds) }) ?? 0
+    }
+
     private func makeRows() -> [Row] {
         guard !initialEntries.isEmpty else { return [Row(timeIndex: 0, valueIndex: 0)] }
+        var usedTimeIndices = Set<Int>()
         return initialEntries.map { entry in
-            let timeIndex = timeValues.firstIndex(of: Double(entry.minutes * 60)) ?? 0
             let valueIndex = valueValues.firstIndex(of: entry.value) ?? closestValueIndex(to: entry.value)
+            var timeIndex = timeValues.firstIndex(of: Double(entry.minutes * 60)) ?? closestTimeIndex(to: entry.minutes)
+            // Two source entries can round to the same slot (e.g. both off-grid and closest to the
+            // same half hour). Leaving that collision in place means two rows share a timeIndex,
+            // and the Picker below would then render with a selection that isn't among its own
+            // options for whichever row lost the slot -- which is what was crashing this screen.
+            if usedTimeIndices.contains(timeIndex) {
+                timeIndex = (0 ..< timeValues.count).first(where: { !usedTimeIndices.contains($0) }) ?? timeIndex
+            }
+            usedTimeIndices.insert(timeIndex)
             return Row(timeIndex: timeIndex, valueIndex: valueIndex)
         }
     }
 
-    private func availableTimeIndices(excluding rowID: UUID) -> [Int] {
-        let used = Set(rows.filter { $0.id != rowID }.map(\.timeIndex))
-        return (0 ..< timeValues.count).filter { !used.contains($0) }
+    private func availableTimeIndices(for row: Row) -> [Int] {
+        let used = Set(rows.filter { $0.id != row.id }.map(\.timeIndex))
+        var indices = (0 ..< timeValues.count).filter { !used.contains($0) }
+        // Defense in depth: whatever timeIndex this row is currently bound to must always be
+        // among its own Picker's options. A selection value with no matching tag is what SwiftUI
+        // was hard-crashing on here -- this makes that combination unrepresentable regardless of
+        // how a duplicate slot arises.
+        if !indices.contains(row.timeIndex) {
+            indices.append(row.timeIndex)
+            indices.sort()
+        }
+        return indices
     }
 
     private func normalizeAndEmit() {
@@ -80,7 +107,16 @@ struct WeekendScheduleEditor: View {
         var timeIndex = 0
         var valueIndex = 0
         if let last = rows.max(by: { $0.timeIndex < $1.timeIndex }) {
-            timeIndex = min(last.timeIndex + 1, timeValues.count - 1)
+            // This is very likely how a real, previously-saved schedule ends up with two rows on
+            // the same slot in the first place: if `last` is already at the final slot (23:30),
+            // `min(last.timeIndex + 1, timeValues.count - 1)` used to clamp right back onto that
+            // same slot instead of picking a genuinely free one. Search forward from `last` for
+            // the next open slot, wrapping around, before giving up and reusing `last`'s slot (the
+            // schedule is full -- every slot already has a row).
+            let used = Set(rows.map(\.timeIndex))
+            timeIndex = ((last.timeIndex + 1) ..< timeValues.count).first(where: { !used.contains($0) })
+                ?? (0 ..< timeValues.count).first(where: { !used.contains($0) })
+                ?? last.timeIndex
             valueIndex = last.valueIndex
         }
         rows.append(Row(timeIndex: timeIndex, valueIndex: valueIndex))
@@ -92,7 +128,7 @@ struct WeekendScheduleEditor: View {
             ForEach($rows) { $row in
                 HStack {
                     Picker("Start", selection: $row.timeIndex) {
-                        ForEach(availableTimeIndices(excluding: row.id), id: \.self) { idx in
+                        ForEach(availableTimeIndices(for: row), id: \.self) { idx in
                             Text(timeLabel(idx)).tag(idx)
                         }
                     }
