@@ -15,7 +15,11 @@ extension Adjustments.RootView {
 
     var overridePresets: some View {
         Section {
-            ForEach(state.overridePresets) { preset in
+            // Identify rows by Core Data's own objectID, not the `id` field on OverrideStored --
+            // that field is optional and can be nil (or, in principle, shared) on presets saved
+            // by an older build, and SwiftUI hard-crashes if two rows in a ForEach report the same
+            // (or a nil) id. objectID is always present and always unique per managed object.
+            ForEach(state.overridePresets, id: \.objectID) { preset in
                 overridesView(for: preset, showCheckMark: showOverrideCheckmark) {
                     requestOverridePresetActivation(preset)
                 }
