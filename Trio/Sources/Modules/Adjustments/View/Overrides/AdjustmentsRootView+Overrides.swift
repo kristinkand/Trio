@@ -155,7 +155,12 @@ extension Adjustments.RootView {
 
         let targetString = target.isEmpty ? "" : "\(target) \(state.units.rawValue)"
 
-        let durationString = indefinite ? "" : "\(state.formatHoursAndMinutes(Int(duration)))"
+        let durationString: String = {
+            guard !indefinite else { return "" }
+            let durationMinutes = NSDecimalNumber(decimal: duration).doubleValue
+            guard durationMinutes.isFinite, durationMinutes.magnitude <= Double(Int.max) else { return "" }
+            return state.formatHoursAndMinutes(Int(durationMinutes))
+        }()
 
         let scheduledSMBString: String = {
             guard preset.smbIsScheduledOff, preset.start != preset.end else { return "" }
@@ -193,7 +198,11 @@ extension Adjustments.RootView {
             }
         }()
 
-        let percentageString = percentage != 100 ? "\(Int(percentage))%\(isfAndCrString)" : ""
+        let percentageString: String = {
+            guard percentage != 100 else { return "" }
+            guard percentage.isFinite, percentage.magnitude <= Double(Int.max) else { return "" }
+            return "\(Int(percentage))%\(isfAndCrString)"
+        }()
 
         // Combine all labels into a single array, filtering out empty strings
         let labels: [String] = [
