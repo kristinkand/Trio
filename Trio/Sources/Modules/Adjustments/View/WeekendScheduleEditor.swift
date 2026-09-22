@@ -137,12 +137,21 @@ struct WeekendScheduleEditor: View {
 
                     Spacer()
 
-                    Picker("Value", selection: $row.valueIndex) {
-                        ForEach(valueValues.indices, id: \.self) { idx in
-                            Text(valueLabel(valueValues[idx])).tag(idx)
+                    // `valueValues` is meant to always be non-empty (its callers guard for
+                    // that), but if it ever isn't, a Picker with zero options still has to bind
+                    // `row.valueIndex` to *something* -- and a selection with no matching tag is
+                    // exactly what crashed the Start picker above before that fix. Guard here too
+                    // rather than trust every future caller to get its own fallback right.
+                    if valueValues.isEmpty {
+                        Text("No values available").foregroundStyle(.secondary)
+                    } else {
+                        Picker("Value", selection: $row.valueIndex) {
+                            ForEach(valueValues.indices, id: \.self) { idx in
+                                Text(valueLabel(valueValues[idx])).tag(idx)
+                            }
                         }
+                        .pickerStyle(.menu)
                     }
-                    .pickerStyle(.menu)
                 }
                 .onChange(of: row.timeIndex) { normalizeAndEmit() }
                 .onChange(of: row.valueIndex) { normalizeAndEmit() }
