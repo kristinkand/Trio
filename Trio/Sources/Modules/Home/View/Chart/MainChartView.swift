@@ -902,8 +902,6 @@ struct MainChartCanvas: View {
         .coordinateSpace(name: Self.coordinateSpaceName)
         .onAppear {
             calculateTempBasals()
-            // without pump history nothing else fills the profile line
-            calculateBasals()
         }
     }
 }
