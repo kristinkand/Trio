@@ -155,6 +155,11 @@ extension Adjustments.RootView {
 
         let targetString = target.isEmpty ? "" : "\(target) \(state.units.rawValue)"
 
+        // `Int(_: Decimal)` traps -- not just returns something odd -- if the Decimal is NaN or
+        // outside Int's range. A preset saved with a corrupted duration would otherwise hard-crash
+        // this whole screen every time it's opened. Route through Double (whose isFinite/range
+        // checks are well defined) rather than trust Decimal's own conversion, then fall back to
+        // not showing a duration at all instead of trapping.
         let durationString: String = {
             guard !indefinite else { return "" }
             let durationMinutes = NSDecimalNumber(decimal: duration).doubleValue
@@ -198,12 +203,14 @@ extension Adjustments.RootView {
             }
         }()
 
+        // Same trap risk as duration above: `Int(_: Double)` crashes on NaN/infinite/out-of-range,
+        // which a corrupted saved percentage would trigger on every single render of this row.
         let percentageString: String = {
             guard percentage != 100 else { return "" }
             guard percentage.isFinite, percentage.magnitude <= Double(Int.max) else { return "" }
             return "\(Int(percentage))%\(isfAndCrString)"
         }()
-
+        
         // Combine all labels into a single array, filtering out empty strings
         let labels: [String] = [
             durationString,
