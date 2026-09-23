@@ -334,10 +334,10 @@ extension Adjustments.StateModel {
         // real, non-nil EMPTY array (a pump reporting no supported rates yet, or every rate
         // filtered out), which used to sail straight through as `values = []` and defeat the
         // "never empty" guard below before it ever ran. Treat nil and empty the same way here.
-        let supported = provider.supportedBasalRates
+        let supported = provider?.supportedBasalRates
         let values = (supported?.isEmpty == false ? supported : nil)
             ?? stride(from: 5.0, to: 1001.0, by: 5.0).map { (Decimal($0)) / 100 }
-        let maxBasal = provider.maxBasalRate
+        let maxBasal = provider?.maxBasalRate ?? 2
         let capped = values.filter { $0 <= maxBasal }
         // Never return an empty list -- if Max Basal is set below every available increment,
         // offering the uncapped list is safer than leaving the picker with no options at all.
