@@ -36,6 +36,11 @@ extension Home {
         @State var showManualGlucose: Bool = false
         @State var showReleaseNotes: Bool = false
         @State var alarmsSnoozeUntil: Date = .distantPast
+        // Weekend Profile has no Core Data entity to @FetchRequest, so its Home indicator (see
+        // adjustmentView() in HomeRootView+BottomControls.swift) reflects this UserDefaults-backed
+        // flag via a plain Notification post instead -- WeekendProfileSection posts
+        // .didUpdateWeekendProfileConfiguration whenever it changes.
+        @State var isWeekendProfileActive: Bool = WeekendProfileStore.isActive
         @ObservedObject var releaseNotesService = ReleaseNotesService.shared
         // Pull-down-to-force-loop (see HomeRootView+Refresh.swift)
         @State var pullOffset: CGFloat = 0
@@ -151,8 +156,6 @@ extension Home {
             // viewport-sized content: rubber-bands for the pull-down, never scrolls
             ScrollView(.vertical, showsIndicators: false) {
                 dashboardContent(geo)
-                    .padding(.top, isForcingLoop ? HomeLayout.refreshIndicatorHeight : 0)
-                    .animation(.easeInOut(duration: 0.25), value: isForcingLoop)
                     .background(
                         GeometryReader { g in
                             Color.clear.preference(
@@ -230,6 +233,14 @@ extension Home {
             }
             // no inline text input here; a stale keyboard inset must never shrink the zone budget
             .ignoresSafeArea(.keyboard, edges: .bottom)
+            // Trend animation (rocket/plane/UFO/parachute): centered over the whole Home
+            // dashboard, so a tap anywhere here -- not just on the icon -- dismisses it.
+            .overlay(alignment: .center) {
+                TrendAnimationOverlay(
+                    direction: state.latestTwoGlucoseValues.last?.directionEnum,
+                    isEnabled: state.showTrendAnimation
+                )
+            }
             .onAppear {
                 configureView()
                 refreshAlarmsSnooze()
@@ -556,6 +567,9 @@ extension Home {
                     localized: "Quick-Pick Treatments learns from your manual boluses and carb entries over time. Once you've logged a few, it will suggest amounts based on what you typically enter at this time of day.",
                     comment: "Alert body explaining that quick-pick treatments history is empty"
                 ))
+            }
+            .onReceive(Foundation.NotificationCenter.default.publisher(for: .didUpdateWeekendProfileConfiguration)) { _ in
+                isWeekendProfileActive = WeekendProfileStore.isActive
             }
         }
     }

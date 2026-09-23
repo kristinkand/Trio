@@ -98,6 +98,7 @@ extension Home {
         var latestTwoGlucoseValues: [GlucoseStored] = []
         var glucoseFromPersistenceYesterday: [GlucoseStored] = []
         var showPreviousDayGlucose: Bool = false
+        var showTrendAnimation: Bool = true
         var carbsFromPersistence: [CarbEntryStored] = []
         var fpusFromPersistence: [CarbEntryStored] = []
         var determinationsFromPersistence: [OrefDetermination] = []
@@ -698,6 +699,7 @@ extension Home {
             bolusDisplayThreshold = settingsManager.settings.bolusDisplayThreshold
             thresholdLines = settingsManager.settings.rulerMarks
             showPreviousDayGlucose = settingsManager.settings.showPreviousDayGlucose
+            showTrendAnimation = settingsManager.settings.showTrendAnimation
             showCarbsRequiredBadge = settingsManager.settings.showCarbsRequiredBadge
             enableQuickPickTreatments = settingsManager.settings.enableQuickPickTreatments
             forecastDisplayType = settingsManager.settings.forecastDisplayType
@@ -976,6 +978,7 @@ extension Home.StateModel:
         thresholdLines = settingsManager.settings.rulerMarks
         showPreviousDayGlucose = settingsManager.settings.showPreviousDayGlucose
         Task { await updatePreviousDayGlucoseFromController() }
+        showTrendAnimation = settingsManager.settings.showTrendAnimation
         bolusDisplayThreshold = settingsManager.settings.bolusDisplayThreshold
         showCarbsRequiredBadge = settingsManager.settings.showCarbsRequiredBadge
         enableQuickPickTreatments = settingsManager.settings.enableQuickPickTreatments

@@ -388,13 +388,39 @@ final class OpenAPS {
             let twoHoursAgo = Date().addingTimeInterval(-2.hours.timeInterval)
             let historicalTDDData = try self.fetchHistoricalTDDData(from: tenDaysAgo, on: context)
 
-            // Fetch the last active Override
+            // Fetch the last active Override and Temp Target
             let activeOverrides = try self.fetchActiveOverrides(on: context)
             let isOverrideActive = activeOverrides.first?.enabled ?? false
-            let overridePercentage = Decimal(activeOverrides.first?.percentage ?? 100)
+            let activeTempTargets = try self.fetchActiveTempTargets(on: context)
+            let isTempTargetActive = activeTempTargets.first?.enabled ?? false
+
+            // Weekend Profile: a separate, indefinite-until-stopped on/off toggle started and
+            // stopped by hand (see WeekendProfileStore). It never runs alongside a real Override or
+            // Temp Target -- whenever either is active, that Override/Temp Target's own values
+            // fully take over below and Weekend Profile is ignored, resuming automatically the
+            // moment it ends.
+            let useWeekendProfile = !isOverrideActive && !isTempTargetActive && WeekendProfileStore.isActive
+            let useOverrideOrWeekendProfile = isOverrideActive || useWeekendProfile
+
+            // Weekend Profile's basal and ISF now come from its own full time-of-day schedules,
+            // substituted directly into the generated profile by OpenAPS.createProfiles() -- so
+            // there's no percentage to apply here any more, and it must never touch carb ratio.
+            let overridePercentage = useWeekendProfile
+                ? Decimal(100)
+                : Decimal(activeOverrides.first?.percentage ?? 100)
             let isOverrideIndefinite = activeOverrides.first?.indefinite ?? true
             let disableSMBs = activeOverrides.first?.smbIsOff ?? false
-            let overrideTargetBG = activeOverrides.first?.target?.decimalValue ?? 0
+            let overrideTargetBG = useWeekendProfile
+                ? WeekendProfileStore.target
+                : (activeOverrides.first?.target?.decimalValue ?? 0)
+            let advancedSettings = useWeekendProfile ? true : (activeOverrides.first?.advancedSettings ?? false)
+            let affectsIsfAndCr = useWeekendProfile ? false : (activeOverrides.first?.isfAndCr ?? false)
+            let smbMinutesValue = useWeekendProfile
+                ? WeekendProfileStore.smbMinutes
+                : (activeOverrides.first?.smbMinutes?.decimalValue ?? maxSMBBasalMinutes)
+            let uamMinutesValue = useWeekendProfile
+                ? WeekendProfileStore.uamMinutes
+                : (activeOverrides.first?.uamMinutes?.decimalValue ?? maxUAMBasalMinutes)
 
             // Calculate averages for Total Daily Dose (TDD)
             let totalTDD = historicalTDDData.compactMap { ($0["total"] as? NSDecimalNumber)?.decimalValue }.reduce(0, +)
@@ -421,20 +447,20 @@ final class OpenAPS {
                 past2hoursAverage: currentTDD > 0 ? averageTDDLastTwoHours : 0,
                 date: Date(),
                 overridePercentage: overridePercentage,
-                useOverride: isOverrideActive,
+                useOverride: useOverrideOrWeekendProfile,
                 duration: activeOverrides.first?.duration?.decimalValue ?? 0,
                 unlimited: isOverrideIndefinite,
                 overrideTarget: overrideTargetBG,
                 smbIsOff: disableSMBs,
-                advancedSettings: activeOverrides.first?.advancedSettings ?? false,
-                isfAndCr: activeOverrides.first?.isfAndCr ?? false,
+                advancedSettings: advancedSettings,
+                isfAndCr: affectsIsfAndCr,
                 isf: activeOverrides.first?.isf ?? false,
                 cr: activeOverrides.first?.cr ?? false,
                 smbIsScheduledOff: activeOverrides.first?.smbIsScheduledOff ?? false,
                 start: (activeOverrides.first?.start ?? 0) as Decimal,
                 end: (activeOverrides.first?.end ?? 0) as Decimal,
-                smbMinutes: activeOverrides.first?.smbMinutes?.decimalValue ?? maxSMBBasalMinutes,
-                uamMinutes: activeOverrides.first?.uamMinutes?.decimalValue ?? maxUAMBasalMinutes
+                smbMinutes: smbMinutesValue,
+                uamMinutes: uamMinutesValue
             )
 
             // Save and return contents of Trio's custom oref variables
@@ -520,8 +546,18 @@ final class OpenAPS {
         let defaultHalfBasalTarget = preferences.halfBasalExerciseTarget
         var adjustedPreferences = preferences
 
+        // Weekend Profile substitutes its own basal/ISF schedules below, but only while it's on
+        // and neither a real Override nor a Temp Target is active -- same preemption rule as
+        // prepareTrioCustomOrefVariables. Computed inside the context.perform block below since it
+        // needs a Core Data fetch; read back out here.
+        var useWeekendProfile = false
+
         // Check for active Temp Targets and adjust HBT if necessary
         try await context.perform {
+            let isOverrideActive = try self.fetchActiveOverrides(on: context).first?.enabled ?? false
+            let isTempTargetActive = try self.fetchActiveTempTargets(on: context).first?.enabled ?? false
+            useWeekendProfile = !isOverrideActive && !isTempTargetActive && WeekendProfileStore.isActive
+
             // Check if a Temp Target is active and check HBT differs from setting and adjust
             if let activeTempTarget = try self.fetchActiveTempTargets(on: context).first,
                activeTempTarget.enabled,
@@ -565,10 +601,27 @@ final class OpenAPS {
             // here preserves the same behavior it previously had inside makeProfile.
             let pumpSettings = try JSONBridge.pumpSettings(from: pumpSettings)
             let bgTargets = try JSONBridge.bgTargets(from: bgTargets)
-            let basalProfile = try JSONBridge.basalProfile(from: basalProfile)
-            let insulinSensitivities = try JSONBridge.insulinSensitivities(from: insulinSensitivities)
+            var basalProfile = try JSONBridge.basalProfile(from: basalProfile)
+            var insulinSensitivities = try JSONBridge.insulinSensitivities(from: insulinSensitivities)
             let carbRatios = try JSONBridge.carbRatios(from: carbRatios)
             let tempTargets = try JSONBridge.tempTargets(from: tempTargets)
+
+            // Weekend Profile: substitute its own basal/ISF schedules wholesale (never a
+            // percentage multiplier -- these are full, independent time-of-day schedules, entered
+            // and stored exactly like the real Basal Profile Editor / ISF Editor). Carb ratio is
+            // never substituted here or anywhere else -- it always comes from `carbRatios` above,
+            // untouched. Falls back to the real schedule if Weekend Profile hasn't been configured
+            // yet (empty schedule), so turning the toggle on before ever saving the editor is a
+            // harmless no-op rather than an empty-schedule crash.
+            if useWeekendProfile {
+                let weekendBasal = WeekendProfileStore.basalProfile
+                if !weekendBasal.isEmpty {
+                    basalProfile = weekendBasal
+                }
+                if let weekendIsf = WeekendProfileStore.insulinSensitivities, !weekendIsf.sensitivities.isEmpty {
+                    insulinSensitivities = weekendIsf
+                }
+            }
 
             let pumpProfile = try ProfileGenerator.generate(
                 pumpSettings: pumpSettings,
