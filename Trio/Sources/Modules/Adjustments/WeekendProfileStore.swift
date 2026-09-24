@@ -1,16 +1,19 @@
 import Foundation
 
-/// A manual, indefinite-until-stopped "second profile" toggle, independent of Trio's Overrides
-/// system. Turning it on swaps in its own full time-of-day BASAL and ISF schedules (the exact
-/// same `[BasalProfileEntry]` / `InsulinSensitivities` types the real Basal Profile Editor / ISF
-/// Editor use), plus an optional BG target and SMB/UAM minutes -- via `OpenAPS.createProfiles()`
-/// (basal/ISF) and `OpenAPS.prepareTrioCustomOrefVariables` (target/SMB/UAM minutes). Carb ratio
-/// is deliberately never touched here -- there is no `carbRatios` field at all, so CR always comes
-/// from the normal settings.
+/// A manual "second profile" toggle, independent of Trio's Overrides system, that runs either
+/// indefinitely until stopped by hand or -- since `indefinite`/`durationMinutes` were added -- for
+/// a chosen duration that ends the run on its own (see `isExpired`/`expireIfNeeded`). Turning it on
+/// swaps in its own full time-of-day BASAL and ISF schedules (the exact same `[BasalProfileEntry]` /
+/// `InsulinSensitivities` types the real Basal Profile Editor / ISF Editor use), plus an optional BG
+/// target and SMB/UAM minutes -- via `OpenAPS.createProfiles()` (basal/ISF) and
+/// `OpenAPS.prepareTrioCustomOrefVariables` (target/SMB/UAM minutes). Carb ratio is deliberately
+/// never touched here -- there is no `carbRatios` field at all, so CR always comes from the normal
+/// settings.
 ///
 /// Unlike an Override:
-///   - It isn't time-limited -- meant for stretches you start and stop yourself (a weekend, a
-///     vacation), not just a single loop cycle's duration.
+///   - It's meant for stretches you start yourself (a weekend, a vacation), not just a single loop
+///     cycle's duration -- and unless you opt into a duration, it stays on until you stop it,
+///     rather than defaulting to a short window the way an Override typically would.
 ///   - It never blocks a real Override or Temp Target from running. Whenever either is active, it
 ///     fully takes over the dosing math and Weekend Profile is ignored, automatically resuming the
 ///     moment the Override/Temp Target ends -- so e.g. a low-glucose-recovery Override still works
@@ -33,9 +36,14 @@ enum WeekendProfileStore {
     private static let uamMinutesKey = "weekendProfileUAMMinutes"
     private static let basalProfileKey = "weekendProfileBasalProfileData"
     private static let insulinSensitivitiesKey = "weekendProfileInsulinSensitivitiesData"
+    private static let indefiniteKey = "weekendProfileIndefinite"
+    private static let durationMinutesKey = "weekendProfileDurationMinutes"
 
     private static let targetRange: ClosedRange<Decimal> = 72 ... 270
     private static let minutesRange: ClosedRange<Decimal> = 0 ... 180
+    // Up to 4 days -- generous enough for a long weekend/short vacation while still bounded; see
+    // `isExpired` for how this is actually enforced.
+    private static let durationRange: ClosedRange<Decimal> = 0 ... 5760
 
     /// Whether Weekend Profile is currently on. Defaults to `false`.
     static var isActive: Bool {
@@ -60,6 +68,44 @@ enum WeekendProfileStore {
     static var activeStartDate: Date? {
         get { defaults.object(forKey: activeStartDateKey) as? Date }
         set { defaults.set(newValue, forKey: activeStartDateKey) }
+    }
+
+    /// Whether the current/next run should end on its own after `durationMinutes` elapses, instead
+    /// of running until manually stopped. Defaults to `true` -- preserves Weekend Profile's
+    /// original "indefinite until stopped" behavior for anyone who never touches this setting.
+    static var indefinite: Bool {
+        get {
+            guard defaults.object(forKey: indefiniteKey) != nil else { return true }
+            return defaults.bool(forKey: indefiniteKey)
+        }
+        set { defaults.set(newValue, forKey: indefiniteKey) }
+    }
+
+    /// How long a non-indefinite run should last. Captured into `activeEndDate` the moment a run
+    /// starts, so changing this later doesn't retroactively change a run already in progress.
+    /// Clamped to 0...5760 (4 days); meaningless while `indefinite` is `true`.
+    static var durationMinutes: Decimal {
+        get { Decimal(defaults.double(forKey: durationMinutesKey)).clamped(to: durationRange) }
+        set {
+            defaults.set(Double(truncating: newValue.clamped(to: durationRange) as NSNumber), forKey: durationMinutesKey)
+        }
+    }
+
+    /// The real end time of the current run, or `nil` while inactive or indefinite. A display
+    /// value only -- `isExpired` below is what actually gates the algorithm and the auto-stop
+    /// check, so this and `isExpired` can never disagree with each other.
+    static var activeEndDate: Date? {
+        guard !indefinite, let start = activeStartDate else { return nil }
+        return start.addingTimeInterval(TimeInterval(truncating: durationMinutes as NSNumber) * 60)
+    }
+
+    /// True once a non-indefinite run's duration has elapsed. Computed fresh every time it's read
+    /// -- nothing here mutates state, so this is safe to call from the dosing algorithm itself
+    /// (`OpenAPS.prepareTrioCustomOrefVariables`/`createProfiles`) as well as from
+    /// `expireIfNeeded` below.
+    static var isExpired: Bool {
+        guard let end = activeEndDate else { return false }
+        return Date() >= end
     }
 
     /// One completed Weekend Profile run: an on/off pair with the name it had at the time.
@@ -243,6 +289,24 @@ extension WeekendProfileStore {
             )
             await nightscoutManager.uploadWeekendProfileEvent(event, replacingPrevious: true)
         }
+    }
+
+    /// Closes out a run whose duration has elapsed: identical bookkeeping to a manual stop
+    /// (Nightscout correction, run history, flipping `isActive` off). Meant to be called
+    /// periodically from somewhere that already runs on roughly every loop cycle (see
+    /// `Home.StateModel.updateEnactedDeterminationFromController`), so an expired run gets closed
+    /// out and reflected in the UI at about the same cadence the algorithm stops honoring it at.
+    /// That said, dosing safety never depends on this actually being called: `isExpired` is
+    /// checked directly and independently inside `OpenAPS.swift`, so even if this were never
+    /// invoked, an expired Weekend Profile would still stop affecting insulin dosing on the very
+    /// next loop cycle -- this only controls how promptly the on/off state, Nightscout entry, and
+    /// History list catch up to that fact. Returns whether anything was actually stopped, so
+    /// callers can decide whether to refresh UI/post a notification.
+    @discardableResult
+    static func expireIfNeeded(nightscoutManager: NightscoutManager) -> Bool {
+        guard isExpired else { return false }
+        deactivate(nightscoutManager: nightscoutManager)
+        return true
     }
 }
 

@@ -32,6 +32,17 @@ struct WeekendProfileSection: View {
     @State private var showInfo = false
     @FocusState private var isNameFieldFocused: Bool
 
+    // MARK: - Duration (see WeekendProfileStore.indefinite/durationMinutes)
+
+    /// Whether the *next* run (i.e. the one about to start, if `isActive` is currently `false`)
+    /// should end on its own. Not editable once already active -- same as Override's own start
+    /// form, duration is a decision made at start time, not adjustable mid-run.
+    @State private var indefinite = WeekendProfileStore.indefinite
+    @State private var weekendDurationMinutes = WeekendProfileStore.durationMinutes
+    @State private var displayPickerDuration = false
+    @State private var durationHours = 0
+    @State private var durationMinutesPicker = 0
+
     /// Finest raw step (1 mg/dL) in both unit systems -- matches the finest option Trio's own
     /// Override/Temp Target target pickers offer, instead of the coarse default (5 mg/dL / 9 raw
     /// units, ~0.5 mmol/L) they start with. Fixes the "can only change in 0.5 mmol/L jumps" issue.
@@ -131,7 +142,7 @@ struct WeekendProfileSection: View {
     private var displayName: String { name.isEmpty ? "Profile" : name }
 
     private var infoText: String {
-        "A name, target, SMB/UAM minutes, and its own basal + ISF schedule, that you start and stop yourself, independent of Overrides -- meant for stretches like a weekend or vacation. Carb ratio is never changed -- it always comes from your normal settings. If a real Override or Temp Target is running, it fully takes over the dosing math and Profile is paused until it ends."
+        "A name, target, SMB/UAM minutes, and its own basal + ISF schedule, that you start yourself, independent of Overrides -- meant for stretches like a weekend or vacation. Runs until you stop it, or optionally ends on its own after a duration you set before starting it. Carb ratio is never changed -- it always comes from your normal settings. If a real Override or Temp Target is running, it fully takes over the dosing math and Profile is paused until it ends."
     }
 
     var body: some View {
@@ -167,6 +178,13 @@ struct WeekendProfileSection: View {
                     .labelsHidden()
                     .accessibilityLabel(Text("\(displayName) Active"))
                     .onChange(of: isActive) {
+                        if isActive {
+                            // Refuse to start a "not indefinite, but no duration set" run -- fail
+                            // safe to indefinite rather than silently expiring immediately.
+                            if !indefinite, weekendDurationMinutes == 0 { indefinite = true }
+                            WeekendProfileStore.indefinite = indefinite
+                            WeekendProfileStore.durationMinutes = indefinite ? 0 : weekendDurationMinutes
+                        }
                         WeekendProfileStore.isActive = isActive
                         if isActive {
                             state.startWeekendProfile()
@@ -175,6 +193,58 @@ struct WeekendProfileSection: View {
                         }
                         Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
                     }
+            }
+
+            if !isActive {
+                Toggle(isOn: $indefinite) {
+                    Text("Enable Indefinitely")
+                }
+
+                if !indefinite {
+                    HStack {
+                        Text("Duration")
+                        Spacer()
+                        Text(state.formatHoursAndMinutes(Int(weekendDurationMinutes)))
+                            .foregroundColor(!displayPickerDuration ? .primary : .accentColor)
+                            .onTapGesture {
+                                displayPickerDuration.toggle()
+                            }
+                    }
+
+                    if displayPickerDuration {
+                        HStack {
+                            Picker("Hours", selection: $durationHours) {
+                                ForEach(0 ..< 97) { hour in
+                                    Text("\(hour) hr").tag(hour)
+                                }
+                            }
+                            .pickerStyle(WheelPickerStyle())
+                            .frame(maxWidth: .infinity)
+                            .onChange(of: durationHours) {
+                                weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
+                            }
+
+                            Picker("Minutes", selection: $durationMinutesPicker) {
+                                ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { minute in
+                                    Text("\(minute) min").tag(minute)
+                                }
+                            }
+                            .pickerStyle(WheelPickerStyle())
+                            .frame(maxWidth: .infinity)
+                            .onChange(of: durationMinutesPicker) {
+                                weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
+                            }
+                        }
+                        .listRowSeparator(.hidden, edges: .top)
+                    }
+                }
+            } else if !WeekendProfileStore.indefinite, let end = WeekendProfileStore.activeEndDate {
+                HStack {
+                    Text("Ends")
+                    Spacer()
+                    Text(end, style: .time)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             if isActive {

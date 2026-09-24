@@ -399,7 +399,13 @@ final class OpenAPS {
             // Temp Target -- whenever either is active, that Override/Temp Target's own values
             // fully take over below and Weekend Profile is ignored, resuming automatically the
             // moment it ends.
-            let useWeekendProfile = !isOverrideActive && !isTempTargetActive && WeekendProfileStore.isActive
+            // `!WeekendProfileStore.isExpired` is what actually enforces a duration-limited run's
+            // end -- checked fresh every cycle, independently of whether anything has gotten
+            // around to flipping `isActive` off or closing out Nightscout/History bookkeeping yet
+            // (see `WeekendProfileStore.expireIfNeeded`).
+            let weekendProfileNotExpired = !WeekendProfileStore.isExpired
+            let useWeekendProfile = !isOverrideActive && !isTempTargetActive && WeekendProfileStore
+                .isActive && weekendProfileNotExpired
             let useOverrideOrWeekendProfile = isOverrideActive || useWeekendProfile
 
             // Weekend Profile's basal and ISF now come from its own full time-of-day schedules,
@@ -556,7 +562,8 @@ final class OpenAPS {
         try await context.perform {
             let isOverrideActive = try self.fetchActiveOverrides(on: context).first?.enabled ?? false
             let isTempTargetActive = try self.fetchActiveTempTargets(on: context).first?.enabled ?? false
-            useWeekendProfile = !isOverrideActive && !isTempTargetActive && WeekendProfileStore.isActive
+            useWeekendProfile = !isOverrideActive && !isTempTargetActive && WeekendProfileStore.isActive && !WeekendProfileStore
+                .isExpired
 
             // Check if a Temp Target is active and check HBT differs from setting and adjust
             if let activeTempTarget = try self.fetchActiveTempTargets(on: context).first,
