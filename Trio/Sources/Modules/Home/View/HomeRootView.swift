@@ -244,9 +244,14 @@ extension Home {
             .onAppear {
                 configureView()
                 refreshAlarmsSnooze()
-                if WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager) {
-                    isWeekendProfileActive = false
-                }
+                // Unconditional resync, not just on a freshly-caught expiry here: a stop
+                // performed on the Adjustments screen only reaches us via the one-shot
+                // `.didUpdateWeekendProfileConfiguration` notification below, which has no
+                // replay and can be missed if this view wasn't subscribed at the exact moment
+                // it posted (e.g. mid screen-transition). Re-reading the store's own ground
+                // truth here on every appearance closes that gap.
+                WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager)
+                isWeekendProfileActive = WeekendProfileStore.isActive
             }
             .task {
                 await releaseNotesService.load()
@@ -577,11 +582,13 @@ extension Home {
             // Foreground-only catch-up for a timed Weekend Profile run's own bottom-bar
             // indicator -- see WeekendProfileSection's checkForExpiry() doc comment for why this
             // exists alongside Home.StateModel's loop-cycle-driven check and why dosing safety
-            // never depends on either of them actually running.
+            // never depends on either of them actually running. Also unconditionally resyncs
+            // from the store (see the matching comment in .onAppear above) so a stop made on
+            // the Adjustments screen can never leave this indicator stuck stale for more than
+            // one tick, even if the one-shot notification below was missed.
             .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
-                if WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager) {
-                    isWeekendProfileActive = false
-                }
+                WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager)
+                isWeekendProfileActive = WeekendProfileStore.isActive
             }
         }
     }

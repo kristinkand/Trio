@@ -181,6 +181,21 @@ struct WeekendProfileSection: View {
         Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
     }
 
+    /// Catches this screen's own `isActive` up with `WeekendProfileStore`'s ground truth.
+    /// `checkForExpiry()` above only ever turns a run off because *time* ran out; it says nothing
+    /// about a stop (or start) that happened on another screen entirely -- e.g. the Home screen's
+    /// bottom-bar toggle -- which reaches this screen only via the one-shot
+    /// `.didUpdateWeekendProfileConfiguration` notification. That notification has no replay, so a
+    /// miss (plausible mid screen-transition) leaves `isActive` stale here until something else
+    /// happens to correct it. Reconciling against the store directly on every appearance and timer
+    /// tick closes that gap -- mirrors the same fix applied to HomeRootView's own indicator.
+    private func resyncActiveState() {
+        let storeIsActive = WeekendProfileStore.isActive
+        guard isActive != storeIsActive else { return }
+        isActiveChangeIsProgrammatic = true
+        isActive = storeIsActive
+    }
+
     private func startString(for minutes: Int) -> String {
         let formatter = DateFormatter()
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -420,13 +435,17 @@ struct WeekendProfileSection: View {
         .onAppear {
             loadDraftIfNeeded()
             checkForExpiry()
+            resyncActiveState()
         }
         // Foreground-only, and deliberately not the only thing keeping a timed run honest --
         // see `checkForExpiry`'s doc comment for how this relates to dosing safety and to the
         // loop-cycle-driven check in Home.StateModel. This just makes an expired run's toggle
         // catch up promptly while this screen happens to be open and watched, e.g. while testing.
+        // `resyncActiveState()` alongside it catches a stop/start made elsewhere, not just one
+        // caused by time running out -- see its own doc comment.
         .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
             checkForExpiry()
+            resyncActiveState()
         }
 
         if isActive {
