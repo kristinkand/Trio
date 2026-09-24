@@ -32,15 +32,20 @@ struct WeekendProfileSection: View {
     @State private var showInfo = false
     @FocusState private var isNameFieldFocused: Bool
 
-    // MARK: - Duration (see WeekendProfileStore.indefinite/durationMinutes/useSpecificDate/scheduledEndDate)
+    // MARK: - Ending a run (see WeekendProfileStore.indefinite/durationMinutes/useSpecificDate/scheduledEndDate)
 
-    /// Whether the *next* run (i.e. the one about to start, if `isActive` is currently `false`)
-    /// should end on its own. Not editable once already active -- same as Override's own start
-    /// form, duration is a decision made at start time, not adjustable mid-run.
-    @State private var indefinite = WeekendProfileStore.indefinite
-    /// When `indefinite` is `false`, whether the run ends at `scheduledEndDate` instead of
-    /// `weekendDurationMinutes` after it starts.
-    @State private var useSpecificDate = WeekendProfileStore.useSpecificDate
+    /// Which of the three ways to end a run is currently selected, *while inactive*. There's no
+    /// separate "Start" tap -- picking a mode (and, for the latter two, actually dialing in a
+    /// value) starts the run immediately via `startProfile(...)`, which also flips `isActive` to
+    /// `true` itself. Once active, this only reflects how the run that's already going was
+    /// started -- see the read-only "Ends" row below instead.
+    private enum EndMode: Hashable {
+        case indefinite, duration, specificDate
+    }
+
+    @State private var endMode: EndMode = WeekendProfileStore.indefinite
+        ? .indefinite
+        : (WeekendProfileStore.useSpecificDate ? .specificDate : .duration)
     @State private var weekendDurationMinutes = WeekendProfileStore.durationMinutes
     @State private var displayPickerDuration = false
     @State private var durationHours = 0
@@ -48,6 +53,13 @@ struct WeekendProfileSection: View {
     /// Defaults to an hour from now rather than "now" so the DatePicker doesn't open already
     /// showing a moment that's about to be in the past.
     @State private var scheduledEndDate = WeekendProfileStore.scheduledEndDate ?? Date().addingTimeInterval(1.hours.timeInterval)
+
+    /// Set right before `startProfile(...)` (or an external expiry) assigns `isActive` itself, so
+    /// the Toggle's own `onChange(of: isActive)` -- which exists for the *user tapping the toggle
+    /// directly to stop an active run* -- can tell "I did this assignment on purpose, the
+    /// start/stop work is already done" apart from "the user just tapped the switch" and skip
+    /// redoing that work a second time.
+    @State private var isActiveChangeIsProgrammatic = false
 
     /// Finest raw step (1 mg/dL) in both unit systems -- matches the finest option Trio's own
     /// Override/Temp Target target pickers offer, instead of the coarse default (5 mg/dL / 9 raw
@@ -114,6 +126,59 @@ struct WeekendProfileSection: View {
             smbMinutes = state.defaultSmbMinutes
             uamMinutes = state.defaultUamMinutes
         }
+    }
+
+    /// Starts a run right now, persisting the chosen end condition and flipping `isActive` to
+    /// `true` -- the single place any of the three "pick indefinite / dial a duration / pick a
+    /// date" controls below actually cause anything to start. Refuses to start a `.duration` run
+    /// with no duration dialed in yet, or a `.specificDate` run whose picked moment has already
+    /// passed (belt-and-suspenders with the DatePicker's own `in: Date()...`, for the gap between
+    /// picking a date and this actually running) -- in both cases this simply does nothing rather
+    /// than guessing at a fallback, since nothing meaningful was actually chosen yet.
+    private func startProfile(mode: EndMode, durationMinutes: Decimal = 0, specificDate: Date? = nil) {
+        switch mode {
+        case .duration: guard durationMinutes > 0 else { return }
+        case .specificDate: guard let specificDate, specificDate > Date() else { return }
+        case .indefinite: break
+        }
+
+        endMode = mode
+        if mode == .duration { weekendDurationMinutes = durationMinutes }
+        if mode == .specificDate, let specificDate { scheduledEndDate = specificDate }
+
+        WeekendProfileStore.indefinite = mode == .indefinite
+        WeekendProfileStore.useSpecificDate = mode == .specificDate
+        WeekendProfileStore.durationMinutes = mode == .duration ? durationMinutes : 0
+        WeekendProfileStore.scheduledEndDate = mode == .specificDate ? specificDate : nil
+        WeekendProfileStore.isActive = true
+
+        // Only when this is the thing actually flipping `isActive` -- i.e. every call site
+        // *except* the Toggle-tapped-directly path, where `isActive` is already `true` by the
+        // time this runs (the Toggle's own binding sets it before onChange fires, and that
+        // onChange is what called us). Setting the guard flag here in that case would never get
+        // consumed (assigning `true` to something already `true` doesn't re-fire onChange), and
+        // it'd wrongly swallow the *next* real stop.
+        if !isActive {
+            isActiveChangeIsProgrammatic = true
+            isActive = true
+        }
+        state.startWeekendProfile()
+        Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
+    }
+
+    /// Checked on a foreground timer (see `body`) and on appear, independent of whether a real
+    /// loop cycle has landed -- `Home.StateModel.updateEnactedDeterminationFromController` does
+    /// the same check off the loop cycle signal for background reliability, but that signal can be
+    /// slow to arrive (or never arrive, e.g. while bench-testing without live CGM data actually
+    /// driving loop cycles), which left this screen's toggle looking stuck on well past the chosen
+    /// end time. Dosing safety was never affected by that gap -- `OpenAPS.swift` checks
+    /// `WeekendProfileStore.isExpired` directly and independently -- this only closes the gap
+    /// between "stopped affecting dosing" and "the toggle/Nightscout/History visibly agree."
+    private func checkForExpiry() {
+        guard isActive, WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager) else { return }
+        isActiveChangeIsProgrammatic = true
+        isActive = false
+        Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
     }
 
     private func startString(for minutes: Int) -> String {
@@ -184,94 +249,106 @@ struct WeekendProfileSection: View {
                     .labelsHidden()
                     .accessibilityLabel(Text("\(displayName) Active"))
                     .onChange(of: isActive) {
-                        if isActive {
-                            if !indefinite {
-                                if useSpecificDate {
-                                    // Refuse to start a run whose specific end date is already in
-                                    // the past -- fail safe to indefinite rather than silently
-                                    // expiring immediately.
-                                    if scheduledEndDate <= Date() { indefinite = true }
-                                } else if weekendDurationMinutes == 0 {
-                                    // Refuse to start a "not indefinite, but no duration set" run
-                                    // -- same fail-safe.
-                                    indefinite = true
-                                }
-                            }
-                            WeekendProfileStore.indefinite = indefinite
-                            WeekendProfileStore.useSpecificDate = indefinite ? false : useSpecificDate
-                            WeekendProfileStore.durationMinutes = (indefinite || useSpecificDate) ? 0 : weekendDurationMinutes
-                            WeekendProfileStore.scheduledEndDate = (indefinite || !useSpecificDate) ? nil : scheduledEndDate
+                        // Both `startProfile(...)` above and `checkForExpiry()` below set this
+                        // flag right before assigning `isActive` themselves -- when that's why
+                        // we're here, the real work (persisting the store, Nightscout, History,
+                        // the notification) is already done, so there's nothing left to do.
+                        guard !isActiveChangeIsProgrammatic else {
+                            isActiveChangeIsProgrammatic = false
+                            return
                         }
-                        WeekendProfileStore.isActive = isActive
                         if isActive {
-                            state.startWeekendProfile()
+                            // Reachable only by tapping the switch directly without having gone
+                            // through any of the End controls below -- treat that the same as
+                            // explicitly choosing Indefinite.
+                            startProfile(mode: .indefinite)
                         } else {
+                            WeekendProfileStore.isActive = false
                             state.stopWeekendProfile()
+                            Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
                         }
-                        Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
                     }
             }
 
             if !isActive {
-                Toggle(isOn: $indefinite) {
-                    Text("Enable Indefinitely")
+                Picker("End", selection: $endMode) {
+                    Text("Indefinite").tag(EndMode.indefinite)
+                    Text("Duration").tag(EndMode.duration)
+                    Text("Date & Time").tag(EndMode.specificDate)
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: endMode) {
+                    switch endMode {
+                    case .indefinite:
+                        // A complete, unambiguous choice on its own -- start right away.
+                        startProfile(mode: .indefinite)
+                    case .duration:
+                        // If a duration's already dialed in from last time, reuse it immediately
+                        // rather than making you re-touch the wheel just to confirm the same
+                        // number. A never-configured 0 waits for an actual pick below instead.
+                        if weekendDurationMinutes > 0 {
+                            startProfile(mode: .duration, durationMinutes: weekendDurationMinutes)
+                        }
+                    case .specificDate:
+                        // Not reused the same way -- the prefilled default is always "an hour from
+                        // right now," which isn't a real preference to fall back to, so this
+                        // always waits for an explicit pick below.
+                        break
+                    }
                 }
 
-                if !indefinite {
-                    Picker("End", selection: $useSpecificDate) {
-                        Text("Duration").tag(false)
-                        Text("Date & Time").tag(true)
+                if endMode == .specificDate {
+                    // `in: Date()...` keeps the picker itself from offering an already-past
+                    // moment. Starts the moment you actually change the value -- not on first
+                    // appearing with its prefilled default, since `onChange` only fires on a real
+                    // change, not on the initial assignment.
+                    DatePicker(
+                        "Ends",
+                        selection: $scheduledEndDate,
+                        in: Date()...,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .onChange(of: scheduledEndDate) {
+                        startProfile(mode: .specificDate, specificDate: scheduledEndDate)
                     }
-                    .pickerStyle(.segmented)
+                } else if endMode == .duration {
+                    HStack {
+                        Text("Duration")
+                        Spacer()
+                        Text(state.formatHoursAndMinutes(Int(weekendDurationMinutes)))
+                            .foregroundColor(!displayPickerDuration ? .primary : .accentColor)
+                            .onTapGesture {
+                                displayPickerDuration.toggle()
+                            }
+                    }
 
-                    if useSpecificDate {
-                        // `in: Date()...` keeps the picker itself from offering an already-past
-                        // moment -- belt-and-suspenders with the fail-safe in the Toggle's
-                        // onChange above, which still covers the gap between opening the picker
-                        // and actually tapping Start.
-                        DatePicker(
-                            "Ends",
-                            selection: $scheduledEndDate,
-                            in: Date()...,
-                            displayedComponents: [.date, .hourAndMinute]
-                        )
-                    } else {
+                    if displayPickerDuration {
                         HStack {
-                            Text("Duration")
-                            Spacer()
-                            Text(state.formatHoursAndMinutes(Int(weekendDurationMinutes)))
-                                .foregroundColor(!displayPickerDuration ? .primary : .accentColor)
-                                .onTapGesture {
-                                    displayPickerDuration.toggle()
-                                }
-                        }
-
-                        if displayPickerDuration {
-                            HStack {
-                                Picker("Hours", selection: $durationHours) {
-                                    ForEach(0 ..< 97) { hour in
-                                        Text("\(hour) hr").tag(hour)
-                                    }
-                                }
-                                .pickerStyle(WheelPickerStyle())
-                                .frame(maxWidth: .infinity)
-                                .onChange(of: durationHours) {
-                                    weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
-                                }
-
-                                Picker("Minutes", selection: $durationMinutesPicker) {
-                                    ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { minute in
-                                        Text("\(minute) min").tag(minute)
-                                    }
-                                }
-                                .pickerStyle(WheelPickerStyle())
-                                .frame(maxWidth: .infinity)
-                                .onChange(of: durationMinutesPicker) {
-                                    weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
+                            Picker("Hours", selection: $durationHours) {
+                                ForEach(0 ..< 97) { hour in
+                                    Text("\(hour) hr").tag(hour)
                                 }
                             }
-                            .listRowSeparator(.hidden, edges: .top)
+                            .pickerStyle(WheelPickerStyle())
+                            .frame(maxWidth: .infinity)
+                            .onChange(of: durationHours) {
+                                let minutes = state.convertToMinutes(durationHours, durationMinutesPicker)
+                                startProfile(mode: .duration, durationMinutes: minutes)
+                            }
+
+                            Picker("Minutes", selection: $durationMinutesPicker) {
+                                ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { minute in
+                                    Text("\(minute) min").tag(minute)
+                                }
+                            }
+                            .pickerStyle(WheelPickerStyle())
+                            .frame(maxWidth: .infinity)
+                            .onChange(of: durationMinutesPicker) {
+                                let minutes = state.convertToMinutes(durationHours, durationMinutesPicker)
+                                startProfile(mode: .duration, durationMinutes: minutes)
+                            }
                         }
+                        .listRowSeparator(.hidden, edges: .top)
                     }
                 }
             } else if !WeekendProfileStore.indefinite, let end = WeekendProfileStore.activeEndDate {
@@ -340,7 +417,17 @@ struct WeekendProfileSection: View {
             }
         }
         .listRowBackground(isActive ? Color.mint.opacity(0.15) : nil)
-        .onAppear { loadDraftIfNeeded() }
+        .onAppear {
+            loadDraftIfNeeded()
+            checkForExpiry()
+        }
+        // Foreground-only, and deliberately not the only thing keeping a timed run honest --
+        // see `checkForExpiry`'s doc comment for how this relates to dosing safety and to the
+        // loop-cycle-driven check in Home.StateModel. This just makes an expired run's toggle
+        // catch up promptly while this screen happens to be open and watched, e.g. while testing.
+        .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
+            checkForExpiry()
+        }
 
         if isActive {
             WeekendScheduleEditor(

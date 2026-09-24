@@ -244,6 +244,9 @@ extension Home {
             .onAppear {
                 configureView()
                 refreshAlarmsSnooze()
+                if WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager) {
+                    isWeekendProfileActive = false
+                }
             }
             .task {
                 await releaseNotesService.load()
@@ -570,6 +573,15 @@ extension Home {
             }
             .onReceive(Foundation.NotificationCenter.default.publisher(for: .didUpdateWeekendProfileConfiguration)) { _ in
                 isWeekendProfileActive = WeekendProfileStore.isActive
+            }
+            // Foreground-only catch-up for a timed Weekend Profile run's own bottom-bar
+            // indicator -- see WeekendProfileSection's checkForExpiry() doc comment for why this
+            // exists alongside Home.StateModel's loop-cycle-driven check and why dosing safety
+            // never depends on either of them actually running.
+            .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
+                if WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager) {
+                    isWeekendProfileActive = false
+                }
             }
         }
     }
