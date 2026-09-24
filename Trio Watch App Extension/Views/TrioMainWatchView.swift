@@ -5,8 +5,9 @@ import WatchKit
 struct TrioMainWatchView: View {
     @State private var state = WatchState.shared
 
-    /// Pages in order: bubble, chart, the watch's own G7 reading.
+    /// Pages in order: bubble, chart, the watch's own G7 reading, alarm snooze.
     private let watchSensorPage = 2
+    private let snoozePage = 3
 
     // misc
     @State private var currentPage: Int = 0
@@ -110,6 +111,10 @@ struct TrioMainWatchView: View {
                 // Page 3: the watch reading the G7 itself
                 WatchG7View()
                     .tag(watchSensorPage)
+
+                // Page 4: alarm snooze (nightscout/Trio#1576, t1dude)
+                AlarmSnoozeView(state: state)
+                    .tag(snoozePage)
             }
             .onAppear {
                 /// Hard reset variables when main view appears
@@ -119,7 +124,7 @@ struct TrioMainWatchView: View {
             }
             .background(trioBackgroundColor)
             .tabViewStyle(.verticalPage)
-            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: Double(watchSensorPage), by: 1)
+            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: Double(snoozePage), by: 1)
             .modifier(ChartScrubEnd(isScrubbing: $isScrubbingChart, scrubSteps: $chartScrubSteps, currentPage: currentPage))
             .onChange(of: state.trend) { _, newTrend in
                 withAnimation {
