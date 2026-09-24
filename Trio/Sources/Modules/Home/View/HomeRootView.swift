@@ -36,7 +36,6 @@ extension Home {
         @State var showManualGlucose: Bool = false
         @State var showReleaseNotes: Bool = false
         @State var showUntetheredAuditFinding: Bool = false
-        @State var alarmsSnoozeUntil: Date = .distantPast
         // Weekend Profile has no Core Data entity to @FetchRequest, so its Home indicator (see
         // adjustmentView() in HomeRootView+BottomControls.swift) reflects this UserDefaults-backed
         // flag via a plain Notification post instead -- WeekendProfileSection posts
@@ -250,7 +249,6 @@ extension Home {
             }
             .onAppear {
                 configureView()
-                refreshAlarmsSnooze()
                 // Unconditional resync, not just on a freshly-caught expiry here: a stop
                 // performed on the Adjustments screen only reaches us via the one-shot
                 // `.didUpdateWeekendProfileConfiguration` notification below, which has no
@@ -263,10 +261,6 @@ extension Home {
             }
             .task {
                 await releaseNotesService.load()
-            }
-            // UserDefaults changes don't invalidate views; refresh on sheet dismissal
-            .onChange(of: showSnoozeSheet) {
-                if !showSnoozeSheet { refreshAlarmsSnooze() }
             }
             .navigationTitle("Home")
             .navigationBarHidden(true)
