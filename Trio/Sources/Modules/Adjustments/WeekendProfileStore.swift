@@ -1,8 +1,9 @@
 import Foundation
 
 /// A manual "second profile" toggle, independent of Trio's Overrides system, that runs either
-/// indefinitely until stopped by hand or -- since `indefinite`/`durationMinutes` were added -- for
-/// a chosen duration that ends the run on its own (see `isExpired`/`expireIfNeeded`). Turning it on
+/// indefinitely until stopped by hand or -- since `indefinite`/`durationMinutes`/`useSpecificDate`/
+/// `scheduledEndDate` were added -- ends itself, either a chosen number of hours after it starts or
+/// at a chosen absolute date/time (see `isExpired`/`expireIfNeeded`). Turning it on
 /// swaps in its own full time-of-day BASAL and ISF schedules (the exact same `[BasalProfileEntry]` /
 /// `InsulinSensitivities` types the real Basal Profile Editor / ISF Editor use), plus an optional BG
 /// target and SMB/UAM minutes -- via `OpenAPS.createProfiles()` (basal/ISF) and
@@ -38,6 +39,8 @@ enum WeekendProfileStore {
     private static let insulinSensitivitiesKey = "weekendProfileInsulinSensitivitiesData"
     private static let indefiniteKey = "weekendProfileIndefinite"
     private static let durationMinutesKey = "weekendProfileDurationMinutes"
+    private static let useSpecificDateKey = "weekendProfileUseSpecificDate"
+    private static let scheduledEndDateKey = "weekendProfileScheduledEndDate"
 
     private static let targetRange: ClosedRange<Decimal> = 72 ... 270
     private static let minutesRange: ClosedRange<Decimal> = 0 ... 180
@@ -81,9 +84,11 @@ enum WeekendProfileStore {
         set { defaults.set(newValue, forKey: indefiniteKey) }
     }
 
-    /// How long a non-indefinite run should last. Captured into `activeEndDate` the moment a run
+    /// How long a non-indefinite run should last, when ending by duration rather than by a
+    /// specific date/time (see `useSpecificDate`). Captured into `activeEndDate` the moment a run
     /// starts, so changing this later doesn't retroactively change a run already in progress.
-    /// Clamped to 0...5760 (4 days); meaningless while `indefinite` is `true`.
+    /// Clamped to 0...5760 (4 days); meaningless while `indefinite` is `true` or `useSpecificDate`
+    /// is `true`.
     static var durationMinutes: Decimal {
         get { Decimal(defaults.double(forKey: durationMinutesKey)).clamped(to: durationRange) }
         set {
@@ -91,11 +96,33 @@ enum WeekendProfileStore {
         }
     }
 
+    /// When `true` (and `indefinite` is `false`), the run ends at the absolute `scheduledEndDate`
+    /// below instead of `durationMinutes` after it started. Defaults to `false` -- duration is the
+    /// original non-indefinite option, this is the newer alternative alongside it.
+    static var useSpecificDate: Bool {
+        get { defaults.bool(forKey: useSpecificDateKey) }
+        set { defaults.set(newValue, forKey: useSpecificDateKey) }
+    }
+
+    /// The absolute end date/time for a `useSpecificDate` run, e.g. "Sunday 8 PM" rather than "52
+    /// hours from now". `nil` until explicitly set. Unlike `durationMinutes`, this doesn't depend
+    /// on `activeStartDate` at all -- it's the same moment in wall-clock time no matter when the
+    /// run actually starts.
+    static var scheduledEndDate: Date? {
+        get { defaults.object(forKey: scheduledEndDateKey) as? Date }
+        set { defaults.set(newValue, forKey: scheduledEndDateKey) }
+    }
+
     /// The real end time of the current run, or `nil` while inactive or indefinite. A display
     /// value only -- `isExpired` below is what actually gates the algorithm and the auto-stop
-    /// check, so this and `isExpired` can never disagree with each other.
+    /// check, so this and `isExpired` can never disagree with each other. Falls back to treating
+    /// the run as indefinite (returns `nil`) if `useSpecificDate` is somehow `true` with no date
+    /// actually recorded, rather than crashing or silently using some other date.
     static var activeEndDate: Date? {
         guard !indefinite, let start = activeStartDate else { return nil }
+        if useSpecificDate {
+            return scheduledEndDate
+        }
         return start.addingTimeInterval(TimeInterval(truncating: durationMinutes as NSNumber) * 60)
     }
 

@@ -32,16 +32,22 @@ struct WeekendProfileSection: View {
     @State private var showInfo = false
     @FocusState private var isNameFieldFocused: Bool
 
-    // MARK: - Duration (see WeekendProfileStore.indefinite/durationMinutes)
+    // MARK: - Duration (see WeekendProfileStore.indefinite/durationMinutes/useSpecificDate/scheduledEndDate)
 
     /// Whether the *next* run (i.e. the one about to start, if `isActive` is currently `false`)
     /// should end on its own. Not editable once already active -- same as Override's own start
     /// form, duration is a decision made at start time, not adjustable mid-run.
     @State private var indefinite = WeekendProfileStore.indefinite
+    /// When `indefinite` is `false`, whether the run ends at `scheduledEndDate` instead of
+    /// `weekendDurationMinutes` after it starts.
+    @State private var useSpecificDate = WeekendProfileStore.useSpecificDate
     @State private var weekendDurationMinutes = WeekendProfileStore.durationMinutes
     @State private var displayPickerDuration = false
     @State private var durationHours = 0
     @State private var durationMinutesPicker = 0
+    /// Defaults to an hour from now rather than "now" so the DatePicker doesn't open already
+    /// showing a moment that's about to be in the past.
+    @State private var scheduledEndDate = WeekendProfileStore.scheduledEndDate ?? Date().addingTimeInterval(1.hours.timeInterval)
 
     /// Finest raw step (1 mg/dL) in both unit systems -- matches the finest option Trio's own
     /// Override/Temp Target target pickers offer, instead of the coarse default (5 mg/dL / 9 raw
@@ -142,7 +148,7 @@ struct WeekendProfileSection: View {
     private var displayName: String { name.isEmpty ? "Profile" : name }
 
     private var infoText: String {
-        "A name, target, SMB/UAM minutes, and its own basal + ISF schedule, that you start yourself, independent of Overrides -- meant for stretches like a weekend or vacation. Runs until you stop it, or optionally ends on its own after a duration you set before starting it. Carb ratio is never changed -- it always comes from your normal settings. If a real Override or Temp Target is running, it fully takes over the dosing math and Profile is paused until it ends."
+        "A name, target, SMB/UAM minutes, and its own basal + ISF schedule, that you start yourself, independent of Overrides -- meant for stretches like a weekend or vacation. Runs until you stop it, or optionally ends on its own -- either after a duration or at a specific date & time you set before starting it. Carb ratio is never changed -- it always comes from your normal settings. If a real Override or Temp Target is running, it fully takes over the dosing math and Profile is paused until it ends."
     }
 
     var body: some View {
@@ -179,11 +185,22 @@ struct WeekendProfileSection: View {
                     .accessibilityLabel(Text("\(displayName) Active"))
                     .onChange(of: isActive) {
                         if isActive {
-                            // Refuse to start a "not indefinite, but no duration set" run -- fail
-                            // safe to indefinite rather than silently expiring immediately.
-                            if !indefinite, weekendDurationMinutes == 0 { indefinite = true }
+                            if !indefinite {
+                                if useSpecificDate {
+                                    // Refuse to start a run whose specific end date is already in
+                                    // the past -- fail safe to indefinite rather than silently
+                                    // expiring immediately.
+                                    if scheduledEndDate <= Date() { indefinite = true }
+                                } else if weekendDurationMinutes == 0 {
+                                    // Refuse to start a "not indefinite, but no duration set" run
+                                    // -- same fail-safe.
+                                    indefinite = true
+                                }
+                            }
                             WeekendProfileStore.indefinite = indefinite
-                            WeekendProfileStore.durationMinutes = indefinite ? 0 : weekendDurationMinutes
+                            WeekendProfileStore.useSpecificDate = indefinite ? false : useSpecificDate
+                            WeekendProfileStore.durationMinutes = (indefinite || useSpecificDate) ? 0 : weekendDurationMinutes
+                            WeekendProfileStore.scheduledEndDate = (indefinite || !useSpecificDate) ? nil : scheduledEndDate
                         }
                         WeekendProfileStore.isActive = isActive
                         if isActive {
@@ -201,48 +218,69 @@ struct WeekendProfileSection: View {
                 }
 
                 if !indefinite {
-                    HStack {
-                        Text("Duration")
-                        Spacer()
-                        Text(state.formatHoursAndMinutes(Int(weekendDurationMinutes)))
-                            .foregroundColor(!displayPickerDuration ? .primary : .accentColor)
-                            .onTapGesture {
-                                displayPickerDuration.toggle()
-                            }
+                    Picker("End", selection: $useSpecificDate) {
+                        Text("Duration").tag(false)
+                        Text("Date & Time").tag(true)
                     }
+                    .pickerStyle(.segmented)
 
-                    if displayPickerDuration {
+                    if useSpecificDate {
+                        // `in: Date()...` keeps the picker itself from offering an already-past
+                        // moment -- belt-and-suspenders with the fail-safe in the Toggle's
+                        // onChange above, which still covers the gap between opening the picker
+                        // and actually tapping Start.
+                        DatePicker(
+                            "Ends",
+                            selection: $scheduledEndDate,
+                            in: Date()...,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                    } else {
                         HStack {
-                            Picker("Hours", selection: $durationHours) {
-                                ForEach(0 ..< 97) { hour in
-                                    Text("\(hour) hr").tag(hour)
+                            Text("Duration")
+                            Spacer()
+                            Text(state.formatHoursAndMinutes(Int(weekendDurationMinutes)))
+                                .foregroundColor(!displayPickerDuration ? .primary : .accentColor)
+                                .onTapGesture {
+                                    displayPickerDuration.toggle()
                                 }
-                            }
-                            .pickerStyle(WheelPickerStyle())
-                            .frame(maxWidth: .infinity)
-                            .onChange(of: durationHours) {
-                                weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
-                            }
-
-                            Picker("Minutes", selection: $durationMinutesPicker) {
-                                ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { minute in
-                                    Text("\(minute) min").tag(minute)
-                                }
-                            }
-                            .pickerStyle(WheelPickerStyle())
-                            .frame(maxWidth: .infinity)
-                            .onChange(of: durationMinutesPicker) {
-                                weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
-                            }
                         }
-                        .listRowSeparator(.hidden, edges: .top)
+
+                        if displayPickerDuration {
+                            HStack {
+                                Picker("Hours", selection: $durationHours) {
+                                    ForEach(0 ..< 97) { hour in
+                                        Text("\(hour) hr").tag(hour)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .frame(maxWidth: .infinity)
+                                .onChange(of: durationHours) {
+                                    weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
+                                }
+
+                                Picker("Minutes", selection: $durationMinutesPicker) {
+                                    ForEach(Array(stride(from: 0, through: 55, by: 5)), id: \.self) { minute in
+                                        Text("\(minute) min").tag(minute)
+                                    }
+                                }
+                                .pickerStyle(WheelPickerStyle())
+                                .frame(maxWidth: .infinity)
+                                .onChange(of: durationMinutesPicker) {
+                                    weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
+                                }
+                            }
+                            .listRowSeparator(.hidden, edges: .top)
+                        }
                     }
                 }
             } else if !WeekendProfileStore.indefinite, let end = WeekendProfileStore.activeEndDate {
                 HStack {
                     Text("Ends")
                     Spacer()
-                    Text(end, style: .time)
+                    // Full date + time, not just time -- a specific-date run can end days out, so
+                    // "8:00 PM" alone would be ambiguous about which day.
+                    Text(end.formatted(date: .abbreviated, time: .shortened))
                         .foregroundStyle(.secondary)
                 }
             }
