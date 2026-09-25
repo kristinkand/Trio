@@ -171,10 +171,8 @@ extension UserInterfaceSettings {
                     header: Text("Home View Settings"),
                     content: {
                         VStack {
-                            Toggle("Show X-Axis Grid Lines", isOn: $state.xGridLines)
                             Toggle("Show Y-Axis Grid Lines", isOn: $state.yGridLines)
-                            Toggle("Show Previous Day's BG", isOn: $state.showPreviousDayGlucose)
-                            Toggle("Show Trend Animation", isOn: $state.showTrendAnimation)
+                            Toggle("Show Previous Day's BG", isOn: $state.showPreviousDayGlucose).padding(.top)
 
                             HStack(alignment: .center) {
                                 Text(
