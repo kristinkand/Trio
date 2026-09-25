@@ -61,6 +61,8 @@ extension UserInterfaceSettings {
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
                                 .lineLimit(nil)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
                                 Spacer()
                                 Button(
                                     action: {
@@ -116,6 +118,8 @@ extension UserInterfaceSettings {
                             .font(.footnote)
                             .foregroundColor(.secondary)
                             .lineLimit(nil)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                             Spacer()
                             Button(
                                 action: {
@@ -167,9 +171,9 @@ extension UserInterfaceSettings {
                     header: Text("Home View Settings"),
                     content: {
                         VStack {
-                            Toggle("Show X-Axis Grid Lines", isOn: $state.xGridLines)
-                            Toggle("Show Y-Axis Grid Lines", isOn: $state.yGridLines)
-                            Toggle("Show Previous Day's BG", isOn: $state.showPreviousDayGlucose)
+			    Toggle("Show X-Axis Grid Lines", isOn: $state.xGridLines)                            
+			    Toggle("Show Y-Axis Grid Lines", isOn: $state.yGridLines)
+                            Toggle("Show Previous Day's BG", isOn: $state.showPreviousDayGlucose).padding(.top)
 
                             HStack(alignment: .center) {
                                 Text(
@@ -178,6 +182,8 @@ extension UserInterfaceSettings {
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
                                 .lineLimit(nil)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
                                 Spacer()
                                 Button(
                                     action: {
@@ -331,6 +337,8 @@ extension UserInterfaceSettings {
                                     "Set low and high glucose values for the main screen, watch app, live activity, and contact image colors."
                                 )
                                 .lineLimit(nil)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
 
@@ -385,6 +393,8 @@ extension UserInterfaceSettings {
                             .font(.footnote)
                             .foregroundColor(.secondary)
                             .lineLimit(nil)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                             Spacer()
                             Button(
                                 action: {
@@ -439,6 +449,8 @@ extension UserInterfaceSettings {
                             .font(.footnote)
                             .foregroundColor(.secondary)
                             .lineLimit(nil)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                             Spacer()
                             Button(
                                 action: {
@@ -483,6 +495,8 @@ extension UserInterfaceSettings {
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
                                 .lineLimit(nil)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
                                 Spacer()
                                 Button(
                                     action: {
@@ -524,6 +538,8 @@ extension UserInterfaceSettings {
                             .font(.footnote)
                             .foregroundColor(.secondary)
                             .lineLimit(nil)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                             Spacer()
                             Button(
                                 action: {
@@ -603,6 +619,8 @@ extension UserInterfaceSettings {
                             .font(.footnote)
                             .foregroundColor(.secondary)
                             .lineLimit(nil)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                             Spacer()
                             Button(
                                 action: {
