@@ -18,6 +18,13 @@ extension History {
         @State var showTreatmentTypeFilter = false
         @State var selectedTreatmentTypes: Set<TreatmentType> = Set(TreatmentType.allCases)
 
+        // Weekend Profile has no Core Data record / @FetchRequest to drive a live refresh of the
+        // Adjustments list the way Overrides and Temp Targets get for free -- this notification
+        // (posted by WeekendProfileSection whenever it starts, stops, or is edited) triggers a body
+        // re-render instead, which is enough to make `adjustmentsList` recompute its plain
+        // WeekendProfileStore-backed data fresh.
+        @State private var weekendProfileRefreshToken = false
+
         @Environment(\.colorScheme) var colorScheme
         @Environment(\.managedObjectContext) var context
         @Environment(AppState.self) var appState
@@ -148,6 +155,11 @@ extension History {
                         if let carbEntry = state.carbEntryToEdit {
                             CarbEntryEditorView(state: state, carbEntry: carbEntry)
                         }
+                    }
+                    .onReceive(
+                        Foundation.NotificationCenter.default.publisher(for: .didUpdateWeekendProfileConfiguration)
+                    ) { _ in
+                        weekendProfileRefreshToken.toggle()
                     }
             )
         }
