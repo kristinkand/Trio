@@ -233,6 +233,14 @@ extension Home {
             }
             // no inline text input here; a stale keyboard inset must never shrink the zone budget
             .ignoresSafeArea(.keyboard, edges: .bottom)
+            // Trend animation (rocket/plane/UFO/parachute): centered over the whole Home
+            // dashboard, so a tap anywhere here -- not just on the icon -- dismisses it.
+            .overlay(alignment: .center) {
+                TrendAnimationOverlay(
+                    direction: state.latestTwoGlucoseValues.last?.directionEnum,
+                    isEnabled: state.showTrendAnimation
+                )
+            }
             .onAppear {
                 configureView()
                 refreshAlarmsSnooze()
