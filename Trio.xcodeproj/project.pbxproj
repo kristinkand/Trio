@@ -96,6 +96,7 @@
 		3811DEA925C9D88300A708ED /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3811DE9325C9D88200A708ED /* AppearanceManager.swift */; };
 		3811DEAB25C9D88300A708ED /* HTTPResponseStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3811DE9625C9D88300A708ED /* HTTPResponseStatus.swift */; };
 		3811DEAC25C9D88300A708ED /* NightscoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3811DE9725C9D88300A708ED /* NightscoutManager.swift */; };
+		878EF76C0EFB5EC48DAF9CA0 /* NightscoutManager+WeekendProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04404A866806E62812B2B78 /* NightscoutManager+WeekendProfile.swift */; };
 		3811DEAD25C9D88300A708ED /* UserDefaults+Cache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3811DE9A25C9D88300A708ED /* UserDefaults+Cache.swift */; };
 		3811DEAE25C9D88300A708ED /* Cache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3811DE9B25C9D88300A708ED /* Cache.swift */; };
 		3811DEAF25C9D88300A708ED /* KeyValueStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3811DE9C25C9D88300A708ED /* KeyValueStorage.swift */; };
@@ -925,7 +926,9 @@
 		DB0BB0030000000000000002 /* ReleaseNotesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0BB0030000000000000001 /* ReleaseNotesListView.swift */; };
 		DDCEBF5B2CC1B76400DF4C36 /* LiveActivity+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCEBF5A2CC1B76400DF4C36 /* LiveActivity+Helper.swift */; };
 		DDD163122C4C689900CD525A /* AdjustmentsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163112C4C689900CD525A /* AdjustmentsStateModel.swift */; };
+		7E304B5F46F5D6C0D3681DC0 /* AdjustmentsStateModel+WeekendProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C277F920A8DC20F7F5F0CAD5 /* AdjustmentsStateModel+WeekendProfile.swift */; };
 		DDD163142C4C68D300CD525A /* AdjustmentsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */; };
+		7DDBF513AD992C5FBCA68E95 /* AdjustmentsProvider+WeekendProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A9E0E112A36B270E752C313 /* AdjustmentsProvider+WeekendProfile.swift */; };
 		DDD163162C4C690300CD525A /* AdjustmentsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */; };
 		DDD163182C4C694000CD525A /* AdjustmentsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */; };
 		E65F8866467027CD3D490165 /* WeekendProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */; };
@@ -1234,6 +1237,7 @@
 		3811DE9325C9D88200A708ED /* AppearanceManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppearanceManager.swift; sourceTree = "<group>"; };
 		3811DE9625C9D88300A708ED /* HTTPResponseStatus.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HTTPResponseStatus.swift; sourceTree = "<group>"; };
 		3811DE9725C9D88300A708ED /* NightscoutManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NightscoutManager.swift; sourceTree = "<group>"; };
+		B04404A866806E62812B2B78 /* NightscoutManager+WeekendProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NightscoutManager+WeekendProfile.swift"; sourceTree = "<group>"; };
 		3811DE9A25C9D88300A708ED /* UserDefaults+Cache.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UserDefaults+Cache.swift"; sourceTree = "<group>"; };
 		3811DE9B25C9D88300A708ED /* Cache.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Cache.swift; sourceTree = "<group>"; };
 		3811DE9C25C9D88300A708ED /* KeyValueStorage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = KeyValueStorage.swift; sourceTree = "<group>"; };
@@ -2054,7 +2058,9 @@
 		DB0BB0030000000000000001 /* ReleaseNotesListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseNotesListView.swift; sourceTree = "<group>"; };
 		DDCEBF5A2CC1B76400DF4C36 /* LiveActivity+Helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiveActivity+Helper.swift"; sourceTree = "<group>"; };
 		DDD163112C4C689900CD525A /* AdjustmentsStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsStateModel.swift; sourceTree = "<group>"; };
+		C277F920A8DC20F7F5F0CAD5 /* AdjustmentsStateModel+WeekendProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdjustmentsStateModel+WeekendProfile.swift"; sourceTree = "<group>"; };
 		DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsProvider.swift; sourceTree = "<group>"; };
+		8A9E0E112A36B270E752C313 /* AdjustmentsProvider+WeekendProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdjustmentsProvider+WeekendProfile.swift"; sourceTree = "<group>"; };
 		DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsDataFlow.swift; sourceTree = "<group>"; };
 		DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsRootView.swift; sourceTree = "<group>"; };
 		316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendProfileStore.swift; sourceTree = "<group>"; };
@@ -4672,6 +4678,7 @@
 				DD906BF32EA6AA0100262772 /* NightscoutUploadPipeline.swift */,
 				10E61A0885164081B57C357C /* NightscoutUploadSerializer.swift */,
 				3811DE9725C9D88300A708ED /* NightscoutManager.swift */,
+				B04404A866806E62812B2B78 /* NightscoutManager+WeekendProfile.swift */,
 				38FE826C25CC8461001FF17A /* NightscoutAPI.swift */,
 				DD906BF52EA6AAE900262772 /* BaseNightscoutManager+Subscribers.swift */,
 			);
@@ -4740,7 +4747,9 @@
 				DD5DC9EF2CF3D95400AB8703 /* AdjustmentsStateModel+Extensions */,
 				DDD1630A2C4C67F000CD525A /* View */,
 				DDD163112C4C689900CD525A /* AdjustmentsStateModel.swift */,
+				C277F920A8DC20F7F5F0CAD5 /* AdjustmentsStateModel+WeekendProfile.swift */,
 				DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */,
+				8A9E0E112A36B270E752C313 /* AdjustmentsProvider+WeekendProfile.swift */,
 				DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */,
 				316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */,
 			);
@@ -5640,6 +5649,7 @@
 				38EA05DA261F6E7C0064E39B /* SimpleLogReporter.swift in Sources */,
 				3811DE6125C9D4D500A708ED /* ViewModifiers.swift in Sources */,
 				3811DEAC25C9D88300A708ED /* NightscoutManager.swift in Sources */,
+				878EF76C0EFB5EC48DAF9CA0 /* NightscoutManager+WeekendProfile.swift in Sources */,
 				BD793CB22CE8033500D669AC /* TempTargetRunStored.swift in Sources */,
 				BD7DA9A92AE06E9200601B20 /* BolusCalculatorStateModel.swift in Sources */,
 				CEB434E528B8FF5D00B70274 /* UIColor.swift in Sources */,
@@ -5660,6 +5670,7 @@
 				38A9260525F012D8009E3739 /* CarbRatios.swift in Sources */,
 				38FCF3D625E8FDF40078B0D1 /* MD5.swift in Sources */,
 				DDD163142C4C68D300CD525A /* AdjustmentsProvider.swift in Sources */,
+				7DDBF513AD992C5FBCA68E95 /* AdjustmentsProvider+WeekendProfile.swift in Sources */,
 				3871F39C25ED892B0013ECB5 /* TempTarget.swift in Sources */,
 				191F62682AD6B05A004D7911 /* NightscoutSettings.swift in Sources */,
 				3811DEAB25C9D88300A708ED /* HTTPResponseStatus.swift in Sources */,
@@ -6020,6 +6031,7 @@
 				DDF691052DA2CA23008BF16C /* AppDiagnosticsStateModel.swift in Sources */,
 				38A00B2325FC2B55006BC0B0 /* LRUCache.swift in Sources */,
 				DDD163122C4C689900CD525A /* AdjustmentsStateModel.swift in Sources */,
+				7E304B5F46F5D6C0D3681DC0 /* AdjustmentsStateModel+WeekendProfile.swift in Sources */,
 				E65F8866467027CD3D490165 /* WeekendProfileStore.swift in Sources */,
 				BD47FDD72D8B64D20043966B /* CarbRatioStepView.swift in Sources */,
 				DD17A0322E3FEA1F008E1BF0 /* RemoteNotificationResponseManager.swift in Sources */,
