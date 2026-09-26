@@ -5,6 +5,7 @@ import UIKit
 
 struct LoopView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     fileprivate enum Config {
         static let lag: TimeInterval = 30
@@ -20,6 +21,14 @@ struct LoopView: View {
     let hasDeviceIssue: Bool
 
     let determination: [OrefDetermination]
+
+    /// `isLooping`, but never shown for less than 2 seconds: a loop can
+    /// finish in well under a second, and a pill that flickers on and off reads as a glitch
+    /// rather than as work. A loop that runs longer than that ends the spin when it ends.
+    /// Only meaningful in the `showsCaption` (closed loop) case below -- the capsule spinner
+    /// is a capsule-shaped border, and only that case renders a capsule at all.
+    @State private var showLooping: Bool = false
+    @State private var spinStart: Date? = nil
 
     /// Fraction of the ring removed at *each* of the two horizontal gaps (3 and 9 o'clock),
     /// leaving a top and a bottom arc. Anything short of full automation reads as an open ring;
@@ -89,9 +98,35 @@ struct LoopView: View {
 
     @ViewBuilder var body: some View {
         if showsCaption {
+            // Closed loop is the only case with a capsule caption, so it's the only case that
+            // wears the capsule spinner border -- it fades between a spinning and a solid
+            // capsule as `showLooping` flips, taking over what the plain `.overlay` used to
+            // draw on its own before the spinner was added.
             loopStatus
                 .padding(.vertical, 5)
                 .padding(.horizontal, 10)
+                .capsuleSpinner(isActive: showLooping, color: color)
+                .task(id: isLooping) {
+                    if isLooping {
+                        spinStart = Date()
+                        showLooping = true
+                    } else {
+                        // nothing was spinning (first run, or a stop that already elapsed)
+                        guard let spinStart else {
+                            showLooping = false
+                            return
+                        }
+
+                        let remaining = 2 - Date().timeIntervalSince(spinStart)
+                        if remaining > 0 {
+                            try? await Task.sleep(for: .seconds(remaining))
+                            guard !Task.isCancelled else { return }
+                        }
+
+                        showLooping = false
+                        self.spinStart = nil
+                    }
+                }
                 .overlay(
                     Capsule()
                         .stroke(color.opacity(0.4), lineWidth: 2)
@@ -99,7 +134,7 @@ struct LoopView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text(loopAccessibilityLabel))
         } else {
-            // open loop, LGS and basal testing carry no caption; no capsule
+            // open loop, LGS and basal testing carry no caption; no capsule, so no spinner either
             loopStatus
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text(loopAccessibilityLabel))
@@ -215,21 +250,5 @@ struct LoopView: View {
             hasEnactedDetermination: determination.first?.timestamp != nil,
             secondsSinceLastLoop: timerDate.timeIntervalSince(lastLoopDate)
         )
-    }
-}
-
-extension View {
-    func animateForever(
-        using animation: Animation = Animation.easeInOut(duration: 1),
-        autoreverses: Bool = false,
-        _ action: @escaping () -> Void
-    ) -> some View {
-        let repeated = animation.repeatForever(autoreverses: autoreverses)
-
-        return onAppear {
-            withAnimation(repeated) {
-                action()
-            }
-        }
     }
 }
