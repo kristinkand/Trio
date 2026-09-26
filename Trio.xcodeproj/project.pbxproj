@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		02F9F6D77C744064A84499EC /* MealsPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D88CA823E44925B05569EE /* MealsPDFChart.swift */; };
 		041D1E995A6AE92E9289DC49 /* TreatmentsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D1A7CA8C10C4403D4BBFA7 /* TreatmentsDataFlow.swift */; };
+		0998F4E33039C233005A2802 /* CapsuleSpinnerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0998F4E23039C233005A2802 /* CapsuleSpinnerView.swift */; };
 		0564226A038878780EF834EE /* AlertColdStartReplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73955E4A9E02D75D56359D21 /* AlertColdStartReplay.swift */; };
 		0AEE7647C251481C935F78A4 /* GlucosePercentileByDayPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0865B3A9AD5E4C11972DEE8E /* GlucosePercentileByDayPDFChart.swift */; };
 		0D9A5E34A899219C5C4CDFAF /* HistoryStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9455FA2D92E77A6C4AFED8A3 /* HistoryStateModel.swift */; };
@@ -832,6 +833,7 @@
 		DD32CF9E2CC824C5003686D6 /* TrioRemoteControl+Override.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD32CF9D2CC824C2003686D6 /* TrioRemoteControl+Override.swift */; };
 		DD32CFA02CC824D6003686D6 /* TrioRemoteControl+APNS.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD32CF9F2CC824D3003686D6 /* TrioRemoteControl+APNS.swift */; };
 		DD32CFA22CC824E2003686D6 /* TrioRemoteControl+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD32CFA12CC824E1003686D6 /* TrioRemoteControl+Helpers.swift */; };
+		708AC30CD202B79FE677F124 /* TrioRemoteControl+WeekendProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB7A1A6E85A708C590EF8A11 /* TrioRemoteControl+WeekendProfile.swift */; };
 		DD3A3CE72D29C93F00AE478E /* Helper+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3A3CE62D29C93F00AE478E /* Helper+Extensions.swift */; };
 		DD3A3CE92D29C97800AE478E /* Helper+ButtonStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3A3CE82D29C97800AE478E /* Helper+ButtonStyles.swift */; };
 		DD3C47B32DC5608A003DD20D /* newerSuggested.json in Resources */ = {isa = PBXBuildFile; fileRef = DD3C47B22DC5608A003DD20D /* newerSuggested.json */; };
@@ -926,6 +928,9 @@
 		DDD163142C4C68D300CD525A /* AdjustmentsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */; };
 		DDD163162C4C690300CD525A /* AdjustmentsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */; };
 		DDD163182C4C694000CD525A /* AdjustmentsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */; };
+		E65F8866467027CD3D490165 /* WeekendProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */; };
+		BF4A82E6D4AB4B328B057976 /* WeekendProfileSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */; };
+		41DAFD84B0E1DE70A9D74C2C /* WeekendScheduleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA13DF48FA7D84A9C4E74C6 /* WeekendScheduleEditor.swift */; };
 		DDD1631A2C4C695E00CD525A /* EditOverrideForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD163192C4C695E00CD525A /* EditOverrideForm.swift */; };
 		DDD1631C2C4C697400CD525A /* AddOverrideForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD1631B2C4C697400CD525A /* AddOverrideForm.swift */; };
 		DDD1631F2C4C6F6900CD525A /* TrioCoreDataPersistentContainer.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = DDD1631D2C4C6F6900CD525A /* TrioCoreDataPersistentContainer.xcdatamodeld */; };
@@ -1956,6 +1961,7 @@
 		DD32CF9D2CC824C2003686D6 /* TrioRemoteControl+Override.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TrioRemoteControl+Override.swift"; sourceTree = "<group>"; };
 		DD32CF9F2CC824D3003686D6 /* TrioRemoteControl+APNS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TrioRemoteControl+APNS.swift"; sourceTree = "<group>"; };
 		DD32CFA12CC824E1003686D6 /* TrioRemoteControl+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TrioRemoteControl+Helpers.swift"; sourceTree = "<group>"; };
+		CB7A1A6E85A708C590EF8A11 /* TrioRemoteControl+WeekendProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TrioRemoteControl+WeekendProfile.swift"; sourceTree = "<group>"; };
 		DD3A3CE62D29C93F00AE478E /* Helper+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Helper+Extensions.swift"; sourceTree = "<group>"; };
 		DD3A3CE82D29C97800AE478E /* Helper+ButtonStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Helper+ButtonStyles.swift"; sourceTree = "<group>"; };
 		DD3C47B22DC5608A003DD20D /* newerSuggested.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = newerSuggested.json; sourceTree = "<group>"; };
@@ -1976,6 +1982,7 @@
 		DD4C581E2D73C43D001BFF2C /* LoopStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopStatsView.swift; sourceTree = "<group>"; };
 		DD4FFF322D458EE600B6CFF9 /* GarminWatchState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GarminWatchState.swift; sourceTree = "<group>"; };
 		DD500A712807000000000100 /* SnoozeAlertsSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoozeAlertsSheetView.swift; sourceTree = "<group>"; };
+		0998F4E23039C233005A2802 /* CapsuleSpinnerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsuleSpinnerView.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000170 /* GlassActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassActionSheet.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000014 /* ManualGlucoseEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualGlucoseEntryView.swift; sourceTree = "<group>"; };
 		DD5DC9F02CF3D96E00AB8703 /* AdjustmentsStateModel+Overrides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdjustmentsStateModel+Overrides.swift"; sourceTree = "<group>"; };
@@ -2050,6 +2057,9 @@
 		DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsProvider.swift; sourceTree = "<group>"; };
 		DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsDataFlow.swift; sourceTree = "<group>"; };
 		DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentsRootView.swift; sourceTree = "<group>"; };
+		316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendProfileStore.swift; sourceTree = "<group>"; };
+		62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendProfileSection.swift; sourceTree = "<group>"; };
+		8AA13DF48FA7D84A9C4E74C6 /* WeekendScheduleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendScheduleEditor.swift; sourceTree = "<group>"; };
 		DDD163192C4C695E00CD525A /* EditOverrideForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditOverrideForm.swift; sourceTree = "<group>"; };
 		DDD1631B2C4C697400CD525A /* AddOverrideForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddOverrideForm.swift; sourceTree = "<group>"; };
 		DDD1631E2C4C6F6900CD525A /* TrioCoreDataPersistentContainer.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = TrioCoreDataPersistentContainer.xcdatamodel; sourceTree = "<group>"; };
@@ -2979,6 +2989,7 @@
 				48B83503461B4F8D97B30115 /* SettingsSearchHighlight.swift */,
 				DD17452A2C556E8100211FAC /* SettingInputHintView.swift */,
 				DD500A712807000000000100 /* SnoozeAlertsSheetView.swift */,
+				0998F4E23039C233005A2802 /* CapsuleSpinnerView.swift */,
 				7A11AC0DE000000000000170 /* GlassActionSheet.swift */,
 				7A11AC0DE000000000000014 /* ManualGlucoseEntryView.swift */,
 			);
@@ -4596,6 +4607,7 @@
 				DD32CF9B2CC82495003686D6 /* TrioRemoteControl+TempTarget.swift */,
 				DD32CF992CC8246F003686D6 /* TrioRemoteControl+Meal.swift */,
 				DD32CF972CC82460003686D6 /* TrioRemoteControl+Bolus.swift */,
+				CB7A1A6E85A708C590EF8A11 /* TrioRemoteControl+WeekendProfile.swift */,
 				DD9ECB672CA99F4500AA7C45 /* TrioRemoteControl.swift */,
 			);
 			path = RemoteControl;
@@ -4730,6 +4742,7 @@
 				DDD163112C4C689900CD525A /* AdjustmentsStateModel.swift */,
 				DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */,
 				DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */,
+				316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */,
 			);
 			path = Adjustments;
 			sourceTree = "<group>";
@@ -4739,6 +4752,8 @@
 			children = (
 				DD5DC9F52CF3DA8900AB8703 /* ViewElements */,
 				DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */,
+				62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */,
+				8AA13DF48FA7D84A9C4E74C6 /* WeekendScheduleEditor.swift */,
 				BD793CAD2CE7660C00D669AC /* Overrides */,
 				BD793CAE2CE7661D00D669AC /* TempTargets */,
 			);
@@ -5772,6 +5787,7 @@
 				1935364028496F7D001E0B16 /* TrioCustomOrefVariables.swift in Sources */,
 				CE2FAD3A297D93F0001A872C /* BloodGlucoseExtensions.swift in Sources */,
 				38E4453A274E411700EC9A94 /* Disk+[UIImage].swift in Sources */,
+				0998F4E33039C233005A2802 /* CapsuleSpinnerView.swift in Sources */,
 				DD73FA0F2D74F58E00D19D1E /* BackgroundTask+Helper.swift in Sources */,
 				72F1BD388F42FCA6C52E4500 /* ConfigEditorProvider.swift in Sources */,
 				E39E418C56A5A46B61D960EE /* ConfigEditorStateModel.swift in Sources */,
@@ -5932,6 +5948,8 @@
 				9702FF92A09C53942F20D7EA /* TargetsEditorRootView.swift in Sources */,
 				1967DFBE29D052C200759F30 /* Icons.swift in Sources */,
 				DDD163182C4C694000CD525A /* AdjustmentsRootView.swift in Sources */,
+				BF4A82E6D4AB4B328B057976 /* WeekendProfileSection.swift in Sources */,
+				41DAFD84B0E1DE70A9D74C2C /* WeekendScheduleEditor.swift in Sources */,
 				389ECE052601144100D86C4F /* ConcurrentMap.swift in Sources */,
 				110AEDEC2C51A0AE00615CC9 /* ShortcutsConfigDataFlow.swift in Sources */,
 				CE7CA3562A064973004BE681 /* StateIntentRequest.swift in Sources */,
@@ -5967,6 +5985,7 @@
 				BD11C001000000000000C004 /* SensorStatusTagView.swift in Sources */,
 				041D1E995A6AE92E9289DC49 /* TreatmentsDataFlow.swift in Sources */,
 				DD32CF9E2CC824C5003686D6 /* TrioRemoteControl+Override.swift in Sources */,
+				708AC30CD202B79FE677F124 /* TrioRemoteControl+WeekendProfile.swift in Sources */,
 				BD249D922D42FC5300412DEB /* GlucoseSectorChart.swift in Sources */,
 				23888883D4EA091C88480FF2 /* TreatmentsProvider.swift in Sources */,
 				38E98A2D25F52DC400C0CED0 /* NSLocking+Extensions.swift in Sources */,
@@ -6001,6 +6020,7 @@
 				DDF691052DA2CA23008BF16C /* AppDiagnosticsStateModel.swift in Sources */,
 				38A00B2325FC2B55006BC0B0 /* LRUCache.swift in Sources */,
 				DDD163122C4C689900CD525A /* AdjustmentsStateModel.swift in Sources */,
+				E65F8866467027CD3D490165 /* WeekendProfileStore.swift in Sources */,
 				BD47FDD72D8B64D20043966B /* CarbRatioStepView.swift in Sources */,
 				DD17A0322E3FEA1F008E1BF0 /* RemoteNotificationResponseManager.swift in Sources */,
 				3B2F77862D7E52ED005ED9FA /* TDD.swift in Sources */,
