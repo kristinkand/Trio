@@ -174,6 +174,7 @@ extension UserInterfaceSettings {
                             Toggle("Show X-Axis Grid Lines", isOn: $state.xGridLines)
                             Toggle("Show Y-Axis Grid Lines", isOn: $state.yGridLines)
                             Toggle("Show Previous Day's BG", isOn: $state.showPreviousDayGlucose).padding(.top)
+
                             HStack(alignment: .center) {
                                 Text(
                                     "Display the grid lines behind the glucose graph."
@@ -203,6 +204,41 @@ extension UserInterfaceSettings {
                         }.padding(.vertical)
                     }
                 ).settingsSearchTarget(label: String(localized: "Show X-Axis Grid Lines"))
+
+                Section {
+                    VStack {
+                        Toggle("Show Trend Animation", isOn: $state.showTrendAnimation)
+
+                        HStack(alignment: .center) {
+                            Text(
+                                "Briefly show an animated icon (rocket, plane, UFO, or parachute) when the glucose trend changes."
+                            )
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .lineLimit(nil)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            Spacer()
+                            Button(
+                                action: {
+                                    hintLabel = String(localized: "Show Trend Animation")
+                                    selectedVerboseHint =
+                                        AnyView(
+                                            Text(
+                                                "When enabled, a short animation (rocket, plane, UFO, or parachute) plays on the Home screen to reflect a rapidly rising or falling glucose trend."
+                                            )
+                                        )
+                                    shouldDisplayHint.toggle()
+                                },
+                                label: {
+                                    HStack {
+                                        Image(systemName: "questionmark.circle").accessibilityLabel(Text("More information"))
+                                    }
+                                }
+                            ).buttonStyle(BorderlessButtonStyle())
+                        }.padding(.top)
+                    }.padding(.vertical)
+                }.settingsSearchTarget(label: String(localized: "Show Trend Animation"))
 
                 SettingInputSection(
                     decimalValue: $decimalPlaceholder,

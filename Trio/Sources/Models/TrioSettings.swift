@@ -50,6 +50,9 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var showCobIobChart: Bool = true
     var rulerMarks: Bool = true
     var showPreviousDayGlucose: Bool = false
+    /// Whether the animated trend icon (rocket/plane/UFO/parachute) shows briefly on the
+    /// Home dashboard each time it's opened.
+    var showTrendAnimation: Bool = true
     var bolusDisplayThreshold: BolusDisplayThreshold = .allUnits
     var forecastDisplayType: ForecastDisplayType = .cone
     var maxCarbs: Decimal = 250
@@ -303,6 +306,10 @@ extension TrioSettings: Decodable {
 
         if let showPreviousDayGlucose = try? container.decode(Bool.self, forKey: .showPreviousDayGlucose) {
             settings.showPreviousDayGlucose = showPreviousDayGlucose
+        }
+
+        if let showTrendAnimation = try? container.decode(Bool.self, forKey: .showTrendAnimation) {
+            settings.showTrendAnimation = showTrendAnimation
         }
 
         if let bolusDisplayThreshold = try? container.decode(BolusDisplayThreshold.self, forKey: .bolusDisplayThreshold) {
