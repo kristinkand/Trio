@@ -316,7 +316,15 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
         entry: Alert.CatalogEntry,
         to alert: Alert
     ) -> Alert {
-        Alert(
+        // The master "mute all sounds" switch folds into the same nil-sound
+        // path the per-tier `playsSound: false` uses, so it silences every
+        // severity — Critical included — the same way regardless of whether
+        // this build/user has the Critical Alerts entitlement: the UN
+        // scheduler substitutes a critical sound at volume 0 rather than
+        // dropping the interruption level, and the AlarmKit / audio-fallback
+        // path no-ops without a sound filename.
+        let playsSound = config.playsSound && !DeviceAlertsStore.shared.muteAllSounds
+        return Alert(
             identifier: alert.identifier,
             foregroundContent: alert.foregroundContent,
             backgroundContent: alert.backgroundContent,
@@ -325,7 +333,7 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
             // toggle can't demote a Critical alarm or promote a Normal one
             // past what the catalog says it is.
             interruptionLevel: config.overridesSilenceAndDND ? .critical : entry.interruptionLevel,
-            sound: config.playsSound ? .sound(name: config.soundFilename) : nil,
+            sound: playsSound ? .sound(name: config.soundFilename) : nil,
             metadata: alert.metadata
         )
     }
