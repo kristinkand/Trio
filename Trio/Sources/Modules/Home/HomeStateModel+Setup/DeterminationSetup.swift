@@ -38,6 +38,15 @@ extension Home.StateModel {
     @MainActor private func updateEnactedDeterminationFromController() {
         guard let objects = enactedDeterminationController.fetchedObjects else { return }
         determinationsFromPersistence = objects
+
+        // Piggybacks on the same signal the dosing algorithm reacts to (a new enacted
+        // determination lands roughly every loop cycle) to close out a Weekend Profile run whose
+        // duration has elapsed -- see `WeekendProfileStore.expireIfNeeded` for why dosing safety
+        // never actually depends on this call happening; this just keeps the on/off state,
+        // Nightscout entry, and History list from lagging behind reality.
+        if WeekendProfileStore.expireIfNeeded(nightscoutManager: nightscoutManager) {
+            Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
+        }
     }
 
     // MARK: - Determinations for COB/IOB Charts
