@@ -64,6 +64,8 @@ extension Adjustments {
                     .padding(.horizontal)
 
                     List {
+                        WeekendProfileSection(state: state)
+
                         switch state.selectedTab {
                         case .overrides: overrides()
                         case .tempTargets: tempTargets() }
