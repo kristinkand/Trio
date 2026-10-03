@@ -305,6 +305,10 @@ final class BaseCarbsStorage: CarbsStorage, Injectable {
             newItem.isFPU = false
             newItem.isSuperBolus = entry.isSuperBolus
             newItem.isReducedBolus = entry.isReducedBolus
+            debug(
+                .service,
+                "saveCarbsToCoreData: carbs=\(entry.carbs) super=\(entry.isSuperBolus) reduced=\(entry.isReducedBolus) remote=\(areFetchedFromRemote) enteredBy=\(entry.enteredBy ?? "-")"
+            )
             newItem.isUploadedToNS = areFetchedFromRemote ? true : false
             newItem.isUploadedToHealth = false
             newItem.isUploadedToTidepool = false

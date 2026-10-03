@@ -718,6 +718,10 @@ extension Treatments {
                     isSuperBolus: useSuperBolus,
                     isReducedBolus: useFattyMealCorrectionFactor
                 )]
+                debug(
+                    .bolusState,
+                    "saveMeal: carbs=\(carbs) fat=\(fat) protein=\(protein) superBolus=\(useSuperBolus) reducedBolus=\(useFattyMealCorrectionFactor) insulin=\(amount)"
+                )
                 try await carbsStorage.storeCarbs(carbsToStore, areFetchedFromRemote: false)
 
                 // only perform determine basal sync if the user doesn't use the pump bolus, otherwise the enact bolus func in the APSManger does a sync
