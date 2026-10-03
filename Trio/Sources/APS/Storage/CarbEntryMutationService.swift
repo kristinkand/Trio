@@ -56,10 +56,28 @@ final class BaseCarbEntryMutationService: CarbEntryMutationService, Injectable {
         guard let idString = replacement.id, let newID = UUID(uuidString: idString) else {
             throw CarbEntryMutationError.invalidReplacementID
         }
+        // An edited meal keeps the bolus type it was entered with (Super / Reduced Bolus),
+        // so its marker on the main chart and in Meal Impact keeps its color.
+        var replacement = replacement
+        let bolusType = await bolusTypeFlags(rootObjectID)
+        replacement.isSuperBolus = bolusType.isSuperBolus
+        replacement.isReducedBolus = bolusType.isReducedBolus
+
         let failures = try await deleteMeal(rootObjectID: rootObjectID)
         try await carbsStorage.storeCarbs([replacement], areFetchedFromRemote: false)
         await syncMealsWithServices()
         return (newID, failures)
+    }
+
+    private func bolusTypeFlags(_ objectID: NSManagedObjectID) async -> (isSuperBolus: Bool, isReducedBolus: Bool) {
+        let context = makeContext()
+        context.name = "bolusTypeFlags"
+        return await context.perform {
+            guard let row = try? context.existingObject(with: objectID) as? CarbEntryStored else {
+                return (false, false)
+            }
+            return (row.isSuperBolus, row.isReducedBolus)
+        }
     }
 
     private func syncMealsWithServices() async {
