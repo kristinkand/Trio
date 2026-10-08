@@ -52,7 +52,14 @@ struct WeekendProfileSection: View {
     @State private var durationMinutesPicker = 0
     /// Defaults to an hour from now rather than "now" so the DatePicker doesn't open already
     /// showing a moment that's about to be in the past.
-    @State private var scheduledEndDate = WeekendProfileStore.scheduledEndDate ?? Date().addingTimeInterval(1.hours.timeInterval)
+    /// A stored end that has already passed is never reused: the picker only allows future
+    /// times, and correcting a past value would otherwise look like a new pick.
+    @State private var scheduledEndDate: Date = {
+        if let stored = WeekendProfileStore.scheduledEndDate, stored > Date().addingTimeInterval(5 * 60) {
+            return stored
+        }
+        return Date().addingTimeInterval(1.hours.timeInterval)
+    }()
 
     /// Finest raw step (1 mg/dL) in both unit systems -- matches the finest option Trio's own
     /// Override/Temp Target target pickers offer, instead of the coarse default (5 mg/dL / 9 raw
@@ -160,7 +167,10 @@ struct WeekendProfileSection: View {
     /// is already off, so a double tap can never close out the same run twice.
     private func stopProfile() {
         isActive = false
-        guard WeekendProfileStore.isActive else { return }
+        guard WeekendProfileStore.isActive else {
+            debug(.service, "Profile switch turned off, but it was not running: \(WeekendProfileStore.logDescription)")
+            return
+        }
         WeekendProfileStore.isActive = false
         state.stopWeekendProfile()
         Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
@@ -287,22 +297,12 @@ struct WeekendProfileSection: View {
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: endMode) {
-                    switch endMode {
-                    case .indefinite:
-                        // A complete, unambiguous choice on its own -- start right away.
+                    // Indefinite is a complete choice on its own, so it starts right away.
+                    // Duration and Date & Time wait for the Start button below: a picker can
+                    // change its value by itself (e.g. moving a past time to now), which must
+                    // never start a run.
+                    if endMode == .indefinite {
                         startProfile(mode: .indefinite)
-                    case .duration:
-                        // If a duration's already dialed in from last time, reuse it immediately
-                        // rather than making you re-touch the wheel just to confirm the same
-                        // number. A never-configured 0 waits for an actual pick below instead.
-                        if weekendDurationMinutes > 0 {
-                            startProfile(mode: .duration, durationMinutes: weekendDurationMinutes)
-                        }
-                    case .specificDate:
-                        // Not reused the same way -- the prefilled default is always "an hour from
-                        // right now," which isn't a real preference to fall back to, so this
-                        // always waits for an explicit pick below.
-                        break
                     }
                 }
 
@@ -317,9 +317,14 @@ struct WeekendProfileSection: View {
                         in: Date()...,
                         displayedComponents: [.date, .hourAndMinute]
                     )
-                    .onChange(of: scheduledEndDate) {
+
+                    Button {
                         startProfile(mode: .specificDate, specificDate: scheduledEndDate)
+                    } label: {
+                        Text("Start until \(scheduledEndDate.formatted(date: .abbreviated, time: .shortened))")
+                            .frame(maxWidth: .infinity)
                     }
+                    .disabled(scheduledEndDate <= Date())
                 } else if endMode == .duration {
                     HStack {
                         Text("Duration")
@@ -341,8 +346,7 @@ struct WeekendProfileSection: View {
                             .pickerStyle(WheelPickerStyle())
                             .frame(maxWidth: .infinity)
                             .onChange(of: durationHours) {
-                                let minutes = state.convertToMinutes(durationHours, durationMinutesPicker)
-                                startProfile(mode: .duration, durationMinutes: minutes)
+                                weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
                             }
 
                             Picker("Minutes", selection: $durationMinutesPicker) {
@@ -353,12 +357,20 @@ struct WeekendProfileSection: View {
                             .pickerStyle(WheelPickerStyle())
                             .frame(maxWidth: .infinity)
                             .onChange(of: durationMinutesPicker) {
-                                let minutes = state.convertToMinutes(durationHours, durationMinutesPicker)
-                                startProfile(mode: .duration, durationMinutes: minutes)
+                                weekendDurationMinutes = state.convertToMinutes(durationHours, durationMinutesPicker)
                             }
                         }
                         .listRowSeparator(.hidden, edges: .top)
                     }
+
+                    Button {
+                        displayPickerDuration = false
+                        startProfile(mode: .duration, durationMinutes: weekendDurationMinutes)
+                    } label: {
+                        Text("Start for \(state.formatHoursAndMinutes(Int(weekendDurationMinutes)))")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(weekendDurationMinutes <= 0)
                 }
             } else if !WeekendProfileStore.indefinite, let end = WeekendProfileStore.activeEndDate {
                 HStack {

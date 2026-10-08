@@ -164,8 +164,12 @@ enum WeekendProfileStore {
     /// Appends a completed run to `runHistory`. No-ops for a zero/negative-length run (e.g. toggled
     /// on and immediately off) so the history doesn't fill up with noise.
     static func recordCompletedRun(name: String, start: Date, end: Date) {
-        guard end > start else { return }
+        guard end > start else {
+            debug(.service, "Profile run not recorded, end \(end) is not after start \(start)")
+            return
+        }
         runHistory.append(Run(name: name, startDate: start, endDate: end))
+        debug(.service, "Profile run recorded in History: \(start) - \(end), \(runHistory.count) runs stored")
     }
 
     /// User-editable label. Defaults to "Profile"; shown in the section header, the Save
@@ -261,6 +265,27 @@ extension WeekendProfileStore {
     /// share the "Exercise" eventType and Trio's usual `enteredBy` of "Trio".
     static let enteredBy = "Trio Weekend Profile"
 
+    /// Duration to send to Nightscout when a run starts: the planned length for a run with an end
+    /// (duration or date & time), so Loop Follow shows the right end even if the correction sent at
+    /// the end never gets through (e.g. iOS suspends Trio in the background); ~30 days otherwise.
+    static func nightscoutStartDurationMinutes(start: Date) -> Int {
+        guard let end = activeEndDate else { return indefiniteDurationMinutes }
+        return max(1, Int((end.timeIntervalSince(start) / 60).rounded(.up)))
+    }
+
+    /// One-line summary of the stored state for the log.
+    static var logDescription: String {
+        let endText: String
+        if indefinite {
+            endText = "indefinite"
+        } else if let end = activeEndDate {
+            endText = "ends \(end)"
+        } else {
+            endText = useSpecificDate ? "date & time (none set)" : "duration \(durationMinutes) min"
+        }
+        return "active=\(isActive) start=\(activeStartDate.map { "\($0)" } ?? "nil") \(endText) runs=\(runHistory.count)"
+    }
+
     /// Turns Weekend Profile on: flips `isActive`, records the real start time (so the run can be
     /// anchored in History > Adjustments and its real duration computed once stopped), and posts an
     /// indefinite-duration "Exercise" entry to Nightscout so Loop Follow (and any Nightscout-based
@@ -274,10 +299,19 @@ extension WeekendProfileStore {
     /// for the timing/Nightscout side effects -- rather than going through this helper, but both
     /// paths leave Weekend Profile in the identical state.
     static func activate(nightscoutManager: NightscoutManager) {
-        guard !isActive else { return }
+        guard !isActive else {
+            debug(.service, "Profile remote start ignored, already running: \(logDescription)")
+            return
+        }
+        // A remote start has no end of its own. Without this it would reuse whatever end was
+        // chosen in the app last time -- possibly a date & time already in the past, which would
+        // end the new run right away.
+        indefinite = true
+        useSpecificDate = false
         isActive = true
         let start = Date()
         activeStartDate = start
+        debug(.service, "Profile started (remote): \(logDescription)")
         Task {
             let event = NightscoutExercise(
                 duration: indefiniteDurationMinutes,
@@ -296,13 +330,20 @@ extension WeekendProfileStore {
     /// there's no recorded start time to close out (e.g. Weekend Profile was active before this
     /// version's start-tracking existed) -- see the counterpart in `Adjustments.StateModel
     /// .stopWeekendProfile()` for the same guard.
-    static func deactivate(nightscoutManager: NightscoutManager) {
-        guard isActive else { return }
+    static func deactivate(nightscoutManager: NightscoutManager, reason: String = "remote") {
+        guard isActive else {
+            debug(.service, "Profile stop (\(reason)) ignored, not running: \(logDescription)")
+            return
+        }
         isActive = false
         let end = Date()
         let runName = name
-        guard let start = activeStartDate else { return }
+        guard let start = activeStartDate else {
+            debug(.service, "Profile stopped (\(reason)) but its start time was missing -- nothing to record or correct")
+            return
+        }
         activeStartDate = nil
+        debug(.service, "Profile stopped (\(reason)): ran \(start) - \(end)")
         recordCompletedRun(name: runName, start: start, end: end)
 
         let elapsedMinutes = max(1, Int(end.timeIntervalSince(start) / 60))
@@ -332,7 +373,7 @@ extension WeekendProfileStore {
     @discardableResult
     static func expireIfNeeded(nightscoutManager: NightscoutManager) -> Bool {
         guard isExpired else { return false }
-        deactivate(nightscoutManager: nightscoutManager)
+        deactivate(nightscoutManager: nightscoutManager, reason: "end time reached")
         return true
     }
 }
