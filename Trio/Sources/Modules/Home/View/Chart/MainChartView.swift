@@ -949,6 +949,12 @@ extension MainChartCanvas {
                 viewContext: context
             )
 
+            WeekendProfileChartView(
+                state: state,
+                units: state.units,
+                viewContext: context
+            )
+
             PreviousDayGlucoseChartView(
                 glucoseData: windowedPreviousDayGlucose,
                 units: state.units
