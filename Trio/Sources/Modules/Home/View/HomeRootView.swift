@@ -252,6 +252,7 @@ extension Home {
                 // truth here on every appearance closes that gap.
                 WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager)
                 isWeekendProfileActive = WeekendProfileStore.isActive
+                state.weekendProfileRevision &+= 1
             }
             .task {
                 await releaseNotesService.load()
@@ -578,6 +579,7 @@ extension Home {
             }
             .onReceive(Foundation.NotificationCenter.default.publisher(for: .didUpdateWeekendProfileConfiguration)) { _ in
                 isWeekendProfileActive = WeekendProfileStore.isActive
+                state.weekendProfileRevision &+= 1
             }
             // Foreground-only catch-up for a timed Weekend Profile run's own bottom-bar
             // indicator -- see WeekendProfileSection's checkForExpiry() doc comment for why this
@@ -588,7 +590,10 @@ extension Home {
             // one tick, even if the one-shot notification below was missed.
             .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
                 WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager)
-                isWeekendProfileActive = WeekendProfileStore.isActive
+                if isWeekendProfileActive != WeekendProfileStore.isActive {
+                    isWeekendProfileActive = WeekendProfileStore.isActive
+                    state.weekendProfileRevision &+= 1
+                }
             }
         }
     }
