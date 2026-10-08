@@ -54,13 +54,6 @@ struct WeekendProfileSection: View {
     /// showing a moment that's about to be in the past.
     @State private var scheduledEndDate = WeekendProfileStore.scheduledEndDate ?? Date().addingTimeInterval(1.hours.timeInterval)
 
-    /// Set right before `startProfile(...)` (or an external expiry) assigns `isActive` itself, so
-    /// the Toggle's own `onChange(of: isActive)` -- which exists for the *user tapping the toggle
-    /// directly to stop an active run* -- can tell "I did this assignment on purpose, the
-    /// start/stop work is already done" apart from "the user just tapped the switch" and skip
-    /// redoing that work a second time.
-    @State private var isActiveChangeIsProgrammatic = false
-
     /// Finest raw step (1 mg/dL) in both unit systems -- matches the finest option Trio's own
     /// Override/Temp Target target pickers offer, instead of the coarse default (5 mg/dL / 9 raw
     /// units, ~0.5 mmol/L) they start with. Fixes the "can only change in 0.5 mmol/L jumps" issue.
@@ -136,6 +129,13 @@ struct WeekendProfileSection: View {
     /// picking a date and this actually running) -- in both cases this simply does nothing rather
     /// than guessing at a fallback, since nothing meaningful was actually chosen yet.
     private func startProfile(mode: EndMode, durationMinutes: Decimal = 0, specificDate: Date? = nil) {
+        // Never start a second time while a run is already going (e.g. a picker's onChange firing
+        // in the same update as the toggle) -- that would reset the start time and post a
+        // duplicate Nightscout entry. Just bring the switch in line with the store.
+        guard !WeekendProfileStore.isActive else {
+            isActive = true
+            return
+        }
         switch mode {
         case .duration: guard durationMinutes > 0 else { return }
         case .specificDate: guard let specificDate, specificDate > Date() else { return }
@@ -151,19 +151,32 @@ struct WeekendProfileSection: View {
         WeekendProfileStore.durationMinutes = mode == .duration ? durationMinutes : 0
         WeekendProfileStore.scheduledEndDate = mode == .specificDate ? specificDate : nil
         WeekendProfileStore.isActive = true
-
-        // Only when this is the thing actually flipping `isActive` -- i.e. every call site
-        // *except* the Toggle-tapped-directly path, where `isActive` is already `true` by the
-        // time this runs (the Toggle's own binding sets it before onChange fires, and that
-        // onChange is what called us). Setting the guard flag here in that case would never get
-        // consumed (assigning `true` to something already `true` doesn't re-fire onChange), and
-        // it'd wrongly swallow the *next* real stop.
-        if !isActive {
-            isActiveChangeIsProgrammatic = true
-            isActive = true
-        }
+        isActive = true
         state.startWeekendProfile()
         Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
+    }
+
+    /// Stops the running profile. Safe to call more than once: does nothing if the store says it
+    /// is already off, so a double tap can never close out the same run twice.
+    private func stopProfile() {
+        isActive = false
+        guard WeekendProfileStore.isActive else { return }
+        WeekendProfileStore.isActive = false
+        state.stopWeekendProfile()
+        Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
+    }
+
+    /// Called only when the user taps the switch. Programmatic updates (expiry, resync, a start
+    /// from the End controls) assign `isActive` directly and never come through here, so there
+    /// is no need to tell the two apart -- which is what used to swallow a tap and make the
+    /// switch jump back on.
+    private func userSetActive(_ newValue: Bool) {
+        if newValue {
+            // Same as explicitly choosing Indefinite.
+            startProfile(mode: .indefinite)
+        } else {
+            stopProfile()
+        }
     }
 
     /// Checked on a foreground timer (see `body`) and on appear, independent of whether a real
@@ -176,7 +189,6 @@ struct WeekendProfileSection: View {
     /// between "stopped affecting dosing" and "the toggle/Nightscout/History visibly agree."
     private func checkForExpiry() {
         guard isActive, WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager) else { return }
-        isActiveChangeIsProgrammatic = true
         isActive = false
         Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
     }
@@ -192,7 +204,6 @@ struct WeekendProfileSection: View {
     private func resyncActiveState() {
         let storeIsActive = WeekendProfileStore.isActive
         guard isActive != storeIsActive else { return }
-        isActiveChangeIsProgrammatic = true
         isActive = storeIsActive
     }
 
@@ -260,29 +271,12 @@ struct WeekendProfileSection: View {
 
                 Spacer()
 
-                Toggle("", isOn: $isActive)
+                Toggle("", isOn: Binding(
+                    get: { isActive },
+                    set: { userSetActive($0) }
+                ))
                     .labelsHidden()
                     .accessibilityLabel(Text("\(displayName) Active"))
-                    .onChange(of: isActive) {
-                        // Both `startProfile(...)` above and `checkForExpiry()` below set this
-                        // flag right before assigning `isActive` themselves -- when that's why
-                        // we're here, the real work (persisting the store, Nightscout, History,
-                        // the notification) is already done, so there's nothing left to do.
-                        guard !isActiveChangeIsProgrammatic else {
-                            isActiveChangeIsProgrammatic = false
-                            return
-                        }
-                        if isActive {
-                            // Reachable only by tapping the switch directly without having gone
-                            // through any of the End controls below -- treat that the same as
-                            // explicitly choosing Indefinite.
-                            startProfile(mode: .indefinite)
-                        } else {
-                            WeekendProfileStore.isActive = false
-                            state.stopWeekendProfile()
-                            Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
-                        }
-                    }
             }
 
             if !isActive {
