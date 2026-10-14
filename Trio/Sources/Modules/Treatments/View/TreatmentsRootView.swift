@@ -10,7 +10,6 @@ extension Treatments {
             case carbs
             case fat
             case protein
-            case preBolus
             case bolus
         }
 
@@ -26,7 +25,6 @@ extension Treatments {
         @State private var pushed: Bool = false
         @State private var debounce: DispatchWorkItem?
         @State private var showFatProteinOrderBanner = false
-        @State private var showPreBolusInfo = false
 
         /// Check whether the on-screen keyboard is currently up.
         @State private var isKeyboardVisible = false
@@ -68,14 +66,6 @@ extension Treatments {
         }
 
         private var mealFormatter: NumberFormatter {
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.maximumIntegerDigits = 3
-            formatter.maximumFractionDigits = 0
-            return formatter
-        }
-
-        private var preBolusFormatter: NumberFormatter {
             let formatter = NumberFormatter()
             formatter.numberStyle = .decimal
             formatter.maximumIntegerDigits = 3
@@ -152,56 +142,6 @@ extension Treatments {
             }
         }
 
-        @ViewBuilder private func preBolusRows() -> some View {
-            let recommendation = state.recommendedPreBolus
-            let recommendedMinutes = Decimal(recommendation.minutes)
-
-            HStack {
-                HStack {
-                    Text("Pre-Bolus Recommendation")
-                    Button(action: {
-                        showPreBolusInfo.toggle()
-                    }, label: {
-                        Image(systemName: "info.circle")
-                    })
-                        .foregroundStyle(.blue)
-                        .buttonStyle(PlainButtonStyle())
-                }
-                Spacer()
-                Button {
-                    state.preBolusMinutes = recommendedMinutes
-                } label: {
-                    HStack {
-                        Text("\(recommendation.minutes)")
-                        Text(
-                            String(
-                                localized: " min",
-                                comment: "Unit for pre-bolus lead time in minutes (keep the space character!)"
-                            )
-                        ).foregroundColor(.secondary)
-                    }
-                }
-                .disabled(state.preBolusMinutes == recommendedMinutes)
-                .buttonStyle(.bordered).padding(.trailing, -10)
-            }
-
-            HStack {
-                Text("Pre-Bolus")
-                Spacer()
-                TextFieldWithToolBar(
-                    text: $state.preBolusMinutes,
-                    placeholder: "0",
-                    keyboardType: .numberPad,
-                    maxLength: 3,
-                    numberFormatter: preBolusFormatter,
-                    showArrows: true,
-                    previousTextField: { focusedField = previousField(from: .preBolus) },
-                    nextTextField: { focusedField = nextField(from: .preBolus) },
-                    unitsText: String(localized: "min", comment: "Units for pre-bolus lead time")
-                ).focused($focusedField, equals: .preBolus)
-            }
-        }
-
         @ViewBuilder private func carbsTextField() -> some View {
             HStack {
                 Text("Carbs")
@@ -225,19 +165,16 @@ extension Treatments {
 
         /// Determines the next field to focus on based on the current focused field.
         private func nextField(from current: FocusedField) -> FocusedField? {
-            // If fat/protein or pre-bolus fields are hidden, skip them in navigation
+            // If fat/protein fields are hidden, skip them in navigation
             let showFPU = state.useFPUconversion
-            let afterMacros: FocusedField = state.preBolusEnabled ? .preBolus : .bolus
 
             switch current {
             case .fat:
                 return .protein
             case .protein:
-                return afterMacros
-            case .carbs:
-                return showFPU ? .fat : afterMacros
-            case .preBolus:
                 return .bolus
+            case .carbs:
+                return showFPU ? .fat : .bolus
             case .bolus:
                 return .carbs
             }
@@ -254,10 +191,8 @@ extension Treatments {
                 return .fat
             case .carbs:
                 return .bolus
-            case .preBolus:
-                return showFPU ? .protein : .carbs
             case .bolus:
-                return state.preBolusEnabled ? .preBolus : (showFPU ? .protein : .carbs)
+                return showFPU ? .protein : .carbs
             }
         }
 
@@ -408,10 +343,6 @@ extension Treatments {
             }
             .id(FocusedField.bolus)
 
-            if state.preBolusEnabled {
-                preBolusRows()
-            }
-
             HStack {
                 Text("External Insulin")
                 Spacer()
@@ -544,7 +475,7 @@ extension Treatments {
             .padding(.top)
             .ignoresSafeArea(edges: .top)
             .scrollContentBackground(.hidden).background(appState.trioBackgroundColor(for: colorScheme))
-            .blur(radius: state.showInfo || showPreBolusInfo ? 3 : 0)
+            .blur(radius: state.showInfo ? 3 : 0)
             .navigationTitle("Treatments")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(content: {
@@ -578,10 +509,6 @@ extension Treatments {
                     if PropertyPersistentFlags.shared.hasSeenFatProteinOrderChange != true {
                         showFatProteinOrderBanner = true
                     }
-
-                    if state.preBolusEnabled {
-                        Task { await state.preBolusAlarmService.requestAuthorization() }
-                    }
                 }
             }
             .onDisappear {
@@ -593,9 +520,6 @@ extension Treatments {
             }
             .sheet(isPresented: $state.showInfo) {
                 PopupView(state: state)
-            }
-            .sheet(isPresented: $showPreBolusInfo) {
-                PreBolusInfoView(state: state, isPresented: $showPreBolusInfo)
             }
             .sheet(isPresented: $showPresetSheet, onDismiss: {
                 showPresetSheet = false
