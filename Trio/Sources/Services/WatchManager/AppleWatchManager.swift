@@ -1,6 +1,7 @@
 import Combine
 import CoreData
 import Foundation
+import G7SensorKit
 import Swinject
 import UIKit
 import WatchConnectivity
@@ -27,6 +28,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     @Injected() private var bolusCalculationManager: BolusCalculationManager!
     @Injected() private var iobService: IOBService!
     @Injected() private var notificationsManager: UserNotificationsManager!
+    @Injected() private var fetchGlucoseManager: FetchGlucoseManager!
 
     private var units: GlucoseUnits = .mgdL
     private var glucoseColorScheme: GlucoseColorScheme = .staticColor
@@ -560,7 +562,38 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
 
         dictionary[WatchMessageKeys.forecastData] = forecastData
+        dictionary.merge(watchG7Details()) { _, new in new }
         return dictionary
+    }
+
+    /// What the watch needs to read the G7 itself while the phone is away:
+    /// the sensor, its pairing code, and the thresholds for its own alerts.
+    /// The watch only uses them when the user turns the feature on there.
+    private func watchG7Details() -> [String: Any] {
+        var details: [String: Any] = [:]
+
+        if let g7 = fetchGlucoseManager?.cgmManager as? G7CGMManager,
+           g7.state.sessionMode == .direct,
+           let sensorName = g7.state.sensorID
+        {
+            details[WatchMessageKeys.g7DirectSensorName] = sensorName
+            details[WatchMessageKeys.g7DirectPairingCode] = g7.state.pairingCode ?? ""
+        } else {
+            details[WatchMessageKeys.g7DirectSensorName] = ""
+        }
+
+        // The most cautious of the enabled alarms: the highest low, the lowest high.
+        let alerts = GlucoseAlertsStore.shared.alerts
+        func thresholds(_ type: GlucoseAlertType) -> [Double] {
+            alerts
+                .filter { $0.type == type && $0.shouldEvaluate }
+                .map { NSDecimalNumber(decimal: $0.thresholdMgDL).doubleValue }
+        }
+        details[WatchMessageKeys.watchAlertUrgentLowMgDL] = thresholds(.urgentLow).min() ?? 54.0
+        details[WatchMessageKeys.watchAlertLowMgDL] = thresholds(.low).max() ?? 0.0
+        details[WatchMessageKeys.watchAlertHighMgDL] = thresholds(.high).min() ?? 0.0
+
+        return details
     }
 
     /// Sends the state of type WatchState to the connected Watch
