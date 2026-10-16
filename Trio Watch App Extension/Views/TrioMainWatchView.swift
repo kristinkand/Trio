@@ -64,11 +64,16 @@ struct TrioMainWatchView: View {
             TabView(selection: $currentPage) {
                 // Page 1: Current glucose trend in "BG bobble"
                 ZStack {
-                    GlucoseTrendView(
-                        state: state,
-                        rotationDegrees: rotationDegrees,
-                        isWatchStateDated: isWatchStateDated || isSessionUnreachable
-                    )
+                    // Re-evaluated every 15 s: "stale" and "the watch has a newer
+                    // reading" depend on the clock, not only on new data, so the
+                    // bubble switches as soon as the phone's data ages out.
+                    TimelineView(.periodic(from: .now, by: 15)) { _ in
+                        GlucoseTrendView(
+                            state: state,
+                            rotationDegrees: rotationDegrees,
+                            isWatchStateDated: isWatchStateDated || isSessionUnreachable
+                        )
+                    }
 
                     if state.showSyncingAnimation {
                         Image(systemName: "iphone.radiowaves.left.and.right")
