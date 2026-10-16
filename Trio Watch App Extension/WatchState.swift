@@ -584,5 +584,8 @@ import WatchConnectivity
             forecastConeMax = forecastPayload[WatchMessageKeys.forecastConeMax] as? [Double] ?? []
             forecastLines = forecastPayload[WatchMessageKeys.forecastLines] as? [String: [Double]] ?? [:]
         }
+
+        // Sensor details, alarm thresholds and units for the watch's own G7 reading.
+        WatchG7Reader.shared.updateFromPhone(message)
     }
 }

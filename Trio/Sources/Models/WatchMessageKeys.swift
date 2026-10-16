@@ -55,6 +55,16 @@ enum WatchMessageKeys {
     // Notification Actions
     static let snoozeDuration = "snoozeDuration"
 
+    // Watch reads the G7 itself (step 1 of watch independence: display and alerts only)
+    /// The G7 the phone reads directly ("DXCMxx"); empty when it reads none.
+    static let g7DirectSensorName = "g7DirectSensorName"
+    /// That sensor's 4-digit pairing code, so the watch can pair in its own slot.
+    static let g7DirectPairingCode = "g7DirectPairingCode"
+    /// Thresholds for the watch's own alerts in mg/dL; 0 = no such alarm.
+    static let watchAlertUrgentLowMgDL = "watchAlertUrgentLowMgDL"
+    static let watchAlertLowMgDL = "watchAlertLowMgDL"
+    static let watchAlertHighMgDL = "watchAlertHighMgDL"
+
     // Forecast
     static let showForecastWatch = "showForecastWatch"
     static let isForecastCone = "isForecastCone"

@@ -5,6 +5,75 @@ struct GlucoseTrendView: View {
     let rotationDegrees: Double
     let isWatchStateDated: Bool
 
+    private var reader: WatchG7Reader { WatchG7Reader.shared }
+
+    /// While the phone's data is stale, the reading the watch took from the
+    /// sensor itself, if it has a recent one.
+    private var directReading: WatchG7Reading? {
+        guard isWatchStateDated, reader.isEnabled else { return nil }
+        return reader.freshReading
+    }
+
+    private var showsGlucose: Bool {
+        !isWatchStateDated || directReading != nil
+    }
+
+    private var glucoseText: String {
+        if let directReading {
+            return reader.format(Double(directReading.glucose))
+        }
+        return isWatchStateDated ? "--" : state.currentGlucose
+    }
+
+    private var glucoseColor: Color {
+        if let directReading {
+            let glucose = Double(directReading.glucose)
+            if glucose <= (reader.lowMgDL ?? 70) { return Color.loopRed }
+            if glucose >= (reader.highMgDL ?? 180) { return Color.loopYellow }
+            return Color.loopGreen
+        }
+        return isWatchStateDated ? Color.secondary : state.currentGlucoseColorString.toColor()
+    }
+
+    private var deltaText: String? {
+        if directReading != nil {
+            return reader.deltaText ?? "--"
+        }
+        guard let delta = state.delta else { return nil }
+        return isWatchStateDated ? "--" : delta
+    }
+
+    private var bottomText: String {
+        if let directReading {
+            let minutes = max(0, Int(Date().timeIntervalSince(directReading.date) / 60))
+            return String(
+                localized: "Watch sensor · \(minutes) min",
+                comment: "Shown under the glucose when the watch read it from the sensor itself (minutes since the reading)"
+            )
+        }
+        return isWatchStateDated ?
+            String(localized: "STALE DATA", comment: "Information displayed when watch app data outdated or stale.") :
+            state.lastLoopTime ?? "--"
+    }
+
+    private var effectiveRotation: Double {
+        guard let directReading else { return rotationDegrees }
+        switch directReading.trendName {
+        case "DoubleUp",
+             "SingleUp":
+            return -90
+        case "FortyFiveUp":
+            return -45
+        case "FortyFiveDown":
+            return 45
+        case "DoubleDown",
+             "SingleDown":
+            return 90
+        default:
+            return 0
+        }
+    }
+
     /// Determines the status color based on the time elapsed since the last loop
     /// - Parameter timeString: The time string representing minutes since last loop (format: "X min")
     /// - Returns: A color indicating the status:
@@ -124,21 +193,21 @@ struct GlucoseTrendView: View {
                     .shadow(color: statusColor(for: state.lastLoopTime), radius: shadowRadius)
 
                 TrendShape(
-                    isWatchStateDated: isWatchStateDated,
-                    rotationDegrees: rotationDegrees,
+                    isWatchStateDated: !showsGlucose,
+                    rotationDegrees: effectiveRotation,
                     deviceType: state.deviceType
                 )
-                .animation(.spring(response: 0.5, dampingFraction: 0.6), value: rotationDegrees)
+                .animation(.spring(response: 0.5, dampingFraction: 0.6), value: effectiveRotation)
                 .shadow(color: Color.black.opacity(0.5), radius: 5)
 
                 VStack(alignment: .center) {
-                    Text(isWatchStateDated ? "--" : state.currentGlucose)
+                    Text(glucoseText)
                         .fontWeight(.semibold)
                         .font(currentGlucoseFontSize)
-                        .foregroundStyle(isWatchStateDated ? Color.secondary : state.currentGlucoseColorString.toColor())
+                        .foregroundStyle(glucoseColor)
 
-                    if let delta = state.delta {
-                        Text(isWatchStateDated ? "--" : delta)
+                    if let deltaText {
+                        Text(deltaText)
                             .fontWeight(.semibold)
                             .font(.system(.caption))
                             .foregroundStyle(.secondary)
@@ -148,14 +217,9 @@ struct GlucoseTrendView: View {
 
             Spacer()
 
-            Text(
-                isWatchStateDated ?
-                    String(localized: "STALE DATA", comment: "Information displayed when watch app data outdated or stale.") :
-                    state
-                    .lastLoopTime ?? "--"
-            )
-            .font(.system(size: minutesAgoFontSize))
-            .fontWidth(isWatchStateDated ? .expanded : .standard)
+            Text(bottomText)
+                .font(.system(size: minutesAgoFontSize))
+                .fontWidth(isWatchStateDated && directReading == nil ? .expanded : .standard)
 
             Spacer()
 
