@@ -8,6 +8,7 @@ import WatchKit
 final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
     func applicationDidFinishLaunching() {
         WatchG7Reader.shared.bootstrap()
+        WatchG7Reader.shared.scheduleBackgroundRefresh()
     }
 
     func applicationDidBecomeActive() {
@@ -28,7 +29,16 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
             case let connectivityTask as WKWatchConnectivityRefreshBackgroundTask:
                 // Keep the app awake until WatchConnectivity has delivered
                 // what the phone queued, as Apple asks.
+                WatchG7Reader.shared.noteWake()
                 completeWhenConnectivityIsDelivered(connectivityTask, attempt: 0)
+
+            case let refreshTask as WKApplicationRefreshBackgroundTask:
+                WatchG7Reader.shared.noteWake()
+                WatchG7Reader.shared.scheduleBackgroundRefresh()
+                // A few seconds for the re-check to lodge its request before suspending.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    refreshTask.setTaskCompletedWithSnapshot(false)
+                }
 
             case let snapshotTask as WKSnapshotRefreshBackgroundTask:
                 snapshotTask.setTaskCompleted(

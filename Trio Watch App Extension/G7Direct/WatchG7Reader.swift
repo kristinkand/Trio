@@ -127,7 +127,8 @@ import WatchKit
         guard isEnabled, let fresh = freshReading else { return nil }
         if phoneDataIsDated { return fresh }
         guard let phoneGlucoseDate else { return fresh }
-        return fresh.date.timeIntervalSince(phoneGlucoseDate) > TimeInterval(minutes: 4) ? fresh : nil
+        // Readings are 5 minutes apart: anything 2.5 minutes newer is a reading the phone does not have.
+        return fresh.date.timeIntervalSince(phoneGlucoseDate) > TimeInterval(minutes: 2.5) ? fresh : nil
     }
 
     var isMmol: Bool { units == "mmol/L" }
@@ -211,6 +212,17 @@ import WatchKit
         session?.recheck()
     }
 
+    /// Asks watchOS for a background wake about every 15 minutes (it decides
+    /// the actual timing). Each wake re-checks the sensor connection, so a
+    /// request the system dropped is put back without the app being opened.
+    func scheduleBackgroundRefresh() {
+        guard isEnabled else { return }
+        WKApplication.shared().scheduleBackgroundRefresh(
+            withPreferredDate: Date().addingTimeInterval(TimeInterval(minutes: 15)),
+            userInfo: nil
+        ) { _ in }
+    }
+
     func setEnabled(_ enabled: Bool) {
         dispatchPrecondition(condition: .onQueue(.main))
         guard enabled != isEnabled else { return }
@@ -220,6 +232,7 @@ import WatchKit
             appendLog("Turned on")
             requestNotificationPermission()
             startSessionIfPossible()
+            scheduleBackgroundRefresh()
         } else {
             appendLog("Turned off")
             session?.pause()
@@ -265,6 +278,8 @@ import WatchKit
     /// Called with every watch state update the phone sends.
     func updateFromPhone(_ payload: [String: Any]) {
         dispatchPrecondition(condition: .onQueue(.main))
+        // Every phone update is also a wake: re-check the sensor connection.
+        noteWake()
 
         if let timestamp = payload[WatchMessageKeys.date] as? TimeInterval {
             let date = Date(timeIntervalSince1970: timestamp)
