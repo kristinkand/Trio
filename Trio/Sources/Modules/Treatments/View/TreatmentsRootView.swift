@@ -25,7 +25,6 @@ extension Treatments {
         @State private var pushed: Bool = false
         @State private var debounce: DispatchWorkItem?
         @State private var showFatProteinOrderBanner = false
-        @State private var showReminderPicker = false
 
         /// Check whether the on-screen keyboard is currently up.
         @State private var isKeyboardVisible = false
@@ -143,56 +142,6 @@ extension Treatments {
             }
         }
 
-        private var reminderMinutesBinding: Binding<Int> {
-            Binding(
-                get: { min(max(Int(state.mealTimeReminderMinutes), 0), 60) },
-                set: { state.mealTimeReminderMinutes = Decimal($0) }
-            )
-        }
-
-        private var reminderValueString: String {
-            let minutes = Int(state.mealTimeReminderMinutes)
-            guard minutes > 0 else { return String(localized: "Off", comment: "Meal-time reminder disabled") }
-            return "\(minutes) " + String(localized: "min", comment: "Units for meal-time reminder lead time")
-        }
-
-        /// "Remind Me to Eat" row styled like a decimal setting: the value sits on the right and
-        /// the whole row toggles an inline wheel picker. 0 min means "Off".
-        @ViewBuilder private func mealTimeReminderRow() -> some View {
-            HStack {
-                Text("Remind Me to Eat")
-                Spacer()
-                Text(reminderValueString)
-                    .foregroundColor(showReminderPicker ? .accentColor : .primary)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation { showReminderPicker.toggle() }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("Remind Me to Eat"))
-            .accessibilityValue(Text(reminderValueString))
-            .accessibilityHint(Text(
-                showReminderPicker
-                    ? String(localized: "Closes the value picker", comment: "Accessibility hint")
-                    : String(localized: "Opens a picker to change the value", comment: "Accessibility hint")
-            ))
-            .accessibilityAddTraits(.isButton)
-
-            if showReminderPicker {
-                Picker(selection: reminderMinutesBinding, label: Text("Remind Me to Eat")) {
-                    Text("Off", comment: "Meal-time reminder disabled").tag(0)
-                    ForEach(1 ... 60, id: \.self) { minute in
-                        Text("\(minute) " + String(localized: "min", comment: "Units for meal-time reminder lead time"))
-                            .tag(minute)
-                    }
-                }
-                .pickerStyle(.wheel)
-                .frame(maxWidth: .infinity)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-
         @ViewBuilder private func carbsTextField() -> some View {
             HStack {
                 Text("Carbs")
@@ -216,7 +165,7 @@ extension Treatments {
 
         /// Determines the next field to focus on based on the current focused field.
         private func nextField(from current: FocusedField) -> FocusedField? {
-            // If the fat/protein fields are hidden, skip them in navigation
+            // If fat/protein fields are hidden, skip them in navigation
             let showFPU = state.useFPUconversion
 
             switch current {
@@ -394,10 +343,6 @@ extension Treatments {
             }
             .id(FocusedField.bolus)
 
-            if state.mealTimeReminderEnabled {
-                mealTimeReminderRow()
-            }
-
             HStack {
                 Text("External Insulin")
                 Spacer()
@@ -563,10 +508,6 @@ extension Treatments {
 
                     if PropertyPersistentFlags.shared.hasSeenFatProteinOrderChange != true {
                         showFatProteinOrderBanner = true
-                    }
-
-                    if state.mealTimeReminderEnabled {
-                        Task { await state.mealTimeReminderService.requestAuthorization() }
                     }
                 }
             }
