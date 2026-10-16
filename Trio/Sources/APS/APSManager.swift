@@ -51,12 +51,6 @@ protocol BolusFailureObserver {
     func bolusDidFail()
 }
 
-/// Notified when an in-progress bolus stops delivering — whether it completed in full or was
-/// cancelled early. `deliveredUnits` is the amount actually delivered.
-protocol BolusDeliveryObserver {
-    func bolusDeliveryDidFinish(deliveredUnits: Double)
-}
-
 enum APSError: LocalizedError {
     case pumpError(Error)
     case invalidPumpState(message: String)
@@ -712,14 +706,8 @@ final class BaseAPSManager: APSManager, Injectable {
         guard let pump = pumpManager, pump.status.pumpStatus.bolusing else { return }
         debug(.apsManager, "Cancel bolus")
         do {
-            let dose = try await pump.cancelBolus()
+            _ = try await pump.cancelBolus()
             debug(.apsManager, "Bolus cancelled")
-            // An early cancel still delivers part of the bolus; report it like a completion
-            // so observers (e.g. the meal-time reminder) can react to what was delivered.
-            let deliveredUnits = dose?.deliveredUnits ?? 0
-            broadcaster.notify(BolusDeliveryObserver.self, on: .main) {
-                $0.bolusDeliveryDidFinish(deliveredUnits: deliveredUnits)
-            }
             callback?(true, String(localized: "Bolus cancelled successfully.", comment: "Success message for canceling a bolus"))
         } catch {
             debug(.apsManager, "Bolus cancellation failed with error: \(error)")
@@ -1588,10 +1576,6 @@ extension BaseAPSManager: DoseProgressObserver {
     func doseProgressReporterDidUpdate(_ doseProgressReporter: DoseProgressReporter) {
         bolusProgress.send(Decimal(doseProgressReporter.progress.percentComplete))
         if doseProgressReporter.progress.isComplete {
-            let deliveredUnits = doseProgressReporter.progress.deliveredUnits
-            broadcaster.notify(BolusDeliveryObserver.self, on: .main) {
-                $0.bolusDeliveryDidFinish(deliveredUnits: deliveredUnits)
-            }
             clearBolusReporter()
         }
     }
