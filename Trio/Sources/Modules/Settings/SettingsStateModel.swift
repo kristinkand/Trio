@@ -60,6 +60,15 @@ extension Settings {
                 items.append(URL(fileURLWithPath: SimpleLogReporter.logFilePrev))
             }
 
+            // What the watch app logged (including its own G7 connection), as sent to the phone.
+            if fileManager.fileExists(atPath: SimpleLogReporter.watchLogFile) {
+                items.append(URL(fileURLWithPath: SimpleLogReporter.watchLogFile))
+            }
+
+            if fileManager.fileExists(atPath: SimpleLogReporter.watchLogFilePrev) {
+                items.append(URL(fileURLWithPath: SimpleLogReporter.watchLogFilePrev))
+            }
+
             return items
         }
 
