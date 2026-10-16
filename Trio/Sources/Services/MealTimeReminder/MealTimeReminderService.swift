@@ -1,4 +1,5 @@
 import Foundation
+import LoopKit
 import Swinject
 import UserNotifications
 
@@ -31,10 +32,18 @@ protocol MealTimeReminderService: AnyObject {
 @Observable final class BaseMealTimeReminderService: MealTimeReminderService, Injectable {
     @ObservationIgnored private let notificationCenter = UNUserNotificationCenter.current()
     @ObservationIgnored @Injected() private var broadcaster: Broadcaster!
+    @ObservationIgnored @Injected() private var trioAlertManager: TrioAlertManager!
 
     /// Fixed identifier so a second meal-time reminder replaces the first rather than stacking.
     private static let notificationIdentifier = "Trio.mealTimeReminder"
     private static let pendingReminderDefaultsKey = "Trio.mealTimeReminderPending"
+
+    /// LoopKit alert identifier for the iOS 17–25 path. Distinct from the backstop
+    /// notification's identifier so retracting one can't clobber the other.
+    private static let alertIdentifier = Alert.Identifier(
+        managerIdentifier: "Trio.mealTimeReminder",
+        alertIdentifier: "eatReminder"
+    )
 
     /// Extra time past the lead time the backstop notification waits, roughly covering the bolus
     /// delivery in case the completion signal never arrives (e.g. the app was force-quit).
@@ -90,19 +99,17 @@ protocol MealTimeReminderService: AnyObject {
                     ))
                     return true
                 }
-                // Fall through to a notification so the user still gets told when to eat.
+                // Fall through to a LoopKit alert so the user still gets told when to eat.
             }
         #endif
 
-        let scheduled = await scheduleNotification(leadTime: leadTime, carbs: carbs, bolusAmount: bolusAmount)
-        if scheduled {
-            await setPendingReminder(PendingMealTimeReminder(
-                fireDate: Date().addingTimeInterval(leadTime),
-                carbs: carbs,
-                bolusAmount: bolusAmount
-            ))
-        }
-        return scheduled
+        issueEatAlert(leadTime: leadTime, carbs: carbs, bolusAmount: bolusAmount)
+        await setPendingReminder(PendingMealTimeReminder(
+            fireDate: Date().addingTimeInterval(leadTime),
+            carbs: carbs,
+            bolusAmount: bolusAmount
+        ))
+        return true
     }
 
     @discardableResult func prepareEatReminder(
@@ -148,6 +155,7 @@ protocol MealTimeReminderService: AnyObject {
         setPendingReminder(nil)
 
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [Self.notificationIdentifier])
+        trioAlertManager.retractAlert(identifier: Self.alertIdentifier)
 
         #if canImport(AlarmKit)
             if #available(iOS 26.0, *) {
@@ -271,7 +279,29 @@ protocol MealTimeReminderService: AnyObject {
         }
     #endif
 
-    // MARK: - Local notification fallback (iOS 17–25)
+    // MARK: - LoopKit alert (iOS 17–25)
+
+    /// Routes the reminder through Trio's alert pipeline: an in-app banner while the app is
+    /// open, a time-sensitive notification otherwise. Cancellation goes through
+    /// `retractAlert`, which also resets the throttler so an immediate re-issue isn't dropped.
+    private func issueEatAlert(leadTime: TimeInterval, carbs: Decimal, bolusAmount: Decimal) {
+        let content = Alert.Content(
+            title: String(localized: "Time to eat"),
+            body: Self.reminderBody(carbs: carbs, bolusAmount: bolusAmount),
+            acknowledgeActionButtonLabel: String(localized: "OK")
+        )
+        let alert = Alert(
+            identifier: Self.alertIdentifier,
+            foregroundContent: content,
+            backgroundContent: content,
+            trigger: .delayed(interval: max(leadTime, 1)),
+            interruptionLevel: .timeSensitive,
+            sound: .sound(name: "chime.caf")
+        )
+        trioAlertManager.issueAlert(alert)
+    }
+
+    // MARK: - Backstop notification (app-killed case)
 
     private func scheduleNotification(leadTime: TimeInterval, carbs: Decimal, bolusAmount: Decimal) async -> Bool {
         let status = await notificationCenter.notificationSettings().authorizationStatus

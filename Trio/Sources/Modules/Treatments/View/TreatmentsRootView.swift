@@ -151,45 +151,63 @@ extension Treatments {
         }
 
         private var reminderValueString: String {
-            let minutes = Int(state.mealTimeReminderMinutes)
-            guard minutes > 0 else { return String(localized: "Off", comment: "Meal-time reminder disabled") }
-            return "\(minutes) " + String(localized: "min", comment: "Units for meal-time reminder lead time")
+            "\(Int(state.mealTimeReminderMinutes)) " + String(localized: "min", comment: "Units for meal-time reminder lead time")
         }
 
-        /// "Remind Me to Eat" row styled like a decimal setting: the value sits on the right and
-        /// the whole row toggles an inline wheel picker. 0 min means "Off".
+        /// "Remind Me to Eat" toggle; when on, a lead-time row below it opens an inline wheel
+        /// picker. The lead time remembers the last used value, the toggle starts off per meal.
         @ViewBuilder private func mealTimeReminderRow() -> some View {
             HStack {
                 Text("Remind Me to Eat")
                 Spacer()
-                Text(reminderValueString)
-                    .foregroundColor(showReminderPicker ? .accentColor : .primary)
+                Toggle("", isOn: $state.mealTimeReminderActive).toggleStyle(CheckboxToggleStyle())
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation { showReminderPicker.toggle() }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text("Remind Me to Eat"))
-            .accessibilityValue(Text(reminderValueString))
-            .accessibilityHint(Text(
-                showReminderPicker
-                    ? String(localized: "Closes the value picker", comment: "Accessibility hint")
-                    : String(localized: "Opens a picker to change the value", comment: "Accessibility hint")
-            ))
-            .accessibilityAddTraits(.isButton)
-
-            if showReminderPicker {
-                Picker(selection: reminderMinutesBinding, label: Text("Remind Me to Eat")) {
-                    Text("Off", comment: "Meal-time reminder disabled").tag(0)
-                    ForEach(1 ... 60, id: \.self) { minute in
-                        Text("\(minute) " + String(localized: "min", comment: "Units for meal-time reminder lead time"))
-                            .tag(minute)
+            .onChange(of: state.mealTimeReminderActive) {
+                if state.mealTimeReminderActive {
+                    Task { await state.mealTimeReminderService.requestAuthorization() }
+                    if state.mealTimeReminderMinutes <= 0 {
+                        state.mealTimeReminderMinutes = 15
                     }
+                } else {
+                    showReminderPicker = false
                 }
-                .pickerStyle(.wheel)
-                .frame(maxWidth: .infinity)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            if state.mealTimeReminderActive {
+                HStack {
+                    Text("Lead Time", comment: "Meal-time reminder lead time row label")
+                    Spacer()
+                    Text(reminderValueString)
+                        .foregroundColor(showReminderPicker ? .accentColor : .primary)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation { showReminderPicker.toggle() }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Lead Time", comment: "Meal-time reminder lead time row label"))
+                .accessibilityValue(Text(reminderValueString))
+                .accessibilityHint(Text(
+                    showReminderPicker
+                        ? String(localized: "Closes the value picker", comment: "Accessibility hint")
+                        : String(localized: "Opens a picker to change the value", comment: "Accessibility hint")
+                ))
+                .accessibilityAddTraits(.isButton)
+
+                if showReminderPicker {
+                    Picker(
+                        selection: reminderMinutesBinding,
+                        label: Text("Lead Time", comment: "Meal-time reminder lead time row label")
+                    ) {
+                        ForEach(1 ... 60, id: \.self) { minute in
+                            Text("\(minute) " + String(localized: "min", comment: "Units for meal-time reminder lead time"))
+                                .tag(minute)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
         }
 
@@ -563,10 +581,6 @@ extension Treatments {
 
                     if PropertyPersistentFlags.shared.hasSeenFatProteinOrderChange != true {
                         showFatProteinOrderBanner = true
-                    }
-
-                    if state.mealTimeReminderEnabled {
-                        Task { await state.mealTimeReminderService.requestAuthorization() }
                     }
                 }
             }

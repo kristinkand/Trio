@@ -128194,7 +128194,7 @@
         }
       }
     },
-    "Enabling this setting adds a \"Remind Me to Eat\" option with a minutes picker to the bolus calculator." : {
+    "Enabling this setting adds a \"Remind Me to Eat\" toggle with a lead time picker to the bolus calculator." : {
 
     },
     "Enabling this setting adds a \"Super Bolus\" option to the bolus calculator. Once this feature is enabled, a percentage setting will appear for you to select." : {
@@ -130303,7 +130303,7 @@
         }
       }
     },
-    "Enter how many minutes before the meal you are bolusing. When a lead time is set and the bolus is enacted, an alarm counts down until it is time to eat. Enabling this option asks for the alarm permission if it has not been granted yet. The calculator remembers the last used lead time." : {
+    "Turn the toggle on and enter how many minutes before the meal you are bolusing. When the bolus is enacted, an alarm counts down until it is time to eat. Turning the toggle on asks for the alarm permission if it has not been granted yet. The calculator remembers the last used lead time, but the toggle starts off for each meal." : {
 
     },
     "Enter Meal Preset Name" : {
@@ -180438,6 +180438,9 @@
           }
         }
       }
+    },
+    "Lead Time" : {
+      "comment" : "Meal-time reminder lead time row label"
     },
     "Let's go through a few quick steps to ensure Trio works optimally for you." : {
       "localizations" : {
