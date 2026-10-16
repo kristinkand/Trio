@@ -717,12 +717,8 @@ final class BaseAPSManager: APSManager, Injectable {
             // An early cancel still delivers part of the bolus; report it like a completion
             // so observers (e.g. the meal-time reminder) can react to what was delivered.
             let deliveredUnits = dose?.deliveredUnits ?? 0
-            // `notify(on:)` asserts it is already running on that queue rather than hopping to
-            // it, and this async function is not on main -- hop explicitly, or the app traps.
-            DispatchQueue.main.async {
-                self.broadcaster.notify(BolusDeliveryObserver.self, on: .main) {
-                    $0.bolusDeliveryDidFinish(deliveredUnits: deliveredUnits)
-                }
+            broadcaster.notify(BolusDeliveryObserver.self, on: .main) {
+                $0.bolusDeliveryDidFinish(deliveredUnits: deliveredUnits)
             }
             callback?(true, String(localized: "Bolus cancelled successfully.", comment: "Success message for canceling a bolus"))
         } catch {
@@ -1593,14 +1589,8 @@ extension BaseAPSManager: DoseProgressObserver {
         bolusProgress.send(Decimal(doseProgressReporter.progress.percentComplete))
         if doseProgressReporter.progress.isComplete {
             let deliveredUnits = doseProgressReporter.progress.deliveredUnits
-            // This callback runs on `processQueue` (the pump manager reports progress there), but
-            // `notify(on:)` asserts it is already on the given queue rather than hopping to it.
-            // Calling it here directly tripped that assertion and crashed Trio whenever a bolus
-            // (including an SMB) finished, so hop to main first.
-            DispatchQueue.main.async {
-                self.broadcaster.notify(BolusDeliveryObserver.self, on: .main) {
-                    $0.bolusDeliveryDidFinish(deliveredUnits: deliveredUnits)
-                }
+            broadcaster.notify(BolusDeliveryObserver.self, on: .main) {
+                $0.bolusDeliveryDidFinish(deliveredUnits: deliveredUnits)
             }
             clearBolusReporter()
         }
