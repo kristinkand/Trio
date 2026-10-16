@@ -7,11 +7,10 @@ struct GlucoseTrendView: View {
 
     private var reader: WatchG7Reader { WatchG7Reader.shared }
 
-    /// While the phone's data is stale, the reading the watch took from the
-    /// sensor itself, if it has a recent one.
+    /// The reading the watch took from the sensor itself, when it is newer
+    /// than the phone's: the phone is out of reach, or has lost the sensor.
     private var directReading: WatchG7Reading? {
-        guard isWatchStateDated, reader.isEnabled else { return nil }
-        return reader.freshReading
+        reader.readingToShow(phoneDataIsDated: isWatchStateDated)
     }
 
     private var showsGlucose: Bool {

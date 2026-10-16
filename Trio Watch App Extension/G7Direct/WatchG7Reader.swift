@@ -43,6 +43,10 @@ import WatchKit
     private(set) var logLines: [String] = []
     /// When the last watch state update from the phone was made.
     private(set) var lastPhoneContact: Date?
+    /// The newest glucose the phone has. The phone can still reach the watch
+    /// while it has lost the sensor (flight mode keeps the watch link), so
+    /// this, not the contact, says whether the phone's glucose is current.
+    private(set) var phoneGlucoseDate: Date?
 
     // MARK: - Private
 
@@ -73,6 +77,7 @@ import WatchKit
         static let history = "watchG7.history"
         static let lastAlert = "watchG7.lastAlert."
         static let lastPhoneContact = "watchG7.lastPhoneContact"
+        static let phoneGlucoseDate = "watchG7.phoneGlucoseDate"
     }
 
     private init() {
@@ -89,6 +94,7 @@ import WatchKit
         hasWatchKey = defaults.data(forKey: Key.sharedKey) != nil
         peripheralIdentifier = defaults.string(forKey: Key.peripheralIdentifier).flatMap(UUID.init(uuidString:))
         lastPhoneContact = defaults.object(forKey: Key.lastPhoneContact) as? Date
+        phoneGlucoseDate = defaults.object(forKey: Key.phoneGlucoseDate) as? Date
         if let data = defaults.data(forKey: Key.history),
            let saved = try? JSONDecoder().decode([WatchG7Reading].self, from: data)
         {
@@ -108,10 +114,20 @@ import WatchKit
         return latest
     }
 
-    /// No update from the phone for a while: the watch is on its own.
-    var phoneIsQuiet: Bool {
-        guard let lastPhoneContact else { return true }
-        return Date().timeIntervalSince(lastPhoneContact) > Self.phoneQuietAfter
+    /// The phone has no current glucose: it is out of reach, or it is in
+    /// reach but has lost the sensor. The watch is on its own.
+    var phoneGlucoseIsStale: Bool {
+        guard let phoneGlucoseDate else { return true }
+        return Date().timeIntervalSince(phoneGlucoseDate) > Self.phoneQuietAfter
+    }
+
+    /// The watch's own reading when it is newer than what the phone shows:
+    /// the phone's data is stale, or the phone has missed a reading the watch got.
+    func readingToShow(phoneDataIsDated: Bool) -> WatchG7Reading? {
+        guard isEnabled, let fresh = freshReading else { return nil }
+        if phoneDataIsDated { return fresh }
+        guard let phoneGlucoseDate else { return fresh }
+        return fresh.date.timeIntervalSince(phoneGlucoseDate) > TimeInterval(minutes: 4) ? fresh : nil
     }
 
     var isMmol: Bool { units == "mmol/L" }
@@ -142,39 +158,39 @@ import WatchKit
         }
         if phoneUsesG7Direct == false, sensorName == nil {
             return String(
-                localized: "Trio on the iPhone isn't reading a G7 directly",
+                localized: "iPhone isn't on G7 direct",
                 comment: "Watch G7 status: the phone is not using G7 direct"
             )
         }
         guard sensorName != nil else {
             return String(
-                localized: "Waiting for the sensor details from the iPhone",
+                localized: "Waiting for the iPhone",
                 comment: "Watch G7 status: nothing received from the phone yet"
             )
         }
         if pairingCode == nil, !hasWatchKey {
             return String(
-                localized: "No pairing code from the iPhone",
+                localized: "No pairing code",
                 comment: "Watch G7 status: the phone has no pairing code"
             )
         }
         if isConnected {
-            return String(localized: "Connected to the sensor", comment: "Watch G7 status: connected")
+            return String(localized: "Connected", comment: "Watch G7 status: connected")
         }
         if isSearching {
             return String(
-                localized: "Looking for the sensor. Keep this page open for about 5 minutes.",
+                localized: "Searching… keep this open",
                 comment: "Watch G7 status: scanning for a sensor it has not found yet"
             )
         }
         if !hasWatchKey {
             return String(
-                localized: "Waiting for the sensor to pair with the watch",
+                localized: "Not paired yet. Accept a pairing prompt.",
                 comment: "Watch G7 status: found but not yet paired"
             )
         }
         return String(
-            localized: "Waiting for the next reading",
+            localized: "Waiting for next reading",
             comment: "Watch G7 status: paired and idle between readings"
         )
     }
@@ -256,6 +272,13 @@ import WatchKit
                 lastPhoneContact = date
                 defaults.set(date, forKey: Key.lastPhoneContact)
             }
+        }
+
+        if let values = payload[WatchMessageKeys.glucoseValues] as? [[String: Any]],
+           let newest = values.compactMap({ $0["date"] as? TimeInterval }).max()
+        {
+            phoneGlucoseDate = Date(timeIntervalSince1970: newest)
+            defaults.set(phoneGlucoseDate, forKey: Key.phoneGlucoseDate)
         }
 
         if let units = payload[WatchMessageKeys.units] as? String, units != self.units {
@@ -429,10 +452,10 @@ import WatchKit
         }
     }
 
-    /// Alerts only while the phone is quiet: with the phone around, Trio's own
-    /// alarms already reach the wrist.
+    /// Alerts only while the phone has no current glucose: when it has, Trio's
+    /// own alarms already reach the wrist.
     private func evaluateAlerts(for reading: WatchG7Reading) {
-        guard phoneIsQuiet, Date().timeIntervalSince(reading.date) < Self.freshReadingAge else { return }
+        guard phoneGlucoseIsStale, Date().timeIntervalSince(reading.date) < Self.freshReadingAge else { return }
         let glucose = Double(reading.glucose)
         let margin = 5.0
 
