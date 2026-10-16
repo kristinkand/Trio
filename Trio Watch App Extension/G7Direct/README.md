@@ -12,6 +12,8 @@ when the iPhone is out of reach. Display and alerts only: nothing here doses.
   which need no LoopKit and already run on watchOS there, including the watch
   acquisition design (`G7WatchAcquisition`) and the faster P-256 maths that
   pairing on a watch needs.
+  One addition, marked `Trio:`: `G7PeripheralManager.gattErrorHook`, so
+  Bluetooth errors reach the watch log. Re-add it after copying the files again.
 - `WatchG7Session.swift`: the session half of G7SensorKit's `G7Sensor` (direct
   mode), rewritten without LoopKit.
 - `WatchG7Messages.swift`: glucose and backfill parsing without LoopKit.

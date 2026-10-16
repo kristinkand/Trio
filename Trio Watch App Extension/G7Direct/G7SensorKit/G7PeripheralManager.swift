@@ -478,7 +478,12 @@ extension G7PeripheralManager: CBPeripheralDelegate {
             }
         }
         log.error("[gatt] %{public}@ error on %{public}@ — %{public}@ (%{public}@#%d)%{public}@", what, characteristic.uuid.uuidString, error.localizedDescription, ns.domain, ns.code, tag)
+        // Trio: the one change to this copied file, so these reach the app's own log.
+        G7PeripheralManager.gattErrorHook?("[gatt] \(what) error on \(characteristic.uuid.uuidString) — \(error.localizedDescription) (\(ns.domain)#\(ns.code))\(tag)")
     }
+
+    /// Trio: receives each GATT error line above, for the watch's log.
+    static var gattErrorHook: ((String) -> Void)?
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         reportGattError(error, during: "notification-state update", on: characteristic)
