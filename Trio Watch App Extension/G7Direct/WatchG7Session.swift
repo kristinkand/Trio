@@ -70,6 +70,39 @@ final class WatchG7Session: G7BluetoothManagerDelegate {
         if let latestReadingDate {
             bluetoothManager.noteReading(at: latestReadingDate)
         }
+        G7PeripheralManager.gattErrorHook = { [weak self] line in
+            self?.report(line)
+        }
+        // A relaunch for Bluetooth can hand back the restored link before the
+        // delegate above was set, and then nobody authenticates on it: the
+        // sensor holds an idle link and closes it, a wasted reading for the
+        // watch and a busy sensor for the phone. Pick such a link up here.
+        // One second leaves room for the restoration callback itself, which
+        // arrives right after the central is created.
+        bluetoothManager.managerQueue.asyncAfter(deadline: .now() + 1) { [weak self] in
+            self?.adoptRestoredLinkIfMissed()
+        }
+    }
+
+    /// On the manager's queue, after any restoration callback.
+    private func adoptRestoredLinkIfMissed() {
+        guard let identifier = lockedCredentials.value.peripheralIdentifier,
+              let central = bluetoothManager.centralManager,
+              let peripheral = central.retrievePeripherals(withIdentifiers: [identifier]).first,
+              peripheral.state == .connected,
+              bluetoothManager.managedPeripherals[identifier] == nil
+        else { return }
+        report("Picking up the link the system restored")
+        bluetoothManager.handleDiscoveredPeripheral(peripheral)
+        bluetoothManager.centralManager(central, didConnect: peripheral)
+    }
+
+    /// The phone's newest reading. While the phone is reading the sensor, it is
+    /// alive and in range, so missed watch readings are not a reason to drop the
+    /// watch's standing connection request and scan (which does nothing in the
+    /// background anyway).
+    func notePhoneReading(at date: Date) {
+        bluetoothManager.noteReading(at: date)
     }
 
     // MARK: - Control (call from the main queue)

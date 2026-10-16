@@ -292,8 +292,10 @@ import WatchKit
         if let values = payload[WatchMessageKeys.glucoseValues] as? [[String: Any]],
            let newest = values.compactMap({ $0["date"] as? TimeInterval }).max()
         {
-            phoneGlucoseDate = Date(timeIntervalSince1970: newest)
-            defaults.set(phoneGlucoseDate, forKey: Key.phoneGlucoseDate)
+            let date = Date(timeIntervalSince1970: newest)
+            phoneGlucoseDate = date
+            defaults.set(date, forKey: Key.phoneGlucoseDate)
+            session?.notePhoneReading(at: date)
         }
 
         if let units = payload[WatchMessageKeys.units] as? String, units != self.units {
