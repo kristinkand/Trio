@@ -716,9 +716,9 @@ final class BaseAPSManager: APSManager, Injectable {
             debug(.apsManager, "Bolus cancelled")
             // An early cancel still delivers part of the bolus; report it like a completion
             // so observers (e.g. the meal-time reminder) can react to what was delivered.
-            let deliveredUnits = dose?.deliveredUnits ?? 0
-            // `notify(on:)` asserts it is already running on that queue rather than hopping to
-            // it, and this async function is not on main -- hop explicitly, or the app traps.
+            // Pump managers may return a nil dose on cancel, so fall back to the progress
+            // reporter, which tracked the delivery.
+            let deliveredUnits = dose?.deliveredUnits ?? bolusReporter?.progress.deliveredUnits ?? 0
             DispatchQueue.main.async {
                 self.broadcaster.notify(BolusDeliveryObserver.self, on: .main) {
                     $0.bolusDeliveryDidFinish(deliveredUnits: deliveredUnits)
@@ -1593,10 +1593,6 @@ extension BaseAPSManager: DoseProgressObserver {
         bolusProgress.send(Decimal(doseProgressReporter.progress.percentComplete))
         if doseProgressReporter.progress.isComplete {
             let deliveredUnits = doseProgressReporter.progress.deliveredUnits
-            // This callback runs on `processQueue` (the pump manager reports progress there), but
-            // `notify(on:)` asserts it is already on the given queue rather than hopping to it.
-            // Calling it here directly tripped that assertion and crashed Trio whenever a bolus
-            // (including an SMB) finished, so hop to main first.
             DispatchQueue.main.async {
                 self.broadcaster.notify(BolusDeliveryObserver.self, on: .main) {
                     $0.bolusDeliveryDidFinish(deliveredUnits: deliveredUnits)

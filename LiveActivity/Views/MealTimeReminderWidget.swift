@@ -60,6 +60,8 @@ import WidgetKit
                 VStack(alignment: .leading, spacing: 2) {
                     Text(context.isAlerting ? "Time to eat" : "Meal-Time Reminder")
                         .font(.headline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
 
                     if !context.mealSummary.isEmpty {
                         Text(context.mealSummary)
