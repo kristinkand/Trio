@@ -650,6 +650,7 @@ import WatchKit
                 trendRate: message.trend
             )
             self.merge([reading])
+            ComplicationStore.add(reading)
             self.appendLog("Reading \(self.format(Double(reading.glucose))) \(self.units) \(self.arrow(for: reading.trendName))")
             self.evaluateAlerts(for: reading)
         }

@@ -631,5 +631,13 @@ import WatchConnectivity
 
         // Sensor details, alarm thresholds and units for the watch's own G7 reading.
         WatchG7Reader.shared.updateFromPhone(message)
+        // after the reader took the units and alert thresholds from the same message
+        if message[WatchMessageKeys.glucoseValues] != nil {
+            ComplicationStore.update(
+                from: self,
+                lowMgDL: message["complicationRangeLowMgDL"] as? Double,
+                highMgDL: message["complicationRangeHighMgDL"] as? Double
+            )
+        }
     }
 }
