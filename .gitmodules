@@ -12,7 +12,7 @@
 	url = https://github.com/loopandlearn/RileyLinkKit
 [submodule "G7SensorKit"]
 	path = G7SensorKit
-	url = https://github.com/loopandlearn/G7SensorKit.git
+	url = https://github.com/kristinkand/G7SensorKit.git
 	branch = untethered
 [submodule "MinimedKit"]
 	path = MinimedKit
