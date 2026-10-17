@@ -132,7 +132,8 @@ struct UntetheredStatusView: View {
             })
             // above 50 U the pod doesn't measure: the phone's "50+ U" marker
             tile("Reservoir", systemImage: "drop.fill", tint: .blue, value: data.reservoir.map {
-                "\(NSDecimalNumber(decimal: $0).intValue) U"
+                // not `NSDecimalNumber.intValue`: it misreads long fractions such as the fill-based estimate's
+                "\($0.formatted(.number.precision(.fractionLength(0)))) U"
             } ?? (data.grant?.reservoir == Decimal(UInt32(0xDEAD_BEEF)) ? "50+ U" : nil))
             tile(
                 "Phone",
@@ -374,7 +375,7 @@ struct UntetheredHistoryView: View {
         ForEach(shown(entries), id: \.self) { entry in
             row(
                 entry.actualDate ?? entry.createdAt,
-                Text("\(NSDecimalNumber(decimal: entry.carbs).intValue) g").foregroundStyle(.orange)
+                Text("\(entry.carbs.formatted(.number.precision(.fractionLength(0)))) g").foregroundStyle(.orange)
             )
             .swipeActions {
                 if let id = entry.id {
