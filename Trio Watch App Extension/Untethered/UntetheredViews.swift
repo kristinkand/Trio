@@ -123,9 +123,10 @@ struct UntetheredStatusView: View {
             tile("Basal", systemImage: "chart.bar.fill", tint: .blue, value: data.lastDetermination?.rate.map {
                 String(format: "%.2f U/h", NSDecimalNumber(decimal: $0).doubleValue)
             })
+            // above 50 U the pod doesn't measure: the phone's "50+ U" marker
             tile("Reservoir", systemImage: "drop.fill", tint: .blue, value: data.reservoir.map {
                 "\(NSDecimalNumber(decimal: $0).intValue) U"
-            })
+            } ?? (data.grant?.reservoir == Decimal(UInt32(0xDEAD_BEEF)) ? "50+ U" : nil))
             tile(
                 "Phone",
                 systemImage: isPhoneReachable ? "iphone" : "iphone.slash",
