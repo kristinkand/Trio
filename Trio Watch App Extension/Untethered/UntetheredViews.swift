@@ -100,6 +100,12 @@ struct UntetheredStatusView: View {
                 value: isPhoneReachable ? String(localized: "Nearby") : String(localized: "Away")
             )
             tile("To Sync", systemImage: "arrow.triangle.2.circlepath", tint: .secondary, value: "\(unsynced)")
+            tile(
+                "Watch Battery",
+                systemImage: "battery.75percent",
+                tint: (UntetheredWatchManager.batteryPercent ?? 100) < 20 ? .red : .green,
+                value: UntetheredWatchManager.batteryPercent.map { "\($0) %" }
+            )
         }
     }
 
