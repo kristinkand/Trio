@@ -3,7 +3,20 @@ import SwiftUI
 import WatchKit
 
 struct TrioMainWatchView: View {
-    @State private var state = WatchState()
+    @State private var state = WatchState.shared
+    @State private var untethered = UntetheredWatchManager.shared
+
+    // Pages in order: bubble, chart, the watch's own G7 reading, then untethered mode's history page
+    // (while untethered and while its history still syncs) and its status page, where it starts from the wrist.
+    private let watchSensorPage = 2
+    private var historyPage: Int? { showsHistory ? watchSensorPage + 1 : nil }
+    private var statusPage: Int { (historyPage ?? watchSensorPage) + 1 }
+
+    private var showsHistory: Bool {
+        untethered.data.session.phase != .idle || untethered.data.pending.values.contains { !$0.isEmpty }
+    }
+
+    @State private var historyKind = UntetheredHistoryView.Kind.glucose
 
     // misc
     @State private var currentPage: Int = 0
@@ -29,6 +42,11 @@ struct TrioMainWatchView: View {
         let secondsSinceUpdate = now - lastUpdateTimestamp
         // Return true if last update older than 5 min, so 1 loop cycle
         return secondsSinceUpdate > 5 * 60
+    }
+
+    /// Treatments and IOB/COB rely on the phone's data, unless the watch runs the loop itself.
+    private var isPhoneDataUnusable: Bool {
+        !untethered.isActive && (isWatchStateDated || isSessionUnreachable)
     }
 
     var isSessionUnreachable: Bool {
@@ -101,7 +119,20 @@ struct TrioMainWatchView: View {
 
                 // Page 3: the watch reading the G7 itself
                 WatchG7View()
-                    .tag(2)
+                    .tag(watchSensorPage)
+
+                if let historyPage {
+                    UntetheredHistoryView(manager: untethered, kind: historyKind, page: $currentPage, lastPage: statusPage)
+                        .tag(historyPage)
+                }
+                UntetheredStatusView(manager: untethered).tag(statusPage)
+            }
+            .onChange(of: untethered.isActive) { _, isActive in
+                if isActive { currentPage = statusPage }
+            }
+            // the history page goes once its records are on the phone; stay on the status page, not on none
+            .onChange(of: showsHistory) { _, _ in
+                if currentPage > statusPage { currentPage = statusPage }
             }
             .onAppear {
                 /// Hard reset variables when main view appears
@@ -111,7 +142,7 @@ struct TrioMainWatchView: View {
             }
             .background(trioBackgroundColor)
             .tabViewStyle(.verticalPage)
-            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: 2, by: 1)
+            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: Double(statusPage), by: 1)
             .onChange(of: state.trend) { _, newTrend in
                 withAnimation {
                     updateRotation(for: newTrend)
@@ -123,7 +154,7 @@ struct TrioMainWatchView: View {
                         Image(systemName: "syringe.fill")
                             .foregroundStyle(Color.insulin)
 
-                        Text(isWatchStateDated || isSessionUnreachable ? "--" : state.iob ?? "--")
+                        Text(isPhoneDataUnusable ? "--" : state.iob ?? "--")
                             .foregroundStyle(isWatchStateDated ? Color.secondary : Color.white)
                             .frame(alignment: .leading)
                             .minimumScaleFactor(0.5)
@@ -135,41 +166,61 @@ struct TrioMainWatchView: View {
                         Image(systemName: "fork.knife")
                             .foregroundStyle(Color.orange)
 
-                        Text(isWatchStateDated || isSessionUnreachable ? "--" : state.cob ?? "--")
-                            .foregroundStyle(isWatchStateDated || isSessionUnreachable ? Color.secondary : Color.white)
+                        Text(isPhoneDataUnusable ? "--" : state.cob ?? "--")
+                            .foregroundStyle(isPhoneDataUnusable ? Color.secondary : Color.white)
                             .frame(alignment: .trailing)
                             .minimumScaleFactor(0.5)
                     }.font(.caption2)
                 }
 
                 ToolbarItemGroup(placement: .bottomBar) {
-                    Button {
-                        showingOverrideSheet = true
-                    } label: {
-                        Image(systemName: "clock.arrow.2.circlepath")
-                            .foregroundStyle(Color.primary, isOverrideActive ? Color.primary : Color.purple)
-                    }
-                    .tint(isOverrideActive ? Color.purple : nil)
-                    .disabled(isWatchStateDated || isSessionUnreachable)
+                    if currentPage == historyPage {
+                        // what the history page lists
+                        ForEach(UntetheredHistoryView.Kind.allCases, id: \.self) { kind in
+                            Button { historyKind = kind } label: {
+                                Image(systemName: kind.symbol)
+                                    .foregroundStyle(historyKind == kind ? Color.primary : kind.color)
+                            }
+                            .tint(historyKind == kind ? kind.color : nil)
+                        }
+                    } else if currentPage != statusPage {
+                        // the status page has no treatment controls
+                        Button {
+                            showingOverrideSheet = true
+                        } label: {
+                            Image(systemName: "clock.arrow.2.circlepath")
+                                .foregroundStyle(Color.primary, isOverrideActive ? Color.primary : Color.purple)
+                        }
+                        .tint(isOverrideActive ? Color.purple : nil)
+                        .disabled(isPhoneDataUnusable)
 
-                    Button {
-                        showingTreatmentMenuSheet = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .foregroundStyle(Color.bgDarkerDarkBlue)
-                    }
-                    .controlSize(.large)
-                    .buttonStyle(WatchOSButtonStyle(deviceType: state.deviceType))
-                    .disabled(isWatchStateDated || isSessionUnreachable)
+                        // while the watch's pump delivers a bolus, the button stops it
+                        Button {
+                            if untethered.isBolusing {
+                                untethered.cancelBolus()
+                            } else {
+                                showingTreatmentMenuSheet = true
+                            }
+                        } label: {
+                            Image(systemName: untethered.isBolusing ? "square.fill" : "plus")
+                                .foregroundStyle(Color.bgDarkerDarkBlue)
+                        }
+                        .controlSize(.large)
+                        .buttonStyle(WatchOSButtonStyle(deviceType: state.deviceType))
+                        .overlay {
+                            if untethered.isBolusing { BolusProgressRing(window: untethered.bolusWindow) }
+                        }
+                        .disabled(!untethered.isBolusing && isPhoneDataUnusable)
 
-                    Button {
-                        showingTempTargetSheet = true
-                    } label: {
-                        Image(systemName: "target")
-                            .foregroundStyle(isTempTargetActive ? Color.primary : Color.loopGreen.opacity(0.75))
+                        Button {
+                            showingTempTargetSheet = true
+                        } label: {
+                            Image(systemName: "target")
+                                .foregroundStyle(isTempTargetActive ? Color.primary : Color.loopGreen.opacity(0.75))
+                        }
+                        .tint(isTempTargetActive ? Color.loopGreen.opacity(0.75) : nil)
+                        .disabled(isPhoneDataUnusable)
                     }
-                    .tint(isTempTargetActive ? Color.loopGreen.opacity(0.75) : nil)
-                    .disabled(isWatchStateDated || isSessionUnreachable)
                 }
             }
             .fullScreenCover(isPresented: $showingTreatmentMenuSheet) {

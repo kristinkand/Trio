@@ -64,6 +64,8 @@ struct WatchConfigAppleWatchView: BaseView {
                 headerText: String(localized: "Apple Watch Configuration")
             )
 
+            UntetheredSettingsSection(manager: resolver.resolve(UntetheredPhoneManager.self)!)
+
             Section(
                 header: Text("Contact Image"),
                 content: {

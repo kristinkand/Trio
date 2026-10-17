@@ -94,7 +94,9 @@ extension Screen {
         case .targetsEditor:
             TargetsEditor.RootView(resolver: resolver)
         case .treatmentView:
-            Treatments.RootView(resolver: resolver)
+            UntetheredTreatmentGate(manager: resolver.resolve(UntetheredPhoneManager.self)!) {
+                Treatments.RootView(resolver: resolver)
+            }
         case .history:
             History.RootView(resolver: resolver)
         case .cgm:

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Trio on the watch can read your Dexcom G7 directly, so glucose and alerts keep working when your iPhone is out of reach.</string>
+	<string>Trio on the watch can read your Dexcom G7 directly, so glucose and alerts keep working when your iPhone is out of reach. In untethered mode it also runs your pod.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>

@@ -357,6 +357,12 @@ extension Home.RootView {
         .frame(height: 4)
     }
 
+    @ViewBuilder func untetheredOverrideButton() -> some View {
+        if let override = latestOverride.first, override.showUntetheredButton {
+            UntetheredOverrideButton(manager: resolver.resolve(UntetheredPhoneManager.self)!, overrideID: override.id)
+        }
+    }
+
     @ViewBuilder func adjustmentView() -> some View {
         let tint = adjustmentTint
         // concurrent override + temp target: halved tint, one remaining bar per half
@@ -387,6 +393,8 @@ extension Home.RootView {
 
                             Spacer(minLength: 0)
 
+                            untetheredOverrideButton()
+
                             adjustmentsCancelView({
                                 if !latestTempTarget.isEmpty, !latestOverride.isEmpty {
                                     showCancelConfirmDialog = true
@@ -402,6 +410,7 @@ extension Home.RootView {
                 } else if let overrideString = overrideString {
                     adjustmentsOverrideView(overrideString)
                     Spacer()
+                    untetheredOverrideButton()
                     adjustmentsCancelOverrideView()
 
                 } else if let tempTargetString = tempTargetString {
@@ -900,8 +909,18 @@ extension Home.RootView {
             .frame(height: HomeLayout.bottomPanelHeight)
             .animation(.easeInOut(duration: 0.2), value: state.bolusProgress != nil)
 
-            multiUsePanel()
-                .frame(height: HomeLayout.statsBannerHeight)
+            UntetheredBannerSlot(manager: resolver.resolve(UntetheredPhoneManager.self)!) {
+                multiUsePanel()
+            } banner: { title, subtitle, action in
+                panelBanner(
+                    systemImage: "applewatch.radiowaves.left.and.right",
+                    title: title,
+                    subtitle: subtitle,
+                    tint: .loopGreen,
+                    action: action
+                )
+            }
+            .frame(height: HomeLayout.statsBannerHeight)
         }
         .padding(.vertical, HomeLayout.bottomZonePadding)
     }

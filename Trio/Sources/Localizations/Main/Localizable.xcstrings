@@ -351499,6 +351499,339 @@
     },
     "Small" : {
       "comment" : "Live Activity glucose reading font size"
+    },
+    "%@ can't be handed to the watch. Untethered mode supports Omnipod DASH." : {
+
+    },
+    "%lld entries on the way to the phone" : {
+
+    },
+    "A bolus is running. Hand back once it is done, or stop it with the treatment button." : {
+
+    },
+    "Acknowledge" : {
+
+    },
+    "Ascend" : {
+
+    },
+    "Away" : {
+
+    },
+    "Bolus started." : {
+
+    },
+    "Cancel the manual temp basal first." : {
+
+    },
+    "Carbs logged on the watch." : {
+
+    },
+    "Cascade" : {
+
+    },
+    "Checking what the watch delivered before the phone doses again." : {
+
+    },
+    "Closest scale first. Each scale shows its code on its display when switched on." : {
+
+    },
+    "Doorbell" : {
+
+    },
+    "Emergency Stop" : {
+
+    },
+    "End Untethered Mode" : {
+
+    },
+    "End untethered mode?" : {
+
+    },
+    "Enter carbs and boluses on the watch. They come back to the phone with the watch's history." : {
+
+    },
+    "Flutter" : {
+
+    },
+    "Forget Scale" : {
+
+    },
+    "Glucose data is stale: the most recent reading is more than 12 minutes old." : {
+
+    },
+    "Hand Back" : {
+
+    },
+    "Hand the pump back to the phone?" : {
+
+    },
+    "Handing back…" : {
+
+    },
+    "Handing Back…" : {
+
+    },
+    "Hands the pump and the CGM to the Apple Watch, which loops on its own until the pump is handed back. Trio must be open on the watch." : {
+
+    },
+    "iPhone not reachable. Nothing was sent." : {
+
+    },
+    "Last loop %lld min ago" : {
+
+    },
+    "Looping on the watch" : {
+
+    },
+    "Nearby" : {
+
+    },
+    "No carbs" : {
+
+    },
+    "No glucose" : {
+
+    },
+    "No insulin" : {
+
+    },
+    "No pump is connected." : {
+
+    },
+    "No Sensor Readings" : {
+
+    },
+    "Not enough glucose data: at least three readings in the last hour are needed." : {
+
+    },
+    "Not Looping" : {
+
+    },
+    "Override started." : {
+
+    },
+    "Override stopped." : {
+
+    },
+    "Pair a Scale" : {
+
+    },
+    "Paired Scale" : {
+
+    },
+    "Phone" : {
+
+    },
+    "Phone in Charge" : {
+
+    },
+    "Reaching the pump…" : {
+
+    },
+    "Resumed" : {
+
+    },
+    "s" : {
+      "comment" : "Alarm length in seconds"
+    },
+    "Searching for sensor" : {
+
+    },
+    "Searching…" : {
+
+    },
+    "Sending to iPhone failed. Please try again." : {
+
+    },
+    "Show Untethered Watch Button" : {
+
+    },
+    "Start Untethered" : {
+
+    },
+    "Start Untethered Watch Mode" : {
+
+    },
+    "Starting…" : {
+
+    },
+    "Starts with the phone nearby and Trio open on it." : {
+
+    },
+    "Stop now? The watch lets go of the pump at once, cancels the temp basal and stops looping until the phone takes over." : {
+
+    },
+    "Syncing History" : {
+
+    },
+    "Take Back" : {
+
+    },
+    "Take Back the Pump Now" : {
+
+    },
+    "Take back the pump?" : {
+
+    },
+    "Taking over the pump and sensor" : {
+
+    },
+    "Temp target started." : {
+
+    },
+    "Temp target stopped." : {
+
+    },
+    "The algorithm gave no result." : {
+
+    },
+    "The Apple Watch is running the loop" : {
+
+    },
+    "The Apple Watch is running the loop. Enter carbs on the watch." : {
+
+    },
+    "The phone can't reach the pump yet, so it doesn't dose. Keep the phone close to the pod; it keeps trying." : {
+
+    },
+    "The phone doesn't dose. Bolus and carbs are entered on the watch." : {
+
+    },
+    "The phone is still taking the pump back from the last session." : {
+
+    },
+    "The phone must be reachable to start untethered mode." : {
+
+    },
+    "The phone must be reachable to take the pump back. Use Emergency Stop if it isn't coming back." : {
+
+    },
+    "The pod was deactivated. Pair a new one on the phone." : {
+
+    },
+    "The pump delivered %@ U the phone has no record of yet. It is counted as a bolus until the watch's records arrive." : {
+
+    },
+    "The pump or CGM can't be handed to the watch." : {
+
+    },
+    "The pump's configuration could not be read." : {
+
+    },
+    "The pump's delivery is uncertain. Resolve it on the phone first." : {
+
+    },
+    "The records show more insulin than the pump delivered. Insulin on board may be overstated until the watch's records arrive." : {
+
+    },
+    "The sensor refuses this watch's Bluetooth pairing. On the watch, open Settings › Bluetooth, forget the DXCM device and wait for the next reading." : {
+
+    },
+    "The start took too long." : {
+
+    },
+    "The therapy settings are incomplete." : {
+
+    },
+    "The watch can take over pump and sensor" : {
+
+    },
+    "The watch could not reach the pump." : {
+
+    },
+    "The watch could not set up the CGM." : {
+
+    },
+    "The watch could not set up the pump." : {
+
+    },
+    "The watch did not answer. Open Trio on the watch and try again." : {
+
+    },
+    "The watch did not take over the pump." : {
+
+    },
+    "The watch doesn't have the pump." : {
+
+    },
+    "The watch hands the pump back as soon as it is reachable." : {
+
+    },
+    "The watch has had no glucose reading for %lld minutes. Keep it near the sensor; it keeps trying." : {
+
+    },
+    "The watch has the pump and loops on its own." : {
+
+    },
+    "The watch hasn't looped for 20 minutes." : {
+
+    },
+    "The watch is in charge of the pump" : {
+
+    },
+    "The watch is not reachable. Open Trio on the watch and try again." : {
+
+    },
+    "The watch is still running an earlier untethered session." : {
+
+    },
+    "The watch is still taking over the pump. Trio on the phone shows when it has." : {
+
+    },
+    "The watch reached the pump too late." : {
+
+    },
+    "The watch runs the loop with its own connection to the pump and the CGM while the phone is away. While it does, the phone shows glucose but doesn't dose." : {
+
+    },
+    "There is no recent glucose reading." : {
+
+    },
+    "This CGM can't be read by the watch yet." : {
+
+    },
+    "This CGM can't be read by the watch. Untethered mode supports Dexcom G7." : {
+
+    },
+    "This pump can't be run by the watch yet." : {
+
+    },
+    "To Sync" : {
+
+    },
+    "Trio is not installed on a paired Apple Watch." : {
+
+    },
+    "Two Tone" : {
+
+    },
+    "Untethered" : {
+
+    },
+    "Untethered on Apple Watch" : {
+
+    },
+    "Untethered Watch Mode" : {
+
+    },
+    "Use this when the watch can't hand the pump back, for example when it is lost or out of battery. The phone takes the pump without waiting for the watch, and counts insulin it has no record of until the watch's history arrives." : {
+
+    },
+    "Wait for the bolus to finish, or stop it, before handing back." : {
+
+    },
+    "Wait for the bolus to finish." : {
+
+    },
+    "Waiting for the phone to take the pump" : {
+
+    },
+    "While this override runs, a watch button next to its cancel button hands the loop to the Apple Watch. Untethered mode ends with the override." : {
+
+    },
+    "Turn off the Weekend Profile first. The watch can't run it yet." : {
+
     }
   },
   "version" : "1.1"
