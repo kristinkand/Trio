@@ -567,6 +567,9 @@ import WatchKit
         Task { @MainActor in
             if let error = await pump.resumeTempBasal(tempBasal) {
                 await WatchLogger.shared.log("⌚️ Untethered: the phone's temp basal could not be set again: \(error)", force: true)
+            } else {
+                // the phone shows its own cancel until this record arrives, not waiting for the first loop
+                self.streamRecords()
             }
         }
     }
