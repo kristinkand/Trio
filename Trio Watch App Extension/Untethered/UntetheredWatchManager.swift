@@ -161,6 +161,8 @@ import WatchKit
             guard WCSession.default.isReachable else { return }
             self.streamRecords()
             if self.data.session.phase == .ending { self.apply(.tick) }
+            // the phone pairs the next pod
+            if self.data.podEnded, self.data.session.phase == .active { self.end() }
             self.checkLinkedOverride()
         }
     }
@@ -214,6 +216,7 @@ import WatchKit
         data.lastLoopError = nil
         data.lastError = nil
         data.pendingPumpAlerts = []
+        data.podEnded = false
     }
 
     // MARK: - State machine
