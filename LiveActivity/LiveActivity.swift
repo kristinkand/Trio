@@ -150,6 +150,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: false,
             useDetailedViewWatchOS: false,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -168,6 +169,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: false,
             useDetailedViewWatchOS: false,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -186,6 +188,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: false,
             useDetailedViewWatchOS: false,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -205,6 +208,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: false,
             useDetailedViewWatchOS: false,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -223,6 +227,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: false,
             useDetailedViewWatchOS: false,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -241,6 +246,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: false,
             useDetailedViewWatchOS: false,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -260,6 +266,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: true,
             useDetailedViewWatchOS: true,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -280,6 +287,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: true,
             useDetailedViewWatchOS: true,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -300,6 +308,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: true,
             useDetailedViewWatchOS: true,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -321,6 +330,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: true,
             useDetailedViewWatchOS: true,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -341,6 +351,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: true,
             useDetailedViewWatchOS: true,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
@@ -361,6 +372,7 @@ private extension LiveActivityAttributes.ContentState {
             glucoseColorScheme: "staticColor",
             useDetailedViewIOS: true,
             useDetailedViewWatchOS: true,
+            simpleViewStyle: .default,
             detailedViewState: detailedViewState,
             isInitialState: false
         )
