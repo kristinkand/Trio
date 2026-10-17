@@ -22,6 +22,11 @@ func watchCGMRecheckAcquisition(_ manager: CGMManager?) {
     (manager as? G7CGMManager)?.recheckAcquisition()
 }
 
+/// The sensor's link is up right now: a reading or its backfill is on the radio.
+func watchCGMIsConnected(_ manager: CGMManager?) -> Bool {
+    (manager as? G7CGMManager)?.isConnected ?? false
+}
+
 /// Deactivates and forgets the pod, as the phone's deactivate screen does; false for a pump this can't do.
 func watchDeactivatePod(_ pump: PumpManager, completion: @escaping (Error?) -> Void) -> Bool {
     guard let omni = pump as? OmniPumpManager else { return false }
