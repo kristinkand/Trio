@@ -75,6 +75,7 @@ import WatchKit
         static let sharedKey = "watchG7.sharedKey"
         static let peripheralIdentifier = "watchG7.peripheralIdentifier"
         static let history = "watchG7.history"
+        static let log = "watchG7.log"
         static let lastAlert = "watchG7.lastAlert."
         static let lastPhoneContact = "watchG7.lastPhoneContact"
         static let phoneGlucoseDate = "watchG7.phoneGlucoseDate"
@@ -102,6 +103,8 @@ import WatchKit
         } else {
             history = []
         }
+        // The log survives restarts, so a gap can still be looked at afterwards.
+        logLines = defaults.stringArray(forKey: Key.log) ?? []
     }
 
     // MARK: - Derived values for the views
@@ -150,6 +153,22 @@ import WatchKit
             return String(format: "%+.1f", delta * 0.0555)
         }
         return String(format: "%+ld", Int(delta))
+    }
+
+    /// The watch's own readings over the last two hours: how many of the
+    /// possible ones arrived, and the longest stretch without one.
+    var recentCoverage: (count: Int, expected: Int, longestGapMinutes: Int) {
+        let now = Date()
+        let window = TimeInterval(hours: 2)
+        let recent = history.filter { now.timeIntervalSince($0.date) <= window }.map(\.date)
+        var longest: TimeInterval = 0
+        var previous = now.addingTimeInterval(-window)
+        for date in recent {
+            longest = max(longest, date.timeIntervalSince(previous))
+            previous = date
+        }
+        longest = max(longest, now.timeIntervalSince(previous))
+        return (recent.count, Int(window / 300), Int(longest / 60))
     }
 
     /// One line saying what the watch is doing, for the sensor page.
@@ -425,11 +444,13 @@ import WatchKit
     }
 
     private func appendLog(_ line: String) {
-        let time = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
-        logLines.append("\(time) \(line)")
-        if logLines.count > 80 {
-            logLines.removeFirst(logLines.count - 80)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM HH:mm:ss"
+        logLines.append("\(formatter.string(from: Date())) \(line)")
+        if logLines.count > 200 {
+            logLines.removeFirst(logLines.count - 200)
         }
+        defaults.set(logLines, forKey: Key.log)
         Task {
             await WatchLogger.shared.log("⌚️🩸 G7: \(line)")
         }
@@ -568,7 +589,7 @@ import WatchKit
                 trendRate: message.trend
             )
             self.merge([reading])
-            self.appendLog("Reading \(self.format(Double(reading.glucose))) \(self.arrow(for: reading.trendName))")
+            self.appendLog("Reading \(self.format(Double(reading.glucose))) \(self.units) \(self.arrow(for: reading.trendName))")
             self.evaluateAlerts(for: reading)
         }
     }
