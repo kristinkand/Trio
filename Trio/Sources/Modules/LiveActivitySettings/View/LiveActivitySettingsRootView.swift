@@ -142,6 +142,9 @@ extension LiveActivitySettings {
                                                             Text(
                                                                 "Trio's Simple Lock Screen Widget displays current glucose reading, trend arrow, delta and the timestamp of the current reading."
                                                             )
+                                                            Text(
+                                                                "Its Widget Configuration lets you set the size of the glucose reading."
+                                                            )
                                                         }
                                                         VStack(alignment: .leading, spacing: 10) {
                                                             Text("Detailed:").bold()
@@ -169,8 +172,8 @@ extension LiveActivitySettings {
                                 }.padding(.top)
                             }.padding(.bottom)
 
-                            if state.lockScreenView == .detailed {
-                                HStack {
+                            HStack {
+                                if state.lockScreenView == .detailed {
                                     NavigationLink(
                                         "Widget Configuration",
                                         destination: LiveActivityWidgetConfiguration(
@@ -178,8 +181,19 @@ extension LiveActivitySettings {
                                             state: state
                                         )
                                     ).foregroundStyle(Color.accentColor)
+                                } else {
+                                    NavigationLink(
+                                        "Widget Configuration",
+                                        destination: LiveActivitySimpleWidgetConfiguration(
+                                            resolver: resolver,
+                                            state: state
+                                        )
+                                    ).foregroundStyle(Color.accentColor)
                                 }
+                            }
 
+                            // The bubble only appears in the Detailed style.
+                            if state.lockScreenView == .detailed {
                                 SettingInputSection(
                                     decimalValue: $decimalPlaceholder,
                                     booleanValue: $state.showBubbleInLiveActivity,
