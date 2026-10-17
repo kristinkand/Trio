@@ -261,12 +261,14 @@ import WatchKit
             isConnected = false
             isSearching = false
         } else {
-            // Untethered mode paired the sensor's watch slot with its own key, so the reader's key no
-            // longer authenticates; and a stale key fails only after a full connection the sensor may
-            // not grant. Pair afresh with the phone's code right away.
-            if pairingCode != nil, hasWatchKey {
+            // Untethered mode paired the sensor's watch slot with its own key and held the link through
+            // its own central, so the reader's saved key and its lodged connect to the old peripheral
+            // handle both went nowhere (test 17.10.: no connection in 10 minutes; a fresh pairing found
+            // the sensor at once). Start over as "Pair watch again" does: no key, no handle, scan.
+            if pairingCode != nil {
                 appendLog("Untethered mode over: pairing again with the sensor")
                 setSharedKey(nil)
+                setPeripheralIdentifier(nil)
                 session?.update(credentials: credentials)
             } else {
                 appendLog("Untethered mode over: reading again")
