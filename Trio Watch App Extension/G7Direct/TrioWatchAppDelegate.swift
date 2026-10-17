@@ -12,6 +12,12 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
     private static let untetheredBluetoothHold: TimeInterval = 25
     /// Kept, not just their identities: WatchKit can hand a task over again, and completing one twice crashes.
     private var completed: [WKRefreshBackgroundTask] = []
+    /// Untethered: one task held per wake. WatchKit delivers one for every Bluetooth message, dozens a second
+    /// while the sensor pairs; the rest are completed on arrival (EJM0 b644da1).
+    private var heldUntetheredTask: WKRefreshBackgroundTask?
+    private var heldSince: Date?
+    /// A held task older than this is from an earlier wake.
+    private static let wakeLength: TimeInterval = 60
 
     func applicationDidFinishLaunching() {
         // restores a running untethered session first, so the reader sees it and stays off
@@ -34,9 +40,20 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
             switch task {
             case let bluetoothTask as WKBluetoothAlertRefreshBackgroundTask:
                 if UntetheredWatchManager.shared.isActive {
+                    if bluetoothTask === heldUntetheredTask { continue }
+                    if heldUntetheredTask != nil, let since = heldSince, Date().timeIntervalSince(since) < Self.wakeLength {
+                        completeOnce(bluetoothTask)
+                        continue
+                    }
+                    heldUntetheredTask = bluetoothTask
+                    heldSince = Date()
                     UntetheredWatchManager.shared.recheckCGM()
                     UntetheredWatchManager.shared.runLoop(.fallback)
                     DispatchQueue.main.asyncAfter(deadline: .now() + Self.untetheredBluetoothHold) {
+                        if self.heldUntetheredTask === bluetoothTask {
+                            self.heldUntetheredTask = nil
+                            self.heldSince = nil
+                        }
                         self.completeOnce(bluetoothTask)
                     }
                 } else {

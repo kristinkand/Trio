@@ -97354,6 +97354,12 @@
         }
       }
     },
+    "Deactivate the pod? It stops delivering insulin and its alarm ends. Remove it, then pair a new pod on the phone." : {
+
+    },
+    "Deactivating the pod…" : {
+
+    },
     "Deactivating..." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -111835,6 +111841,12 @@
           }
         }
       }
+    },
+    "Discard Pod" : {
+
+    },
+    "Discard the pod without reaching it? It may keep alarming until you remove it." : {
+
     },
     "DISCLAIMER" : {
       "localizations" : {
@@ -237417,6 +237429,9 @@
         }
       }
     },
+    "Pod Deactivated" : {
+
+    },
     "Pod expiration" : {
       "localizations" : {
         "bg" : {
@@ -294413,6 +294428,9 @@
           }
         }
       }
+    },
+    "The CGM has no active sensor." : {
+
     },
     "The current version has a critical issue and should be updated as soon as possible." : {
       "comment" : "Message for critical update alert",
