@@ -570,7 +570,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     /// the sensor, its pairing code, and the thresholds for its own alerts.
     /// The watch only uses them when the user turns the feature on there.
     private func watchG7Details() -> [String: Any] {
-        var details: [String: Any] = [:]
+        var details: [String: Any] = [WatchMessageKeys.watchDisplayUnits: settingsManager.settings.units.rawValue]
 
         if let g7 = fetchGlucoseManager?.cgmManager as? G7CGMManager,
            g7.state.sessionMode == .direct,
@@ -615,6 +615,16 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             let activationStateString = "\(session.activationState)"
             debug(.watchManager, "⌚️ Watch session activationState = \(activationStateString). Reactivating...")
             session.activate()
+            return
+        }
+
+        // While the watch is out of reach, `setupWatchState` returns an empty default
+        // state (no glucose, mg/dL). Sending it would blank the watch's display and
+        // switch its units, so only states with data go out.
+        let isEmptyDefault = state.currentGlucose == nil && state.glucoseValues.isEmpty
+            && state.iob == nil && state.cob == nil && state.lastLoopTime == nil
+        guard !isEmptyDefault else {
+            debug(.watchManager, "⌚️ Skipping empty WatchState")
             return
         }
 
