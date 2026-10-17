@@ -37,6 +37,8 @@ import WatchKit
     private(set) var history: [WatchG7Reading]
     private(set) var isConnected = false
     private(set) var isSearching = false
+    /// Untethered mode holds the sensor (same watch display slot): the reader lets go until it ends.
+    private(set) var isStandingAside = false
     private(set) var needsCodeForSensor: String? = nil
     /// The sensor's state when it last answered without a usable reading (warm-up, failed, ...).
     private(set) var sensorProblem: String? = nil
@@ -176,6 +178,12 @@ import WatchKit
         guard isEnabled else {
             return String(localized: "Off", comment: "Watch G7 status: the watch does not read the sensor")
         }
+        if isStandingAside {
+            return String(
+                localized: "Paused: untethered mode reads the sensor",
+                comment: "Watch G7 status: untethered mode holds the sensor"
+            )
+        }
         if phoneUsesG7Direct == false, sensorName == nil {
             return String(
                 localized: "iPhone isn't on G7 direct",
@@ -228,7 +236,26 @@ import WatchKit
 
     /// Any wake: a lost Bluetooth callback can leave nothing waiting for the sensor.
     func noteWake() {
+        guard !isStandingAside else { return }
         session?.recheck()
+    }
+
+    /// Untethered mode takes the sensor in the same watch display slot from its first handshake on
+    /// and gives it back when it is idle again. Only one of the two may talk to the sensor; afterwards
+    /// the reader may have to pair again, which it does by itself with the code it has.
+    func standAside(_ aside: Bool) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard aside != isStandingAside else { return }
+        isStandingAside = aside
+        if aside {
+            appendLog("Paused: untethered mode has the sensor")
+            session?.pause()
+            isConnected = false
+            isSearching = false
+        } else {
+            appendLog("Untethered mode over: reading again")
+            startSessionIfPossible()
+        }
     }
 
     /// Asks watchOS for a background wake about every 15 minutes (it decides
@@ -279,7 +306,7 @@ import WatchKit
     }
 
     private func startSessionIfPossible() {
-        guard isEnabled, sensorName != nil else { return }
+        guard isEnabled, !isStandingAside, sensorName != nil else { return }
         if let session {
             session.update(credentials: credentials)
             session.resume()

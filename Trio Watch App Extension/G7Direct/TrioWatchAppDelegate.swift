@@ -5,8 +5,17 @@ import WatchKit
 /// one job beyond defaults: bring the watch's G7 reader up at every launch
 /// (including the silent ones the system makes for a Bluetooth link) and hold
 /// the Bluetooth wakes long enough for a reading to arrive.
+/// While untethered mode runs, the pump and the sensor belong to it: its wakes
+/// run a loop cycle instead, and the reader stays out of the sensor's way.
 final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
+    /// Untethered wakes are held long enough for one loop cycle and the G7's re-connect.
+    private static let untetheredBluetoothHold: TimeInterval = 25
+    /// Kept, not just their identities: WatchKit can hand a task over again, and completing one twice crashes.
+    private var completed: [WKRefreshBackgroundTask] = []
+
     func applicationDidFinishLaunching() {
+        // restores a running untethered session first, so the reader sees it and stays off
+        _ = UntetheredWatchManager.shared
         WatchG7Reader.shared.bootstrap()
         WatchG7Reader.shared.scheduleBackgroundRefresh()
     }
@@ -24,7 +33,15 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
         for task in backgroundTasks {
             switch task {
             case let bluetoothTask as WKBluetoothAlertRefreshBackgroundTask:
-                WatchG7Reader.shared.hold(bluetoothTask: bluetoothTask)
+                if UntetheredWatchManager.shared.isActive {
+                    UntetheredWatchManager.shared.recheckCGM()
+                    UntetheredWatchManager.shared.runLoop(.fallback)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Self.untetheredBluetoothHold) {
+                        self.completeOnce(bluetoothTask)
+                    }
+                } else {
+                    WatchG7Reader.shared.hold(bluetoothTask: bluetoothTask)
+                }
 
             case let connectivityTask as WKWatchConnectivityRefreshBackgroundTask:
                 // Keep the app awake until WatchConnectivity has delivered
@@ -33,6 +50,9 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
                 completeWhenConnectivityIsDelivered(connectivityTask, attempt: 0)
 
             case let refreshTask as WKApplicationRefreshBackgroundTask:
+                if UntetheredWatchManager.shared.isActive {
+                    UntetheredWatchManager.shared.recheckCGM()
+                }
                 WatchG7Reader.shared.noteWake()
                 WatchG7Reader.shared.scheduleBackgroundRefresh()
                 // A few seconds for the re-check to lodge its request before suspending.
@@ -52,6 +72,13 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
                 task.setTaskCompletedWithSnapshot(false)
             }
         }
+    }
+
+    private func completeOnce(_ task: WKRefreshBackgroundTask) {
+        guard !completed.contains(where: { $0 === task }) else { return }
+        completed.append(task)
+        if completed.count > 128 { completed.removeFirst(32) }
+        task.setTaskCompletedWithSnapshot(false)
     }
 
     private func completeWhenConnectivityIsDelivered(_ task: WKWatchConnectivityRefreshBackgroundTask, attempt: Int) {

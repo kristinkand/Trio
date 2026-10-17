@@ -12,8 +12,11 @@ when the iPhone is out of reach. Display and alerts only: nothing here doses.
   which need no LoopKit and already run on watchOS there, including the watch
   acquisition design (`G7WatchAcquisition`) and the faster P-256 maths that
   pairing on a watch needs.
-  One addition, marked `Trio:`: `G7PeripheralManager.gattErrorHook`, so
-  Bluetooth errors reach the watch log. Re-add it after copying the files again.
+  Two changes, marked `Trio:`: `G7PeripheralManager.gattErrorHook`, so
+  Bluetooth errors reach the watch log, and the central's own restore identifier
+  in `G7BluetoothManager.makeCentralManager` (untethered mode's G7SensorKit
+  framework runs a second central with the original one). Re-apply both after
+  copying the files again.
 - `WatchG7Session.swift`: the session half of G7SensorKit's `G7Sensor` (direct
   mode), rewritten without LoopKit.
 - `WatchG7Messages.swift`: glucose and backfill parsing without LoopKit.
@@ -28,3 +31,11 @@ The copied files are not tied to the phone's G7SensorKit submodule, so changes
 to g7-direct on the phone never break the watch build. When the upstream watch
 support changes, copy the same files again from the newer commit and check
 `WatchG7Session.swift` against `G7Sensor.swift` there.
+
+## Untethered mode
+
+`../Untethered/` (ported from EJM0/Trio `feat/direct-to-watch`) hands the pod and
+the G7 to the watch and loops there. It links the real G7SensorKit framework and
+uses the same watch display slot on the sensor, so while a session runs (from the
+grant to the hand-back) this reader stands aside (`WatchG7Reader.standAside`) and
+resumes afterwards, pairing again by itself if the sensor took the other key.

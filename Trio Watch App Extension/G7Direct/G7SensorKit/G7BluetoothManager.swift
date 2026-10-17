@@ -259,7 +259,10 @@ class G7BluetoothManager: NSObject {
     /// restoration option, which raises an exception outside an app with the
     /// bluetooth-central background mode.
     func makeCentralManager(queue: DispatchQueue) -> CBCentralManager {
-        return CBCentralManager(delegate: self, queue: queue, options: [CBCentralManagerOptionRestoreIdentifierKey: "com.loudnate.CGMBLEKit"])
+        // Trio: its own restore identifier. Untethered mode's G7CGMManager (the linked G7SensorKit
+        // framework) runs a second central in this app with "com.loudnate.CGMBLEKit"; two centrals may
+        // not share one.
+        return CBCentralManager(delegate: self, queue: queue, options: [CBCentralManagerOptionRestoreIdentifierKey: "org.nightscout.Trio.watchG7Reader"])
     }
 
     // MARK: - Actions
