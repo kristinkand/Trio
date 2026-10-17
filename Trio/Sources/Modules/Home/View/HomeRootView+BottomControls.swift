@@ -772,6 +772,7 @@ extension Home.RootView {
         tintOpacity: Double? = nil,
         strokeOpacity: Double? = nil,
         strokeWidth: CGFloat? = nil,
+        showsChevron: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -790,9 +791,11 @@ extension Home.RootView {
 
                     Spacer(minLength: 8)
 
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                    if showsChevron {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .padding(.horizontal, 16)
             }
@@ -911,12 +914,13 @@ extension Home.RootView {
 
             UntetheredBannerSlot(manager: resolver.resolve(UntetheredPhoneManager.self)!) {
                 multiUsePanel()
-            } banner: { title, subtitle, action in
+            } banner: { title, subtitle, isTappable, action in
                 panelBanner(
                     systemImage: "applewatch.radiowaves.left.and.right",
                     title: title,
                     subtitle: subtitle,
-                    tint: .loopGreen,
+                    tint: .untethered,
+                    showsChevron: isTappable,
                     action: action
                 )
             }
