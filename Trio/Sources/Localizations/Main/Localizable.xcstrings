@@ -351856,6 +351856,24 @@
     },
     "Turn off the Weekend Profile first. The watch can't run it yet." : {
 
+    },
+    "Hands back by itself once the phone is nearby." : {
+
+    },
+    "The Apple Watch is looping" : {
+
+    },
+    "The phone doses again once it has read the pump." : {
+
+    },
+    "The phone pairs the next pod; hand back once it is nearby" : {
+
+    },
+    "The pump doesn't answer. Keep the phone close to the pod and try again." : {
+
+    },
+    "The watch can't deactivate this pump." : {
+
     }
   },
   "version" : "1.1"
