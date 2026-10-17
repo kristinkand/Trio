@@ -39,6 +39,8 @@ import WatchKit
     private(set) var isSearching = false
     /// Untethered mode holds the sensor (same watch display slot): the reader lets go until it ends.
     private(set) var isStandingAside = false
+    /// Back from untethered mode, until the first reading arrives.
+    private(set) var isReconnecting = false
     private(set) var needsCodeForSensor: String? = nil
     /// The sensor's state when it last answered without a usable reading (warm-up, failed, ...).
     private(set) var sensorProblem: String? = nil
@@ -184,6 +186,12 @@ import WatchKit
                 comment: "Watch G7 status: untethered mode holds the sensor"
             )
         }
+        if isReconnecting, !isConnected {
+            return String(
+                localized: "Reconnecting to the sensor…",
+                comment: "Watch G7 status: pairing again after untethered mode"
+            )
+        }
         if phoneUsesG7Direct == false, sensorName == nil {
             return String(
                 localized: "iPhone isn't on G7 direct",
@@ -253,7 +261,17 @@ import WatchKit
             isConnected = false
             isSearching = false
         } else {
-            appendLog("Untethered mode over: reading again")
+            // Untethered mode paired the sensor's watch slot with its own key, so the reader's key no
+            // longer authenticates; and a stale key fails only after a full connection the sensor may
+            // not grant. Pair afresh with the phone's code right away.
+            if pairingCode != nil, hasWatchKey {
+                appendLog("Untethered mode over: pairing again with the sensor")
+                setSharedKey(nil)
+                session?.update(credentials: credentials)
+            } else {
+                appendLog("Untethered mode over: reading again")
+            }
+            isReconnecting = true
             startSessionIfPossible()
         }
     }
@@ -615,6 +633,7 @@ import WatchKit
                 return
             }
             self.sensorProblem = nil
+            self.isReconnecting = false
             let reading = WatchG7Reading(
                 date: receivedAt.addingTimeInterval(-TimeInterval(message.age)),
                 glucose: Int(glucose),
