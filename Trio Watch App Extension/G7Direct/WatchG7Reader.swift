@@ -261,13 +261,20 @@ import WatchKit
             isConnected = false
             isSearching = false
         } else {
-            // Untethered mode paired the sensor's watch slot with its own key and held the link through
-            // its own central, so the reader's saved key and its lodged connect to the old peripheral
-            // handle both went nowhere (test 17.10.: no connection in 10 minutes; a fresh pairing found
-            // the sensor at once). Start over as "Pair watch again" does: no key, no handle, scan.
+            // The sensor keeps one key for the watch slot, and untethered mode may have paired it afresh,
+            // which made the reader's own key worthless: every hand-back then cost a full pairing over two
+            // sensor windows (test 17.10.: 19:22 to 19:23, and again from 19:45 to 19:55 the other way).
+            // Take the slot's newest key, so the next connection authenticates at once. The lodged connect
+            // to the old peripheral handle went nowhere after a session, so scan for the sensor afresh.
             if pairingCode != nil {
-                appendLog("Untethered mode over: pairing again with the sensor")
-                setSharedKey(nil)
+                if let slotKey = WatchG7SlotKey.current, slotKey != sharedKey {
+                    appendLog("Untethered mode over: taking its sensor key, reading again")
+                    sharedKey = slotKey
+                    hasWatchKey = true
+                    defaults.set(slotKey, forKey: Key.sharedKey)
+                } else {
+                    appendLog("Untethered mode over: reading again with the same key")
+                }
                 setPeripheralIdentifier(nil)
                 session?.update(credentials: credentials)
             } else {
@@ -472,6 +479,7 @@ import WatchKit
         sharedKey = key
         hasWatchKey = key != nil
         defaults.set(key, forKey: Key.sharedKey)
+        if let key { WatchG7SlotKey.record(key) }
     }
 
     private func setPeripheralIdentifier(_ identifier: UUID?) {
@@ -692,5 +700,19 @@ import WatchKit
             self.isSearching = searching
             self.needsCodeForSensor = needsCode
         }
+    }
+}
+
+/// The sensor holds a single key for the watch display slot, which the reader and untethered mode's G7
+/// manager both use. Whoever authenticates with a new key records it here, and the other takes it over
+/// at the hand-over instead of pairing again (a pairing costs two sensor windows, about 5 to 10 minutes).
+enum WatchG7SlotKey {
+    private static let key = "watchG7.slotKey"
+
+    static var current: Data? { UserDefaults.standard.data(forKey: key) }
+
+    static func record(_ sharedKey: Data) {
+        guard sharedKey != current else { return }
+        UserDefaults.standard.set(sharedKey, forKey: key)
     }
 }

@@ -291,6 +291,10 @@ struct UntetheredHistoryView: View {
     @Binding var page: Int
     let lastPage: Int
     @FocusState private var hasCrown: Bool
+    /// A swipe has to scroll to the end of the list before it turns the page, and 6 hours of glucose are
+    /// about 70 rows; show the newest few until asked for all.
+    @State private var showsAll = false
+    private let shortCount = 6
 
     enum Kind: CaseIterable {
         case glucose
@@ -330,26 +334,44 @@ struct UntetheredHistoryView: View {
         .focused($hasCrown)
         .digitalCrownRotation($page.doubleBinding(), from: 0, through: Double(lastPage), by: 1)
         .onAppear { hasCrown = true }
+        .onDisappear { showsAll = false }
+        .onChange(of: kind) { _, _ in showsAll = false }
+    }
+
+    /// The newest rows, or all of them once asked for.
+    private func shown<T>(_ rows: [T]) -> [T] { showsAll ? rows : Array(rows.prefix(shortCount)) }
+
+    @ViewBuilder private func moreButton(total: Int) -> some View {
+        if total > shortCount {
+            Button {
+                withAnimation { showsAll.toggle() }
+            } label: {
+                Text(showsAll ? String(localized: "Show fewer") : String(localized: "Show all (\(total))"))
+                    .font(.footnote)
+                    .frame(maxWidth: .infinity)
+            }
+        }
     }
 
     @ViewBuilder private var glucoseRows: some View {
         let units = manager.data.grant?.units ?? .mgdL
         let readings = manager.data.glucose.filter { $0.dateString >= since }.sorted { $0.dateString > $1.dateString }
         if readings.isEmpty { Text("No glucose").foregroundStyle(.secondary) }
-        ForEach(readings, id: \.id) { reading in
+        ForEach(shown(readings), id: \.id) { reading in
             let value = reading.glucose ?? reading.sgv ?? 0
             row(reading.dateString, Text(units == .mgdL ? "\(value)" : Decimal(value).formattedAsMmolL))
                 .swipeActions {
                     Button("Delete", role: .destructive) { manager.deleteGlucose(id: reading.id) }
                 }
         }
+        moreButton(total: readings.count)
     }
 
     @ViewBuilder private var carbRows: some View {
         let entries = manager.data.carbs.filter { ($0.actualDate ?? $0.createdAt) >= since && !($0.isFPU ?? false) }
             .sorted { ($0.actualDate ?? $0.createdAt) > ($1.actualDate ?? $1.createdAt) }
         if entries.isEmpty { Text("No carbs").foregroundStyle(.secondary) }
-        ForEach(entries, id: \.self) { entry in
+        ForEach(shown(entries), id: \.self) { entry in
             row(
                 entry.actualDate ?? entry.createdAt,
                 Text("\(NSDecimalNumber(decimal: entry.carbs).intValue) g").foregroundStyle(.orange)
@@ -360,6 +382,7 @@ struct UntetheredHistoryView: View {
                 }
             }
         }
+        moreButton(total: entries.count)
     }
 
     @ViewBuilder private var insulinRows: some View {
@@ -367,9 +390,10 @@ struct UntetheredHistoryView: View {
             .filter { [.bolus, .smb, .tempBasal, .pumpSuspend, .pumpResume].contains($0.type) && $0.timestamp >= since }
             .sorted { $0.timestamp > $1.timestamp }
         if events.isEmpty { Text("No insulin").foregroundStyle(.secondary) }
-        ForEach(events, id: \.id) { event in
+        ForEach(shown(events), id: \.id) { event in
             row(event.timestamp, Text(describe(event)).foregroundStyle(.blue))
         }
+        moreButton(total: events.count)
     }
 
     private func row(_ date: Date, _ value: Text) -> some View {
