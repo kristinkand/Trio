@@ -18,7 +18,23 @@ struct WatchG7View: View {
                         .font(.footnote)
                 }
 
-                if reader.isEnabled {
+                if reader.isEnabled, reader.isStandingAside {
+                    // the old value would only count up; untethered mode's readings are on the first pages
+                    Text(
+                        "Untethered mode is reading the sensor. Its values are on the first pages.",
+                        comment: "Watch sensor page while untethered mode holds the sensor"
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                    Button {
+                        showDetails = true
+                    } label: {
+                        Text("Details", comment: "Button: open the watch sensor details and log")
+                            .font(.footnote)
+                    }
+                } else if reader.isEnabled {
                     latestReading
 
                     Text(reader.statusText)
