@@ -636,7 +636,9 @@ import WatchConnectivity
             ComplicationStore.update(
                 from: self,
                 lowMgDL: message["complicationRangeLowMgDL"] as? Double,
-                highMgDL: message["complicationRangeHighMgDL"] as? Double
+                highMgDL: message["complicationRangeHighMgDL"] as? Double,
+                colorScheme: message["complicationColorScheme"] as? String,
+                targetMgDL: message["complicationTargetMgDL"] as? Double
             )
         }
     }
