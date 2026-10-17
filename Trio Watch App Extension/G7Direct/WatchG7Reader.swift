@@ -264,18 +264,24 @@ import WatchKit
             // The sensor keeps one key for the watch slot, and untethered mode may have paired it afresh,
             // which made the reader's own key worthless: every hand-back then cost a full pairing over two
             // sensor windows (test 17.10.: 19:22 to 19:23, and again from 19:45 to 19:55 the other way).
-            // Take the slot's newest key, so the next connection authenticates at once. The lodged connect
-            // to the old peripheral handle went nowhere after a session, so scan for the sensor afresh.
+            // Take the slot's newest key, so the next connection authenticates at once.
+            // Then connect to the sensor untethered mode just read, by its handle: the system keeps that
+            // request while the app sleeps, as untethered mode's own reconnects every 5 minutes show. A scan
+            // without a handle only found the sensor with the app open (test 17.10.: 4 s in front at 20:05,
+            // nothing in 43 minutes in the background from 20:55).
             if pairingCode != nil {
                 if let slotKey = WatchG7SlotKey.current, slotKey != sharedKey {
-                    appendLog("Untethered mode over: taking its sensor key, reading again")
                     sharedKey = slotKey
                     hasWatchKey = true
                     defaults.set(slotKey, forKey: Key.sharedKey)
-                } else {
-                    appendLog("Untethered mode over: reading again with the same key")
                 }
-                setPeripheralIdentifier(nil)
+                let handle = WatchG7SlotKey.peripheral
+                setPeripheralIdentifier(handle)
+                appendLog(
+                    handle == nil
+                        ? "Untethered mode over: reading again, searching for the sensor"
+                        : "Untethered mode over: reading again, connecting to the sensor it used"
+                )
                 session?.update(credentials: credentials)
             } else {
                 appendLog("Untethered mode over: reading again")
@@ -479,7 +485,7 @@ import WatchKit
         sharedKey = key
         hasWatchKey = key != nil
         defaults.set(key, forKey: Key.sharedKey)
-        if let key { WatchG7SlotKey.record(key) }
+        if let key { WatchG7SlotKey.record(key, peripheral: peripheralIdentifier) }
     }
 
     private func setPeripheralIdentifier(_ identifier: UUID?) {
@@ -679,6 +685,7 @@ import WatchKit
     func session(_: WatchG7Session, didAdoptPeripheral identifier: UUID?) {
         DispatchQueue.main.async {
             self.setPeripheralIdentifier(identifier)
+            if let identifier { WatchG7SlotKey.record(peripheral: identifier) }
         }
     }
 
@@ -709,11 +716,23 @@ import WatchKit
 /// at the hand-over instead of pairing again (a pairing costs two sensor windows, about 5 to 10 minutes).
 enum WatchG7SlotKey {
     private static let key = "watchG7.slotKey"
+    private static let peripheralKey = "watchG7.slotPeripheral"
 
     static var current: Data? { UserDefaults.standard.data(forKey: key) }
 
-    static func record(_ sharedKey: Data) {
-        guard sharedKey != current else { return }
-        UserDefaults.standard.set(sharedKey, forKey: key)
+    /// The sensor's Bluetooth handle as the last of the two to connect knew it. Both run in the same app, so
+    /// the system gives them the same handle for the same sensor.
+    static var peripheral: UUID? {
+        UserDefaults.standard.string(forKey: peripheralKey).flatMap(UUID.init(uuidString:))
+    }
+
+    static func record(_ sharedKey: Data, peripheral: UUID? = nil) {
+        if sharedKey != current { UserDefaults.standard.set(sharedKey, forKey: key) }
+        if let peripheral { record(peripheral: peripheral) }
+    }
+
+    static func record(peripheral: UUID) {
+        guard peripheral != self.peripheral else { return }
+        UserDefaults.standard.set(peripheral.uuidString, forKey: peripheralKey)
     }
 }

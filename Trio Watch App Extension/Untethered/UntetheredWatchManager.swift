@@ -739,7 +739,10 @@ import WatchKit
     func saveCGMState() {
         guard let cgm = cgmManager else { return }
         // the key it authenticated with is the slot's newest; the reader takes it over at the hand-back
-        if let key = cgm.rawState["sharedKey"] as? Data { WatchG7SlotKey.record(key) }
+        let state = cgm.rawState
+        if let key = state["sharedKey"] as? Data {
+            WatchG7SlotKey.record(key, peripheral: (state["peripheralIdentifier"] as? String).flatMap(UUID.init(uuidString:)))
+        }
         store.update {
             $0.cgmRawValue = Self.plist(["managerIdentifier": cgm.pluginIdentifier, "state": cgm.rawState])
             if let sharing = cgm as? DeviceConfigurationSharing, let local = Self.plist(sharing.localState) {
@@ -766,6 +769,12 @@ import WatchKit
         {
             state["sharedKey"] = slotKey
             Task { await WatchLogger.shared.log("⌚️ Untethered: taking the reader's newer sensor key", force: true) }
+        }
+        // and connect to the sensor by the handle last used, which the system keeps while the app sleeps
+        if state["pairingCode"] != nil, let handle = WatchG7SlotKey.peripheral?.uuidString,
+           state["peripheralIdentifier"] as? String != handle
+        {
+            state["peripheralIdentifier"] = handle
         }
         return watchCGMManagers[identifier]?.init(rawState: state)
     }
