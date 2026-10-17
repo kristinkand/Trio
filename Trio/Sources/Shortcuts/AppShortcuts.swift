@@ -73,7 +73,8 @@ struct AppShortcuts: AppShortcutsProvider {
                 "Hand the pump to the watch in \(.applicationName)"
             ],
             shortTitle: "Start Untethered",
-            systemImageName: "applewatch"
+            // not "applewatch": App Store Connect refuses "apple" in App Intent metadata
+            systemImageName: "figure.run"
         )
         AppShortcut(
             intent: RestartLiveActivityIntent(),
