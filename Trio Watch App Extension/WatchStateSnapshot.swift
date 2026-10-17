@@ -5,6 +5,7 @@
 //  Created by Cengiz Deniz on 18.04.25.
 //
 import Foundation
+import SwiftUI
 import WidgetKit
 
 enum WatchStateSnapshot {
@@ -30,6 +31,8 @@ struct TrioComplicationData: Codable {
         let date: Date
         /// In the display units.
         let value: Double
+        /// "#RRGGBB" by Trio's glucose color scheme, as the phone and the Live Activity color it.
+        var color: String?
     }
 
     var points: [Point]
@@ -40,6 +43,9 @@ struct TrioComplicationData: Codable {
     /// Nightscout direction name of the newest reading.
     var trend: String?
     var delta: String?
+    /// The phone's color scheme and target, to color the watch's own readings the same way.
+    var colorScheme: String?
+    var targetMgDL: Double?
 }
 
 enum ComplicationStore {
@@ -76,12 +82,21 @@ enum ComplicationStore {
 
     /// After the phone's data or untethered mode's own reached the watch state. Untethered mode passes
     /// its units and range; the phone's come through the reader's settings.
-    static func update(from state: WatchState, isMmol: Bool? = nil, lowMgDL: Double? = nil, highMgDL: Double? = nil) {
+    static func update(
+        from state: WatchState,
+        isMmol: Bool? = nil,
+        lowMgDL: Double? = nil,
+        highMgDL: Double? = nil,
+        colorScheme: String? = nil,
+        targetMgDL: Double? = nil
+    ) {
         guard let newest = state.glucoseValues.last else { return }
         let old = load()
         let isMmol = isMmol ?? WatchG7Reader.shared.isMmol
         let cutoff = Date().addingTimeInterval(-span)
-        var points = state.glucoseValues.filter { $0.date >= cutoff }.map { TrioComplicationData.Point(date: $0.date, value: $0.glucose) }
+        // the phone and untethered mode already colored each reading by the scheme
+        var points = state.glucoseValues.filter { $0.date >= cutoff }
+            .map { TrioComplicationData.Point(date: $0.date, value: $0.glucose, color: $0.color.toHexString()) }
         var trend = state.trend
         var delta = state.delta
         // the watch's own reader may be ahead of the phone: keep its newer readings
@@ -95,7 +110,16 @@ enum ComplicationStore {
         }
         let shaded = range(isMmol: isMmol, lowMgDL: lowMgDL, highMgDL: highMgDL)
         save(
-            TrioComplicationData(points: points, isMmol: isMmol, low: shaded.low, high: shaded.high, trend: trend, delta: delta),
+            TrioComplicationData(
+                points: points,
+                isMmol: isMmol,
+                low: shaded.low,
+                high: shaded.high,
+                trend: trend,
+                delta: delta,
+                colorScheme: colorScheme ?? old?.colorScheme,
+                targetMgDL: targetMgDL ?? old?.targetMgDL
+            ),
             previousLatest: old?.points.last?.date
         )
     }
@@ -116,12 +140,22 @@ enum ComplicationStore {
             let formatted = change.formatted(.number.precision(.fractionLength(isMmol ? 1 : 0)))
             delta = change < 0 ? formatted : "+" + formatted
         }
-        points.append(.init(date: reading.date, value: value))
         let cutoff = Date().addingTimeInterval(-span)
         points.removeAll { $0.date < cutoff }
         // the range the phone or untethered mode last gave, else the reader's alert thresholds
         var shaded = range(isMmol: isMmol)
         if let old, old.isMmol == isMmol { shaded = (low: old.low, high: old.high) }
+        // colored as the phone colors it: the dynamic scheme ramps between fixed ends around the target
+        let scheme = old?.colorScheme.flatMap(GlucoseColorScheme.init(rawValue:)) ?? .staticColor
+        let toMgDL = isMmol ? 1 / mmolFactor : 1
+        let color = getDynamicGlucoseColor(
+            glucoseValue: Decimal(reading.glucose),
+            highGlucoseColorValue: scheme == .dynamicColor ? 220 : Decimal(shaded.high * toMgDL),
+            lowGlucoseColorValue: scheme == .dynamicColor ? 55 : Decimal(shaded.low * toMgDL),
+            targetGlucose: Decimal(old?.targetMgDL ?? 100),
+            glucoseColorScheme: scheme
+        )
+        points.append(.init(date: reading.date, value: value, color: color.toHexString()))
         save(
             TrioComplicationData(
                 points: points,
@@ -129,7 +163,9 @@ enum ComplicationStore {
                 low: shaded.low,
                 high: shaded.high,
                 trend: reading.trendName,
-                delta: delta
+                delta: delta,
+                colorScheme: old?.colorScheme,
+                targetMgDL: old?.targetMgDL
             ),
             previousLatest: old?.points.last?.date
         )

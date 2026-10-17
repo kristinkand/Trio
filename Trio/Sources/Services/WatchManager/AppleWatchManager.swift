@@ -19,6 +19,8 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     private static let complicationTransferInterval: TimeInterval = 28 * 60
     static let complicationRangeLowKey = "complicationRangeLowMgDL"
     static let complicationRangeHighKey = "complicationRangeHighMgDL"
+    static let complicationColorSchemeKey = "complicationColorScheme"
+    static let complicationTargetKey = "complicationTargetMgDL"
 
     @Injected() var broadcaster: Broadcaster!
     @Injected() private var apsManager: APSManager!
@@ -646,6 +648,9 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         // the target range the watch-face graph shades, as the Live Activity does
         message[Self.complicationRangeLowKey] = NSDecimalNumber(decimal: lowGlucose).doubleValue
         message[Self.complicationRangeHighKey] = NSDecimalNumber(decimal: highGlucose).doubleValue
+        // and colors the watch's own readings by the same scheme as the phone's
+        message[Self.complicationColorSchemeKey] = glucoseColorScheme.rawValue
+        message[Self.complicationTargetKey] = NSDecimalNumber(decimal: currentGlucoseTarget).doubleValue
 
         // if session is reachable, it means watch App is in the foreground -> send watchState as message
         // if session is not reachable, it means it's in background -> send watchState as userInfo

@@ -17,6 +17,8 @@ struct TrioComplicationData: Codable {
         let date: Date
         /// In the display units.
         let value: Double
+        /// "#RRGGBB" by Trio's glucose color scheme.
+        var color: String?
     }
 
     var points: [Point]
@@ -25,6 +27,8 @@ struct TrioComplicationData: Codable {
     var high: Double
     var trend: String?
     var delta: String?
+    var colorScheme: String?
+    var targetMgDL: Double?
 
     static func load() -> TrioComplicationData? {
         guard let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String,
@@ -119,6 +123,10 @@ struct TrioAccessoryCircularView: View {
 /// the target range, as the Live Activity shows it.
 struct TrioAccessoryRectangularView: View {
     var entry: TrioWatchComplicationProvider.Entry
+    /// Full color only on faces set to a multicolor option; the others tint the complication in one color.
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    private var isFullColor: Bool { renderingMode == .fullColor }
 
     private let span: TimeInterval = 3 * 60 * 60
 
@@ -156,7 +164,7 @@ struct TrioAccessoryRectangularView: View {
                     Text(arrow(data.trend))
                         .font(.system(size: 16, weight: .semibold))
                 }
-                .foregroundStyle(isStale ? Color.secondary : color(latest.value, data))
+                .foregroundStyle(isStale ? Color.secondary : color(latest, data))
                 .widgetAccentable()
                 .lineLimit(1)
                 Text(isStale ? "" : data.delta ?? "")
@@ -174,18 +182,20 @@ struct TrioAccessoryRectangularView: View {
                     yStart: .value("Low", data.low),
                     yEnd: .value("High", data.high)
                 )
-                .foregroundStyle(Color.green.opacity(0.25))
+                .foregroundStyle(isFullColor ? Color.green.opacity(0.25) : Color.primary.opacity(0.15))
                 ForEach(points, id: \.date) { point in
                     PointMark(x: .value("Time", point.date), y: .value("Glucose", point.value))
                         .symbolSize(10)
-                        .foregroundStyle(isStale ? Color.secondary : color(point.value, data))
+                        .foregroundStyle(isStale ? Color.secondary : color(point, data))
+                        // in one tint, readings out of range stand out by brightness
+                        .opacity(isFullColor || point.value < data.low || point.value > data.high ? 1 : 0.55)
                 }
             }
             .chartXScale(domain: start ... entry.date)
             .chartYScale(domain: yMin ... yMax)
             .chartXAxis(.hidden)
             .chartYAxis(.hidden)
-            .widgetAccentable()
+            .widgetAccentable(!isFullColor)
         }
     }
 
@@ -193,9 +203,11 @@ struct TrioAccessoryRectangularView: View {
         value.formatted(.number.precision(.fractionLength(isMmol ? 1 : 0)))
     }
 
-    private func color(_ value: Double, _ data: TrioComplicationData) -> Color {
-        if value < data.low { return .red }
-        if value > data.high { return .yellow }
+    /// The color the watch app stored for the reading (Trio's static or dynamic scheme), else by range.
+    private func color(_ point: TrioComplicationData.Point, _ data: TrioComplicationData) -> Color {
+        if let hex = point.color, let stored = Color(hex: hex) { return stored }
+        if point.value < data.low { return .red }
+        if point.value > data.high { return .yellow }
         return .green
     }
 
@@ -233,6 +245,19 @@ struct TrioAccessoryRectangularView: View {
         #else
             return [.accessoryCircular]
         #endif
+    }
+}
+
+extension Color {
+    /// "#RRGGBB"
+    init?(hex: String) {
+        let digits = hex.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "#", with: "")
+        guard digits.count == 6, let rgb = UInt64(digits, radix: 16) else { return nil }
+        self.init(
+            red: Double((rgb >> 16) & 0xFF) / 255,
+            green: Double((rgb >> 8) & 0xFF) / 255,
+            blue: Double(rgb & 0xFF) / 255
+        )
     }
 }
 
