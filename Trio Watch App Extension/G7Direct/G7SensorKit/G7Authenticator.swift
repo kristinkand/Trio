@@ -240,7 +240,9 @@ final class G7Authenticator {
             return Result(sharedKey: sharedKey, deviceName: peripheral.peripheral.name, didExchangeKeys: didExchangeKeys, authenticity: .unverified)
         }
 
-        if !didExchangeKeys {
+        // Trio: from EJM0's G7SensorKit (ae7c731). Authenticated but not bonded (bond=2) on a reconnect: the key
+        // is still good, only the system bond is gone. The certificate phase bonds again, as on a pairing.
+        if !didExchangeKeys, !status.isAuthenticated {
             // A reconnect that got this far without being authenticated has a
             // key the sensor no longer honours. Re-pairing is the only fix,
             // and the caller decides whether it can do that unattended.
