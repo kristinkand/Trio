@@ -317,7 +317,12 @@ import WatchKit
             session?.notePhoneReading(at: date)
         }
 
-        if let units = payload[WatchMessageKeys.units] as? String, units != self.units {
+        // Units from the dedicated key; the general one only from a state with
+        // glucose in it, because an empty default state says mg/dL.
+        let hasGlucose = !((payload[WatchMessageKeys.glucoseValues] as? [[String: Any]])?.isEmpty ?? true)
+        let sentUnits = payload[WatchMessageKeys.watchDisplayUnits] as? String
+            ?? (hasGlucose ? payload[WatchMessageKeys.units] as? String : nil)
+        if let units = sentUnits, units != self.units {
             self.units = units
             defaults.set(units, forKey: Key.units)
         }

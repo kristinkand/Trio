@@ -64,6 +64,8 @@ enum WatchMessageKeys {
     static let watchAlertUrgentLowMgDL = "watchAlertUrgentLowMgDL"
     static let watchAlertLowMgDL = "watchAlertLowMgDL"
     static let watchAlertHighMgDL = "watchAlertHighMgDL"
+    /// The user's glucose units, sent with every update, also when the rest of the state is empty.
+    static let watchDisplayUnits = "watchDisplayUnits"
 
     // Forecast
     static let showForecastWatch = "showForecastWatch"
