@@ -9,25 +9,7 @@ struct LiveActivity: Widget {
                 .addIsWatchOS()
         } dynamicIsland: { context in
             let hasStaticColorScheme = context.state.glucoseColorScheme == "staticColor"
-
-            var glucoseColor: Color {
-                let state = context.state
-                let isMgdL = state.unit == "mg/dL"
-
-                // TODO: workaround for now: set low value to 55, to have dynamic color shades between 55 and user-set low (approx. 70); same for high glucose
-                let hardCodedLow = isMgdL ? Decimal(55) : 55.asMmolL
-                let hardCodedHigh = isMgdL ? Decimal(220) : 220.asMmolL
-
-                return Color.getDynamicGlucoseColor(
-                    glucoseValue: Decimal(string: state.bg) ?? 100,
-                    highGlucoseColorValue: !hasStaticColorScheme
-                        ? hardCodedHigh : state.highGlucose,
-                    lowGlucoseColorValue: !hasStaticColorScheme
-                        ? hardCodedLow : state.lowGlucose,
-                    targetGlucose: isMgdL ? state.target : state.target.asMmolL,
-                    glucoseColorScheme: state.glucoseColorScheme
-                )
-            }
+            let glucoseColor = context.state.glucoseColor
 
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -141,6 +123,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "00.0",
+            glucose: nil,
             direction: "→",
             change: "+0.0",
             date: Date(),
@@ -160,6 +143,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "00.0",
+            glucose: nil,
             direction: "↑↑",
             change: "+0.0",
             date: Date(),
@@ -179,6 +163,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "00.0",
+            glucose: nil,
             direction: "↑↑↑",
             change: "+0.0",
             date: Date(),
@@ -199,6 +184,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "00",
+            glucose: nil,
             direction: "↑",
             change: "+0",
             date: Date(),
@@ -218,6 +204,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "000",
+            glucose: nil,
             direction: "↗︎",
             change: "+00",
             date: Date(),
@@ -237,6 +224,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "--",
+            glucose: nil,
             direction: nil,
             change: "--",
             date: Date().addingTimeInterval(-60 * 60),
@@ -257,6 +245,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "00.0",
+            glucose: nil,
             direction: "→",
             change: "+0.0",
             date: Date(),
@@ -278,6 +267,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "00.0",
+            glucose: nil,
             direction: "↑↑",
             change: "+0.0",
             date: Date(),
@@ -299,6 +289,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "00.0",
+            glucose: nil,
             direction: "↑↑↑",
             change: "+0.0",
             date: Date(),
@@ -321,6 +312,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "00",
+            glucose: nil,
             direction: "↑",
             change: "+0",
             date: Date(),
@@ -342,6 +334,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "000",
+            glucose: nil,
             direction: "↗︎",
             change: "+00",
             date: Date(),
@@ -363,6 +356,7 @@ private extension LiveActivityAttributes.ContentState {
         LiveActivityAttributes.ContentState(
             unit: "mg/dL",
             bg: "--",
+            glucose: nil,
             direction: nil,
             change: "--",
             date: Date().addingTimeInterval(-60 * 60),
