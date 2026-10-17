@@ -35,6 +35,7 @@ extension Home {
         @State var showSnoozeSheet: Bool = false
         @State var showManualGlucose: Bool = false
         @State var showReleaseNotes: Bool = false
+        @State var showUntetheredAuditFinding: Bool = false
         @State var alarmsSnoozeUntil: Date = .distantPast
         // Weekend Profile has no Core Data entity to @FetchRequest, so its Home indicator (see
         // adjustmentView() in HomeRootView+BottomControls.swift) reflects this UserDefaults-backed

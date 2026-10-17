@@ -171900,6 +171900,9 @@
         }
       }
     },
+    "Insulin Check After Untethered Mode" : {
+
+    },
     "Insulin Limit Reached" : {
       "localizations" : {
         "bg" : {
@@ -241914,6 +241917,9 @@
           }
         }
       }
+    },
+    "Pump and records differ. Tap for details." : {
+
     },
     "Pump battery" : {
       "localizations" : {
@@ -351740,9 +351746,6 @@
     "The pod was deactivated. Pair a new one on the phone." : {
 
     },
-    "The pump delivered %@ U the phone has no record of yet. It is counted as a bolus until the watch's records arrive." : {
-
-    },
     "The pump or CGM can't be handed to the watch." : {
 
     },
@@ -351750,9 +351753,6 @@
 
     },
     "The pump's delivery is uncertain. Resolve it on the phone first." : {
-
-    },
-    "The records show more insulin than the pump delivered. Insulin on board may be overstated until the watch's records arrive." : {
 
     },
     "The sensor refuses this watch's Bluetooth pairing. On the watch, open Settings › Bluetooth, forget the DXCM device and wait for the next reading." : {
