@@ -86,6 +86,12 @@ struct WatchG7DetailsView: View {
                     row(String(localized: "Code", comment: "Watch sensor details label: pairing code received"), reader.pairingCode == nil ? "–" : "✓")
                     row(String(localized: "Paired", comment: "Watch sensor details label: the watch has its own key"), reader.hasWatchKey ? "✓" : "–")
                     row(String(localized: "Connected", comment: "Watch sensor details label"), reader.isConnected ? "✓" : "–")
+                    let coverage = reader.recentCoverage
+                    row(
+                        String(localized: "Last 2 h", comment: "Watch sensor details label: readings received in the last two hours"),
+                        "\(coverage.count)/\(coverage.expected) · max gap \(coverage.longestGapMinutes) min"
+                    )
+                    row(String(localized: "Units", comment: "Watch sensor details label"), reader.units)
                     row(
                         String(localized: "iPhone", comment: "Watch sensor details label: age of the last update from the phone"),
                         reader.lastPhoneContact.map { minutesAgo($0) } ?? "–"
@@ -102,7 +108,7 @@ struct WatchG7DetailsView: View {
 
                 if !reader.logLines.isEmpty {
                     Divider()
-                    ForEach(Array(reader.logLines.suffix(25).reversed().enumerated()), id: \.offset) { _, line in
+                    ForEach(Array(reader.logLines.suffix(60).reversed().enumerated()), id: \.offset) { _, line in
                         Text(line)
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
