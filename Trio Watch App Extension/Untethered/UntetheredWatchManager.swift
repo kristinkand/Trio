@@ -54,7 +54,11 @@ import WatchKit
     func refresh() {
         data = store.data
         updateReaderStandAside()
-        if isActive { publishToWatchState() }
+        if isActive {
+            publishToWatchState()
+        } else if !WatchState.shared.treatmentMarkers.isEmpty {
+            WatchState.shared.treatmentMarkers = []
+        }
     }
 
     /// The watch's display-only G7 reader uses the same display slot on the sensor: from the grant to the
