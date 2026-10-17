@@ -11,6 +11,10 @@ extension LiveActivitySettings {
         @Published var smartStackView: LockScreenView = .simple
         @Published var displayGlucoseForecasts = false
         @Published var showBubbleInLiveActivity = true
+        @Published var simpleFontSize: LiveActivityFontSize = .large
+
+        var glucoseColorScheme: GlucoseColorScheme { settingsManager.settings.glucoseColorScheme }
+
         override func subscribe() {
             units = settingsManager.settings.units
             subscribeSetting(\.useLiveActivity, on: $useLiveActivity) { useLiveActivity = $0 }
@@ -18,6 +22,7 @@ extension LiveActivitySettings {
             subscribeSetting(\.smartStackView, on: $smartStackView) { smartStackView = $0 }
             subscribeSetting(\.displayGlucoseForecasts, on: $displayGlucoseForecasts) { displayGlucoseForecasts = $0 }
             subscribeSetting(\.showBubbleInLiveActivity, on: $showBubbleInLiveActivity) { showBubbleInLiveActivity = $0 }
+            subscribeSetting(\.liveActivitySimpleFontSize, on: $simpleFontSize) { simpleFontSize = $0 }
         }
     }
 }
