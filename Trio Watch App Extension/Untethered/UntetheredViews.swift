@@ -35,6 +35,8 @@ struct UntetheredStatusView: View {
                         }
                     }
                     if manager.isActive { tiles }
+                    if manager.isActive || unsynced > 0 { historyButton }
+                    if manager.isActive { phoneTile }
                     alerts(now: context.date)
                     actions
                 }
@@ -136,19 +138,44 @@ struct UntetheredStatusView: View {
                 "\($0.formatted(.number.precision(.fractionLength(0)))) U"
             } ?? (data.grant?.reservoir == Decimal(UInt32(0xDEAD_BEEF)) ? "50+ U" : nil))
             tile(
-                "Phone",
-                systemImage: isPhoneReachable ? "iphone" : "iphone.slash",
-                tint: isPhoneReachable ? .green : .secondary,
-                value: isPhoneReachable ? String(localized: "Nearby") : String(localized: "Away")
-            )
-            tile("To Sync", systemImage: "arrow.triangle.2.circlepath", tint: .secondary, value: "\(unsynced)")
-            tile(
                 "Watch Battery",
                 systemImage: "battery.75percent",
                 tint: (UntetheredWatchManager.batteryPercent ?? 100) < 20 ? .red : .green,
                 value: UntetheredWatchManager.batteryPercent.map { "\($0) %" }
             )
         }
+    }
+
+    private var phoneTile: some View {
+        tile(
+            "Phone",
+            systemImage: isPhoneReachable ? "iphone" : "iphone.slash",
+            tint: isPhoneReachable ? .green : .secondary,
+            value: isPhoneReachable ? String(localized: "Nearby") : String(localized: "Away")
+        )
+    }
+
+    /// The watch's own history, on its own screen (EJM0 22f22b3): as a page it trapped the pager in its list and
+    /// shifted the pages after it whenever a session started or ended. Two tiles wide, with what is left to sync;
+    /// also after a session while records still sync.
+    private var historyButton: some View {
+        NavigationLink { UntetheredHistoryView(manager: manager) } label: {
+            HStack {
+                Label("History", systemImage: "list.bullet")
+                    .font(.footnote.weight(.semibold))
+                Spacer()
+                if unsynced > 0 {
+                    Text("\(unsynced) to sync").font(.caption2).foregroundStyle(.secondary)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(8)
+            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
     }
 
     private func tile(_ label: LocalizedStringKey, systemImage: String, tint: Color, value: String?) -> some View {
@@ -287,15 +314,7 @@ struct UntetheredStatusView: View {
 struct UntetheredHistoryView: View {
     let manager: UntetheredWatchManager
     /// Picked in the bottom bar.
-    let kind: Kind
-    /// The crown keeps turning the pages here; the list scrolls by touch.
-    @Binding var page: Int
-    let lastPage: Int
-    @FocusState private var hasCrown: Bool
-    /// A swipe has to scroll to the end of the list before it turns the page, and 6 hours of glucose are
-    /// about 70 rows; show the newest few until asked for all.
-    @State private var showsAll = false
-    private let shortCount = 6
+    @State private var kind = Kind.glucose
 
     enum Kind: CaseIterable {
         case glucose
@@ -322,34 +341,22 @@ struct UntetheredHistoryView: View {
     private var since: Date { Date().addingTimeInterval(-6 * 60 * 60) }
 
     var body: some View {
-        ZStack {
-            List {
-                switch kind {
-                case .glucose: glucoseRows
-                case .carbs: carbRows
-                case .insulin: insulinRows
-                }
+        List {
+            switch kind {
+            case .glucose: glucoseRows
+            case .carbs: carbRows
+            case .insulin: insulinRows
             }
         }
-        .focusable()
-        .focused($hasCrown)
-        .digitalCrownRotation($page.doubleBinding(), from: 0, through: Double(lastPage), by: 1)
-        .onAppear { hasCrown = true }
-        .onDisappear { showsAll = false }
-        .onChange(of: kind) { _, _ in showsAll = false }
-    }
-
-    /// The newest rows, or all of them once asked for.
-    private func shown<T>(_ rows: [T]) -> [T] { showsAll ? rows : Array(rows.prefix(shortCount)) }
-
-    @ViewBuilder private func moreButton(total: Int) -> some View {
-        if total > shortCount {
-            Button {
-                withAnimation { showsAll.toggle() }
-            } label: {
-                Text(showsAll ? String(localized: "Show fewer") : String(localized: "Show all (\(total))"))
-                    .font(.footnote)
-                    .frame(maxWidth: .infinity)
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomBar) {
+                ForEach(Kind.allCases, id: \.self) { kind in
+                    Button { self.kind = kind } label: {
+                        Image(systemName: kind.symbol)
+                            .foregroundStyle(self.kind == kind ? Color.primary : kind.color)
+                    }
+                    .tint(self.kind == kind ? kind.color : nil)
+                }
             }
         }
     }
@@ -358,21 +365,20 @@ struct UntetheredHistoryView: View {
         let units = manager.data.grant?.units ?? .mgdL
         let readings = manager.data.glucose.filter { $0.dateString >= since }.sorted { $0.dateString > $1.dateString }
         if readings.isEmpty { Text("No glucose").foregroundStyle(.secondary) }
-        ForEach(shown(readings), id: \.id) { reading in
+        ForEach(readings, id: \.id) { reading in
             let value = reading.glucose ?? reading.sgv ?? 0
             row(reading.dateString, Text(units == .mgdL ? "\(value)" : Decimal(value).formattedAsMmolL))
                 .swipeActions {
                     Button("Delete", role: .destructive) { manager.deleteGlucose(id: reading.id) }
                 }
         }
-        moreButton(total: readings.count)
     }
 
     @ViewBuilder private var carbRows: some View {
         let entries = manager.data.carbs.filter { ($0.actualDate ?? $0.createdAt) >= since && !($0.isFPU ?? false) }
             .sorted { ($0.actualDate ?? $0.createdAt) > ($1.actualDate ?? $1.createdAt) }
         if entries.isEmpty { Text("No carbs").foregroundStyle(.secondary) }
-        ForEach(shown(entries), id: \.self) { entry in
+        ForEach(entries, id: \.self) { entry in
             row(
                 entry.actualDate ?? entry.createdAt,
                 Text("\(entry.carbs.formatted(.number.precision(.fractionLength(0)))) g").foregroundStyle(.orange)
@@ -383,7 +389,6 @@ struct UntetheredHistoryView: View {
                 }
             }
         }
-        moreButton(total: entries.count)
     }
 
     @ViewBuilder private var insulinRows: some View {
@@ -391,10 +396,9 @@ struct UntetheredHistoryView: View {
             .filter { [.bolus, .smb, .tempBasal, .pumpSuspend, .pumpResume].contains($0.type) && $0.timestamp >= since }
             .sorted { $0.timestamp > $1.timestamp }
         if events.isEmpty { Text("No insulin").foregroundStyle(.secondary) }
-        ForEach(shown(events), id: \.id) { event in
+        ForEach(events, id: \.id) { event in
             row(event.timestamp, Text(describe(event)).foregroundStyle(.blue))
         }
-        moreButton(total: events.count)
     }
 
     private func row(_ date: Date, _ value: Text) -> some View {
