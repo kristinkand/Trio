@@ -1,5 +1,7 @@
 import Foundation
-import LoopKit
+#if canImport(LoopKit)
+    import LoopKit
+#endif
 
 /// What the phone and the watch tell each other about untethered watch mode.
 enum UntetheredMessage: Codable, Equatable {
@@ -67,6 +69,7 @@ struct UntetheredTempBasal: Codable, Equatable {
     }
 }
 
+#if canImport(LoopKit)
 extension PumpManager {
     /// Cancels the running temp basal for a hand-over: what was left of it, or nil when none ran or the pump
     /// didn't take the cancel, which leaves it running as before.
@@ -86,6 +89,7 @@ extension PumpManager {
         }
     }
 }
+#endif
 
 /// Everything the watch needs to run the loop: the pump and CGM, therapy settings and 24 h of history.
 struct UntetheredGrant: Codable, Equatable {
