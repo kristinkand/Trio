@@ -62,6 +62,8 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     private var holdPending = false
     /// The one scan pass.
     private var bootstrapPass = false
+    /// Trio: background time held from the link-up until the sensor closes the link (or 15 s).
+    private var linkHold: (() -> Void)?
     private var bootstrapTimer: DispatchSourceTimer?
     /// When the last bootstrap pass started: a silent sensor is scanned for once per three bursts.
     private var lastBootstrapAt: Date?
@@ -121,6 +123,11 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     }
 
     func connected(_ peripheral: CBPeripheral) {
+        // Trio: the Bluetooth wake that brings the link up is often granted no time at all (2026-10-18: "expired
+        // after 0.0 s" 11 of 12 times), and at 16:20 the app was suspended right after "link up", before the
+        // handshake: no reading for 20 minutes. Ask for time of our own until the sensor closes the link.
+        linkHold?()
+        linkHold = holdProcess(reason: "G7 link: handshake and reading", upTo: 15)
         let waited = lodgedAt.map { Date().timeIntervalSince($0) }
         lodged = false; lodgedAt = nil
         linkUpAt = Date()
@@ -133,6 +140,8 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     /// Returns true when the arm owns what happens next (the adopted sensor closed the link).
     func disconnected(_ peripheral: CBPeripheral, error: Error?) -> Bool {
         guard peripheral.identifier == manager.activePeripheralIdentifier else { return false }
+        linkHold?()
+        linkHold = nil
         let sinceLinkUp = linkUpAt.map { Date().timeIntervalSince($0) } ?? 0
         linkUpAt = nil; lodged = false; lodgedAt = nil
         guard !bootstrapPass else { return false }
