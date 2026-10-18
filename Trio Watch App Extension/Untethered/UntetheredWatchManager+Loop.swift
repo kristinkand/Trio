@@ -1154,11 +1154,21 @@ extension UntetheredWatchManager {
         let now = Date()
         let latest = data.glucose.max(by: { $0.dateString < $1.dateString })
         // a reading old enough to be stale doesn't sound as low or high again
+        // Trio: the thresholds of the phone's glucose alarms, as the watch's own reader uses them (urgent low
+        // included), in the units shown; the glucose range only when the phone has no such alarm turned on.
         if let latest, let value = latest.glucose ?? latest.sgv, now.timeIntervalSince(latest.dateString) < 12 * 60 {
-            if Decimal(value) <= grant.lowGlucose {
-                alarm("low", title: String(localized: "Low Glucose"), body: "\(value) mg/dL", every: 15 * 60)
-            } else if Decimal(value) >= grant.highGlucose {
-                alarm("high", title: String(localized: "High Glucose"), body: "\(value) mg/dL", every: 60 * 60)
+            let reader = WatchG7Reader.shared
+            let mgdl = Double(value)
+            let low = reader.lowMgDL ?? NSDecimalNumber(decimal: grant.lowGlucose).doubleValue
+            let high = reader.highMgDL ?? NSDecimalNumber(decimal: grant.highGlucose).doubleValue
+            let body = "\(reader.format(mgdl)) \(reader.units) \(reader.arrow(for: latest.direction?.rawValue))"
+                .trimmingCharacters(in: .whitespaces)
+            if mgdl <= reader.urgentLowMgDL {
+                alarm("urgentLow", title: String(localized: "Urgent Low"), body: body, every: 5 * 60)
+            } else if mgdl <= low {
+                alarm("low", title: String(localized: "Low Glucose"), body: body, every: 15 * 60)
+            } else if mgdl >= high {
+                alarm("high", title: String(localized: "High Glucose"), body: body, every: 60 * 60)
             }
         }
         // two missed readings on the sensor's 5-minute grid
