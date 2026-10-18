@@ -67,6 +67,16 @@ import WatchConnectivity
     /// Boluses and carbs on the chart, untethered only: the watch has its own history then.
     var treatmentMarkers: [WatchTreatmentMarker] = []
 
+    /// Settings › Apple Watch › Allow Start Without iPhone, as the phone last sent it; kept, so it holds while the
+    /// phone is away. Off until the phone says otherwise.
+    var allowUntetheredStartWithoutPhone: Bool = UserDefaults.standard
+        .bool(forKey: WatchMessageKeys.allowUntetheredStartWithoutPhoneWatch)
+    {
+        didSet {
+            UserDefaults.standard.set(allowUntetheredStartWithoutPhone, forKey: WatchMessageKeys.allowUntetheredStartWithoutPhoneWatch)
+        }
+    }
+
     // Acknowlegement handling
     var showCommsAnimation: Bool = false
     var showAcknowledgmentBanner: Bool = false
@@ -641,6 +651,12 @@ import WatchConnectivity
             forecastConeMin = forecastPayload[WatchMessageKeys.forecastConeMin] as? [Double] ?? []
             forecastConeMax = forecastPayload[WatchMessageKeys.forecastConeMax] as? [Double] ?? []
             forecastLines = forecastPayload[WatchMessageKeys.forecastLines] as? [String: [Double]] ?? [:]
+        }
+
+        if let allow = message[WatchMessageKeys.allowUntetheredStartWithoutPhoneWatch] as? Bool {
+            if allow != allowUntetheredStartWithoutPhone { allowUntetheredStartWithoutPhone = allow }
+            // also a copy an earlier build left, when it was sent regardless
+            if !allow { DispatchQueue.main.async { UntetheredWatchManager.shared.dropStandingGrant() } }
         }
 
         // Sensor details, alarm thresholds and units for the watch's own G7 reading.

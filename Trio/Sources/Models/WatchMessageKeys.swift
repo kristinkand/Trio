@@ -68,6 +68,8 @@ enum WatchMessageKeys {
     static let watchDisplayUnits = "watchDisplayUnits"
     /// The phone's application context while the watch has the pump: only wakes the watch app.
     static let untetheredWake = "untetheredWake"
+    /// Settings › Apple Watch › Allow Start Without iPhone, with every watch state.
+    static let allowUntetheredStartWithoutPhoneWatch = "allowUntetheredStartWithoutPhoneWatch"
 
     // Forecast
     static let showForecastWatch = "showForecastWatch"

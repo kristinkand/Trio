@@ -249,7 +249,7 @@ struct UntetheredStatusView: View {
                 .disabled(!isPhoneReachable)
                 if !isPhoneReachable {
                     note("Starts with the phone nearby and Trio open on it.")
-                    if manager.standingGrantAge != nil {
+                    if manager.standingGrantAge != nil, WatchState.shared.allowUntetheredStartWithoutPhone {
                         Button { confirmStartWithoutPhone = true } label: {
                             Label("Start Without Phone", systemImage: "iphone.slash")
                         }

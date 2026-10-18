@@ -164,7 +164,8 @@ import WatchKit
 
         case let .standingGrant(grant, issuedAt):
             replyHandler?([:])
-            // a late copy from before a session would miss what the session dosed
+            // a late copy from before a session would miss what the session dosed. Kept even before the watch has
+            // heard the setting is on (the two travel separately); starting stays gated on the setting.
             guard data.session.phase == .idle else { return }
             store.update {
                 $0.standingGrant = grant
@@ -615,6 +616,16 @@ import WatchKit
 
     // MARK: - Starting without the phone
 
+    /// Settings › Allow Start Without iPhone turned off: the copy the phone left goes with it.
+    func dropStandingGrant() {
+        guard data.standingGrant != nil || data.standingGrantIssuedAt != nil else { return }
+        store.update {
+            $0.standingGrant = nil
+            $0.standingGrantIssuedAt = nil
+        }
+        refresh()
+    }
+
     /// The standing grant's age, while one is stored and young enough to start from: older than insulin's action time
     /// its history has too large a gap, and what the pod delivered meanwhile too much to book as one dose.
     var standingGrantAge: TimeInterval? {
@@ -628,7 +639,8 @@ import WatchKit
     /// With the phone off or out of reach, from the phone's standing grant: the ordinary takeover, with a fresh lease
     /// and an epoch of the watch's own. The phone stands aside once it hears from the watch. As LoopKit/Loop#2545.
     func startWithoutPhone() {
-        guard data.session.phase == .idle, !isBusy, !WCSession.default.isReachable, standingGrantAge != nil,
+        guard WatchState.shared.allowUntetheredStartWithoutPhone,
+              data.session.phase == .idle, !isBusy, !WCSession.default.isReachable, standingGrantAge != nil,
               let grant = data.standingGrant
         else { return }
         setError(nil)

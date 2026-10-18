@@ -273,7 +273,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     /// stays queued.
     @MainActor private func sendStandingGrant() async {
         let session = WCSession.default
-        guard UntetheredGate.phoneMayDose, WCSession.isSupported(), session.activationState == .activated,
+        // only when chosen in Settings › Apple Watch: without a copy the watch can't start on its own
+        guard settingsManager.settings.allowUntetheredStartWithoutPhoneWatch,
+              UntetheredGate.phoneMayDose, WCSession.isSupported(), session.activationState == .activated,
               session.isWatchAppInstalled, (apsManager.pumpManager as? ExclusiveDeviceControl)?.isControlReleased == false
         else { return }
         guard let grant = try? await makeGrant(linkedOverrideID: nil, leaseLength: 0) else { return }
