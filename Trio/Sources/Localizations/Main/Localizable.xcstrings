@@ -243751,6 +243751,9 @@
         }
       }
     },
+    "Pump on Apple Watch" : {
+
+    },
     "Pump profile" : {
       "comment" : "Debug option view Pump profile",
       "extractionState" : "manual",
