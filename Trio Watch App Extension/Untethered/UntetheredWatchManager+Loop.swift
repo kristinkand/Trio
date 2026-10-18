@@ -1152,14 +1152,14 @@ extension UntetheredWatchManager {
     func recordPumpStatus() {
         guard isActive else { return }
         publishToWatchState()
-        let state = WatchState.shared
         var isSuspended = false
         if case .suspended = pumpManager?.status.basalDeliveryState { isSuspended = true }
         let now = Date()
         let status = UntetheredPumpStatus(
             date: now,
-            reservoir: state.pumpReservoir,
-            expiresAt: state.pumpExpiresAt,
+            // this fork has no Devices page in the watch state: straight from the pod
+            reservoir: watchPumpReservoir(pumpManager) ?? data.reservoir,
+            expiresAt: watchPumpExpiresAt(pumpManager),
             isSuspended: isSuspended
         )
         store.record(

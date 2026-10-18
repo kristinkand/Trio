@@ -27,6 +27,19 @@ func watchCGMIsConnected(_ manager: CGMManager?) -> Bool {
     (manager as? G7CGMManager)?.isConnected ?? false
 }
 
+/// The pod's reservoir as the phone shows it: the measured level up to 50 U, above that the phone's "50+ U"
+/// marker; nil for a pump without one.
+func watchPumpReservoir(_ pump: PumpManager?) -> Decimal? {
+    guard let pod = (pump as? OmniPumpManager)?.state.podState else { return nil }
+    if let level = pod.lastInsulinMeasurements?.reservoirLevel, level <= 50 { return Decimal(level) }
+    return Decimal(UInt32(0xDEAD_BEEF))
+}
+
+/// When the pod expires; nil for a pump without one.
+func watchPumpExpiresAt(_ pump: PumpManager?) -> Date? {
+    (pump as? OmniPumpManager)?.state.podState?.expiresAt
+}
+
 /// Deactivates and forgets the pod, as the phone's deactivate screen does; false for a pump this can't do.
 func watchDeactivatePod(_ pump: PumpManager, completion: @escaping (Error?) -> Void) -> Bool {
     guard let omni = pump as? OmniPumpManager else { return false }
