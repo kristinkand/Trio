@@ -177,3 +177,34 @@ struct WeekendProfileChartView: ChartContent {
         return list
     }
 }
+
+/// Untethered mode's stretches as a band along the chart's top edge, in its own color with a watch symbol: the
+/// time the watch looped and dosed, from its takeover of the pod to the hand-back; a running one up to now.
+struct UntetheredPeriodsChartView: ChartContent {
+    let periods: [UntetheredPeriod]
+    let now: Date
+    /// The top of the glucose axis, in the display units.
+    let top: Decimal
+
+    var body: some ChartContent {
+        // a band about 3 % of the axis high, whatever the units
+        let height = max(top * Decimal(0.03), 0.3)
+        ForEach(periods) { period in
+            RectangleMark(
+                xStart: .value("Start", period.start, unit: .second),
+                xEnd: .value("End", period.end ?? now, unit: .second),
+                yStart: .value("Bottom", top - height),
+                yEnd: .value("Top", top)
+            )
+            .foregroundStyle(Color.untethered.opacity(period.end == nil ? 0.7 : 0.45))
+            .cornerRadius(3)
+            .annotation(position: .overlay, alignment: .leading, spacing: 2) {
+                Image(systemName: "applewatch")
+                    .font(.system(size: 9, weight: .semibold))
+                    // dark on the bright cyan of dark mode, light on the deeper one of light mode
+                    .foregroundStyle(Color(UIColor.systemBackground))
+                    .padding(.leading, 2)
+            }
+        }
+    }
+}
