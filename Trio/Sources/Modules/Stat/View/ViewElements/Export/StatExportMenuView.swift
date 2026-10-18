@@ -241,6 +241,8 @@ struct StatExportMenuView: View {
             case .percentileByTime: return .glucosePercentileByTime
             case .percentileByDay: return .glucosePercentileByDay
             case .distributionByDay: return .glucoseDistributionByDay
+            // Not yet exportable to PDF reports.
+            case .glycemiaRiskIndex: return nil
             }
         case .insulin:
             switch selectedInsulinChartType {
