@@ -25,8 +25,6 @@ struct UntetheredPhoneState: Codable, Equatable {
     /// What the complete history still couldn't explain; on the home screen until acknowledged.
     var auditFinding: String?
     var lastError: String?
-    /// When the watch was in charge, for the band on the Home chart; the last two days.
-    var periods: [UntetheredPeriod] = []
 
     var watchPendingDoseIdentifiers: Set<String> { watchPendingDoses.values.reduce(into: []) { $0.formUnion($1) } }
 }
@@ -46,31 +44,7 @@ extension UntetheredPhoneState {
         audit = try container.decodeIfPresent(UntetheredAuditPoint.self, forKey: .audit)
         auditFinding = try container.decodeIfPresent(String.self, forKey: .auditFinding)
         lastError = try container.decodeIfPresent(String.self, forKey: .lastError)
-        periods = try container.decodeIfPresent([UntetheredPeriod].self, forKey: .periods) ?? defaults.periods
     }
-
-    /// From the commit, when the watch takes the pump, to the hand-back closing: the time the watch was in charge.
-    mutating func notePeriod(from before: UntetheredSession.Phase, now: Date) {
-        let after = session.phase
-        let inCharge: (UntetheredSession.Phase) -> Bool = { [.starting, .active, .ending].contains($0) }
-        if !inCharge(before), inCharge(after) {
-            periods.removeAll { $0.end == nil }
-            periods.append(UntetheredPeriod(epoch: session.epoch, start: now, end: nil))
-        } else if inCharge(before), !inCharge(after), let index = periods.lastIndex(where: { $0.end == nil }) {
-            periods[index].end = now
-        }
-        let cutoff = now.addingTimeInterval(-2 * 24 * 60 * 60)
-        periods.removeAll { ($0.end ?? now) < cutoff }
-    }
-}
-
-/// One stretch of untethered mode as the phone saw it; `end` is nil while it runs.
-struct UntetheredPeriod: Codable, Equatable, Identifiable {
-    let epoch: Int
-    let start: Date
-    var end: Date?
-
-    var id: Int { epoch }
 }
 
 /// Read by the loop, bolus and watch paths without resolving any service, so a relaunch holds
@@ -300,12 +274,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     // MARK: - State machine
 
     @MainActor private func apply(_ event: UntetheredSession.PhoneEvent, reply: (([String: Any]) -> Void)? = nil) async {
-        let effects = UntetheredGate.update { (state: inout UntetheredPhoneState) -> [UntetheredSession.Effect] in
-            let before = state.session.phase
-            let effects = state.session.phone(event, now: Date())
-            state.notePeriod(from: before, now: Date())
-            return effects
-        }
+        let effects = UntetheredGate.update { $0.session.phone(event, now: Date()) }
         let epoch = UntetheredGate.state.session.epoch
         publish()
         var reply = reply

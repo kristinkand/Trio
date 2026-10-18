@@ -133,8 +133,6 @@ extension Home {
         var tempTargetRunStored: [TempTargetRunStored] = []
         /// Bumped whenever Profile starts, stops or ends, so the chart's mint band redraws.
         var weekendProfileRevision: Int = 0
-        /// When the watch was in charge (untethered mode), for the band along the chart's top edge.
-        var untetheredPeriods: [UntetheredPeriod] = UntetheredGate.state.periods
         var isOverrideCancelled: Bool = false
         var preprocessedData: [(id: UUID, forecast: Forecast, forecastValue: ForecastValue)] = []
         var pumpStatusHighlightMessage: String?
@@ -613,14 +611,6 @@ extension Home {
                     Task { @MainActor in
                         self?.reanchorFetchWindows()
                     }
-                }
-                .store(in: &lifetime)
-
-            Foundation.NotificationCenter.default.publisher(for: .untetheredGateDidChange)
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] _ in
-                    let periods = UntetheredGate.state.periods
-                    if self?.untetheredPeriods != periods { self?.untetheredPeriods = periods }
                 }
                 .store(in: &lifetime)
 

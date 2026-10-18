@@ -957,12 +957,6 @@ extension MainChartCanvas {
                 viewContext: context
             )
 
-            UntetheredPeriodsChartView(
-                periods: state.untetheredPeriods,
-                now: state.timerDate,
-                top: glucoseYDomain.upperBound
-            )
-
             PreviousDayGlucoseChartView(
                 glucoseData: windowedPreviousDayGlucose,
                 units: state.units
