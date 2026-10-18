@@ -36,6 +36,13 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
 
     /// Implementing this makes every background task ours to complete.
     func handle(_ backgroundTasks: Set<WKRefreshBackgroundTask>) {
+        // Not always on main (EJM0 f858f18): a Bluetooth task can arrive on CoreBluetooth's queue, and all below is
+        // main-only. The reader's hold asserts main, so such a task ended the process right at the link-up (Trio
+        // 2026-10-18: a new process 5 s after "link up" at 14:10, no reading for hours).
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.handle(backgroundTasks) }
+            return
+        }
         for task in backgroundTasks {
             switch task {
             case let bluetoothTask as WKBluetoothAlertRefreshBackgroundTask:
@@ -46,15 +53,24 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
                         continue
                     }
                     heldUntetheredTask = bluetoothTask
-                    heldSince = Date()
+                    let since = Date()
+                    heldSince = since
+                    // the system may grant less than the hold: the task ends then, not later, and the grant is logged
+                    bluetoothTask.expirationHandler = { [weak self, weak bluetoothTask] in
+                        let expire = {
+                            let granted = Date().timeIntervalSince(since)
+                            Task {
+                                await WatchLogger.shared
+                                    .log(String(format: "⌚️ Bluetooth wake expired by the system after %.1f s", granted))
+                            }
+                            if let bluetoothTask { self?.releaseUntethered(bluetoothTask) }
+                        }
+                        if Thread.isMainThread { expire() } else { DispatchQueue.main.sync(execute: expire) }
+                    }
                     // a reading in this wake loops through the CGM delegate; the wake itself only checks (EJM0 cfbb364)
                     UntetheredWatchManager.shared.recheckCGM()
                     DispatchQueue.main.asyncAfter(deadline: .now() + Self.untetheredBluetoothHold) {
-                        if self.heldUntetheredTask === bluetoothTask {
-                            self.heldUntetheredTask = nil
-                            self.heldSince = nil
-                        }
-                        self.completeOnce(bluetoothTask)
+                        self.releaseUntethered(bluetoothTask)
                     }
                 } else {
                     WatchG7Reader.shared.hold(bluetoothTask: bluetoothTask)
@@ -89,6 +105,15 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
                 task.setTaskCompletedWithSnapshot(false)
             }
         }
+    }
+
+    /// Ends a held untethered wake, by the hold or by the system's expiry, whichever comes first.
+    private func releaseUntethered(_ task: WKRefreshBackgroundTask) {
+        if heldUntetheredTask === task {
+            heldUntetheredTask = nil
+            heldSince = nil
+        }
+        completeOnce(task)
     }
 
     private func completeOnce(_ task: WKRefreshBackgroundTask) {

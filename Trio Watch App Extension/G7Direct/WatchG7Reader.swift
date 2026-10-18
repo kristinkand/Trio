@@ -244,8 +244,54 @@ import WatchKit
 
     /// Any wake: a lost Bluetooth callback can leave nothing waiting for the sensor.
     func noteWake() {
+        flushLogIfDue()
         guard !isStandingAside else { return }
         session?.recheck()
+    }
+
+    // MARK: - Ahead of silence
+
+    private static let noReadingsID = "trio.watchG7.noReadings"
+    /// Three readings missed on the sensor's 5-minute grid.
+    private static let noReadingsAfter: TimeInterval = 16 * 60
+
+    /// Booked after every reading, the watch's own or the phone's: it sounds even when nothing wakes the app any
+    /// more, which is how a failing background link showed until now (2026-10-18: the third page silent for hours).
+    /// Opening the app is what puts that right.
+    func bookNoReadingsAlert() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.bookNoReadingsAlert() }
+            return
+        }
+        let center = UNUserNotificationCenter.current()
+        guard isEnabled, !isStandingAside, sensorName != nil else {
+            center.removePendingNotificationRequests(withIdentifiers: [Self.noReadingsID])
+            return
+        }
+        let newest = [latest?.date, phoneGlucoseDate].compactMap { $0 }.max() ?? Date()
+        let delay = newest.addingTimeInterval(Self.noReadingsAfter).timeIntervalSinceNow
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "No Glucose on the Watch")
+        content.body = String(
+            localized: "Neither the sensor nor the iPhone has sent a reading for 15 minutes. Open Trio on the watch."
+        )
+        content.sound = .default
+        center.add(UNNotificationRequest(
+            identifier: Self.noReadingsID,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(60, delay), repeats: false)
+        ))
+    }
+
+    /// The log reaches the phone only when the app goes to the background after being open; a reader that only
+    /// runs in background wakes sends it at most every 30 minutes from a wake, so a test leaves a whole log.
+    private var lastLogFlush = Date()
+    private func flushLogIfDue() {
+        guard Date().timeIntervalSince(lastLogFlush) > 30 * 60,
+              !UntetheredWatchManager.shared.holdsSensorLink
+        else { return }
+        lastLogFlush = Date()
+        Task { await WatchLogger.shared.flushPersistedLogs(queued: true) }
     }
 
     /// Untethered mode takes the sensor in the same watch display slot from its first handshake on
@@ -257,6 +303,8 @@ import WatchKit
         isStandingAside = aside
         if aside {
             appendLog("Paused: untethered mode has the sensor")
+            // untethered mode books its own "No Sensor Readings"
+            bookNoReadingsAlert()
             session?.pause()
             isConnected = false
             isSearching = false
@@ -314,6 +362,7 @@ import WatchKit
             scheduleBackgroundRefresh()
         } else {
             appendLog("Turned off")
+            bookNoReadingsAlert()
             session?.pause()
             isConnected = false
             isSearching = false
@@ -375,6 +424,7 @@ import WatchKit
             phoneGlucoseDate = date
             defaults.set(date, forKey: Key.phoneGlucoseDate)
             session?.notePhoneReading(at: date)
+            bookNoReadingsAlert()
         }
 
         // Units from the dedicated key; the general one only from a state with
@@ -455,8 +505,16 @@ import WatchKit
             return
         }
         heldBluetoothTask = task
-        task.expirationHandler = { [weak self] in
-            DispatchQueue.main.async { self?.completeHeldBluetoothTask(task) }
+        let since = Date()
+        // the system may grant less than the hold: end the task right then (an app that overruns its background
+        // time is ended and woken less), and log the grant
+        task.expirationHandler = { [weak self, weak task] in
+            let expire = {
+                let granted = Date().timeIntervalSince(since)
+                Task { await WatchLogger.shared.log(String(format: "⌚️🩸 G7: Bluetooth wake expired by the system after %.1f s", granted)) }
+                if let task { self?.completeHeldBluetoothTask(task) }
+            }
+            if Thread.isMainThread { expire() } else { DispatchQueue.main.sync(execute: expire) }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 25) { [weak self] in
             self?.completeHeldBluetoothTask(task)
@@ -657,6 +715,7 @@ import WatchKit
             )
             self.merge([reading])
             ComplicationStore.add(reading)
+            self.bookNoReadingsAlert()
             self.appendLog("Reading \(self.format(Double(reading.glucose))) \(self.units) \(self.arrow(for: reading.trendName))")
             self.evaluateAlerts(for: reading)
         }
