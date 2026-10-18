@@ -978,6 +978,9 @@ extension MainChartCanvas {
                     .asMmolL
             )
 
+            // along the top, clear of the target-height override and temp target bands
+            UntetheredSpansView(y: glucoseYDomain.upperBound - (state.units == .mgdL ? 12 : 0.7), now: state.timerDate)
+
             ForecastView(
                 preprocessedData: state.preprocessedData,
                 minForecast: state.minForecast,
