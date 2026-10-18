@@ -285,6 +285,7 @@ import WatchKit
         if !wasActive, store.data.session.phase == .active {
             startCGM()
             resumeHandedOverTempBasal()
+            recordPumpStatus()
         }
         if wasActive != isActive {
             handOverAlertNotifications(toWatch: isActive)
