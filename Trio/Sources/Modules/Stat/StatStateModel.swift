@@ -99,10 +99,27 @@ extension Stat {
         let viewContext = CoreDataStack.shared.persistentContainer.viewContext
 
         override func subscribe() {
-            setupGlucoseArray(for: .today)
+            // open on the span the home stats panel reports
+            let range = settingsManager.settings.homeStatsPanelRange
+            selectedIntervalForInsulinStats = StatsTimeInterval(range)
+            selectedIntervalForMealStats = StatsTimeInterval(range)
+
+            // `didSet` starts these fetches; assign only on change so each runs exactly once
+            let glucoseInterval = StatsTimeIntervalWithToday(range)
+            if glucoseInterval != selectedIntervalForGlucoseStats {
+                selectedIntervalForGlucoseStats = glucoseInterval
+            } else {
+                setupGlucoseArray(for: glucoseInterval)
+            }
+            let loopInterval = StatsTimeIntervalWithToday(range)
+            if loopInterval != selectedIntervalForLoopStats {
+                selectedIntervalForLoopStats = loopInterval
+            } else {
+                setupLoopStatRecords()
+            }
+
             setupTDDStats()
             setupBolusStats()
-            setupLoopStatRecords()
             setupAlgorithmAdjustmentStats()
             setupMealStats()
             setupMealImpactStats()
@@ -239,6 +256,8 @@ extension Stat.StateModel {
         case percentileByTime = "Percentile"
         /// Time-based distribution of glucose ranges
         case distributionByTime = "Distribution"
+        /// Glycemia Risk Index for the selected period
+        case glycemiaRiskIndex = "Glycemia Risk Index"
         /// Day-based box plot of glucose percentile ranges
         case percentileByDay = "Percentile (by day)"
         /// Day-based distribution of glucose ranges
@@ -250,6 +269,8 @@ extension Stat.StateModel {
                 return String(localized: "Percentile")
             case .distributionByTime:
                 return String(localized: "Distribution")
+            case .glycemiaRiskIndex:
+                return String(localized: "Glycemia Risk Index")
             case .percentileByDay:
                 return String(localized: "Percentile (by day)")
             case .distributionByDay:
@@ -328,6 +349,16 @@ extension Stat.StateModel {
 
         var id: Self { self }
 
+        init(_ range: HomeStatsPanelRange) {
+            switch range {
+            case .today: self = .today
+            case .day: self = .day
+            case .week: self = .week
+            case .month: self = .month
+            case .threeMonths: self = .total
+            }
+        }
+
         var displayName: String {
             switch self {
             case .today:
@@ -356,6 +387,17 @@ extension Stat.StateModel {
         case total = "3 M"
 
         var id: Self { self }
+
+        /// No "today" bucket here, so it falls back to the day view.
+        init(_ range: HomeStatsPanelRange) {
+            switch range {
+            case .day,
+                 .today: self = .day
+            case .week: self = .week
+            case .month: self = .month
+            case .threeMonths: self = .total
+            }
+        }
 
         var displayName: String {
             switch self {
