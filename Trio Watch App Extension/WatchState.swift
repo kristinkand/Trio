@@ -264,6 +264,16 @@ import WatchConnectivity
         handleIncomingWatchStatePayload(userInfo)
     }
 
+    /// The phone's wake while the watch has the pump (EJM0 fba0698): nothing but a nudge to re-check the sensor and
+    /// send what is left. Any other context is a watch state.
+    func session(_: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        if applicationContext[WatchMessageKeys.untetheredWake] != nil {
+            DispatchQueue.main.async { UntetheredWatchManager.shared.phoneWake() }
+            return
+        }
+        handleIncomingWatchStatePayload(applicationContext)
+    }
+
     /// Shared path for watch-state payloads from either delegate method.
     /// Enforces the freshness contract in one place so the two delivery paths
     /// can't drift.

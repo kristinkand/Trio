@@ -66,6 +66,8 @@ enum WatchMessageKeys {
     static let watchAlertHighMgDL = "watchAlertHighMgDL"
     /// The user's glucose units, sent with every update, also when the rest of the state is empty.
     static let watchDisplayUnits = "watchDisplayUnits"
+    /// The phone's application context while the watch has the pump: only wakes the watch app.
+    static let untetheredWake = "untetheredWake"
 
     // Forecast
     static let showForecastWatch = "showForecastWatch"
