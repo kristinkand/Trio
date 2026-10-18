@@ -175,6 +175,15 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     /// handshake starts on the link the system brought us back for.
     func restored(_ peripheral: CBPeripheral) {
         if peripheral.state == .connected { manager.centralManager(central, didConnect: peripheral) }
+        // Trio: a connect restored under this central's own identifier was lodged by this app's previous
+        // process, which watchOS ended while the request stood. Cancelling it as foreign ended the very link
+        // the system was bringing up, at every relaunch (Trio 2026-10-18: 07:46 and 07:51, "sensor closed
+        // 0.0 s after link-up", no reading for 35 minutes). Keep it; three missed bursts still cancel it
+        // and scan (the 2026-09-16 case of a request bluetoothd no longer held).
+        else if peripheral.state == .connecting, !lodged {
+            lodged = true; lodgedAt = Date()
+            watchLog("restored with this app's own connect still standing — keeping it")
+        }
     }
 
     func noteReading(at timestamp: Date) {

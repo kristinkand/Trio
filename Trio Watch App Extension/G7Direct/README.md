@@ -12,7 +12,8 @@ when the iPhone is out of reach. Display and alerts only: nothing here doses.
   which need no LoopKit and already run on watchOS there, including the watch
   acquisition design (`G7WatchAcquisition`) and the faster P-256 maths that
   pairing on a watch needs.
-  Three changes, marked `Trio:`: `G7PeripheralManager.gattErrorHook`, so
+  Four changes, marked `Trio:`: `G7WatchAcquisition.restored` keeps a connect restored
+  under the central's own identifier instead of cancelling it; `G7PeripheralManager.gattErrorHook`, so
   Bluetooth errors reach the watch log; the central's own restore identifier
   in `G7BluetoothManager.makeCentralManager` (untethered mode's G7SensorKit
   framework runs a second central with the original one); and `TimeInterval.swift`
