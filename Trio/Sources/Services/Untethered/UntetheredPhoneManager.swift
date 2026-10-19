@@ -299,7 +299,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         // the watch may start from it while the phone still holds the pod (phone off, out of reach): from now on a
         // command after another controller's session is refused (2026-10-18, a SMB after a reboot). Taking control
         // back clears it; this sets it again.
-        if control.refusesForeignSessionsSince == nil { control.refusesForeignSessionsSince = Date() }
+        if Self.allowsStartWithoutPhone(settingsManager.settings), control.refusesForeignSessionsSince == nil {
+            control.refusesForeignSessionsSince = Date()
+        }
         guard let grant = try? await makeGrant(linkedOverrideID: nil, leaseLength: 0) else { return }
         // what a start would miss most: carbs, boluses and adjustments; temps and readings wait for the interval
         let encoder = JSONEncoder()
@@ -682,6 +684,10 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     /// Untethered mode offered at all (Settings › Apple Watch).
     var isEnabled: Bool { settingsManager.settings.untetheredModeWatch }
+    /// Only then can another controller dose this pod unseen.
+    private static func allowsStartWithoutPhone(_ settings: TrioSettings) -> Bool {
+        settings.untetheredModeWatch && settings.allowUntetheredStartWithoutPhoneWatch
+    }
 
     /// The home screen is tinted while the watch has the pump (Settings › Apple Watch).
     var tintsHomeScreen: Bool { isWatchInCharge && settingsManager.settings.untetheredTintHomeWatch }
@@ -701,7 +707,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         guard pump is ExclusiveDeviceControl, pump is PumpDeliveryOdometer else {
             throw UntetheredError.unavailable(
-                String(localized: "\(pump.localizedTitle) can't be handed to the watch. Untethered mode supports Omnipod DASH.")
+                String(
+                    localized: "\(pump.localizedTitle) can't be handed to the watch. Untethered mode supports Omnipod DASH and Omnipod 5."
+                )
             )
         }
         guard let cgm = fetchGlucoseManager.cgmManager, cgm is DeviceConfigurationSharing else {
@@ -1141,7 +1149,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         let previous = state.podReading
         guard previous?.at != current.at else { return }
         UntetheredGate.update { $0.podReading = UntetheredPodReading(pod: pod, at: current.at, units: current.units) }
-        guard let previous, previous.pod == pod, current.at.timeIntervalSince(previous.at) >= Self.podGapCheck,
+        guard Self.allowsStartWithoutPhone(settingsManager.settings),
+              let previous, previous.pod == pod, current.at.timeIntervalSince(previous.at) >= Self.podGapCheck,
               current.units >= previous.units
         else { return }
         let point = UntetheredAuditPoint(
@@ -1578,6 +1587,12 @@ extension UntetheredPhoneManager: SettingsObserver, PreferencesObserver, PumpSet
         // turned off with the watch in charge: it hands back, as from the mode's own toggle
         if !settings.untetheredModeWatch, state.session.phase == .active {
             Task { @MainActor in await self.end() }
+        }
+        // the watch can't start without the phone anymore: nothing foreign to refuse
+        if !Self.allowsStartWithoutPhone(settings), let control = apsManager.pumpManager as? ExclusiveDeviceControl,
+           !control.isControlReleased
+        {
+            control.refusesForeignSessionsSince = nil
         }
     }
 
