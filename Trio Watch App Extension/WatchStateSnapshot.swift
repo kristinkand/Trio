@@ -67,8 +67,12 @@ enum ComplicationStore {
     private static func save(_ data: TrioComplicationData, previousLatest: Date?) {
         guard let defaults, let encoded = try? JSONEncoder().encode(data) else { return }
         defaults.set(encoded, forKey: key)
-        // redraw only for a newer reading: watchOS budgets the redraws
-        if let latest = data.points.last?.date, latest != previousLatest {
+        // redraw only for a newer reading: watchOS budgets the redraws. The phone's copy of a reading the
+        // watch read itself carries a timestamp a few seconds apart; that is the same reading, not a new one
+        // (2026-10-19: some 20 redraws an hour overnight, likely past the budget: the face went stale).
+        if let latest = data.points.last?.date,
+           previousLatest.map({ abs(latest.timeIntervalSince($0)) > 60 }) ?? true
+        {
             WidgetCenter.shared.reloadTimelines(ofKind: kind)
         }
     }

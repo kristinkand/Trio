@@ -129,9 +129,10 @@ extension Home.RootView {
                     activatedAtDate: nil,
                     timerDate: state.timerDate,
                     pumpStatusHighlightMessage: status.isSuspended
-                        ? "⚠️\n" + String(localized: "Insulin Suspended")
+                        ? "⚠️\n" + String(localized: "Insulin Suspended") + "\n⌚️"
                         : nil,
-                    battery: []
+                    battery: [],
+                    onWatch: true
                 )
             case .away:
                 PumpView(
