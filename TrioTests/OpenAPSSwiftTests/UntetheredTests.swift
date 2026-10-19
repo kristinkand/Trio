@@ -202,6 +202,15 @@ import Testing
         #expect(watch.phase == .idle)
     }
 
+    @Test("end: a hand-back offered without a pod reading is still offered after a relaunch") func handbackWithoutStatusSurvivesRelaunch() throws {
+        var (_, watch) = started()
+        _ = watch.watch(.end, now: t0 + 100)
+        _ = watch.watch(.handbackReady(nil), now: t0 + 100)
+        var relaunched = try JSONDecoder().decode(UntetheredSession.self, from: JSONEncoder().encode(watch))
+        #expect(relaunched.handbackOfferedAt != nil)
+        #expect(relaunched.watch(.tick, now: t0 + 130) == [.send(.handback(nil))])
+    }
+
     @Test("end: the temp basal the watch cancelled at its handback is kept for the phone") func handbackTempBasal() {
         var (phone, watch) = started()
         let tempBasal = UntetheredTempBasal(unitsPerHour: 2.5, endsAt: t0 + 110)

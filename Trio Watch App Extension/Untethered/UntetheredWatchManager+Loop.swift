@@ -527,7 +527,8 @@ extension UntetheredWatchManager {
             basal: current(grant.basalProfile.map { ($0.start, $0.rate) }),
             fraction: settings.fraction,
             maxBolus: grant.pumpSettings.maxBolus,
-            maxIOB: grant.preferences.maxIOB,
+            // the dosing mode's limit, as the phone's calculator reads it
+            maxIOB: grant.preferences.clamped(for: grant.dosingMode).maxIOB,
             maxCOB: grant.preferences.maxCOB,
             minPredBG: minPredBG,
             lastLoopDate: data.lastLoopDate ?? .distantPast

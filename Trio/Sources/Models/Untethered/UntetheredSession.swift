@@ -293,7 +293,9 @@ struct UntetheredSession: Codable, Equatable {
             return [.send(.handback(status))]
 
         case (.ending, .tick):
-            guard let status = handbackStatus else { return [] }
+            // offeredAt, not the status: a hand-back offered without a pod reading persists as no status at all
+            guard handbackOfferedAt != nil else { return [] }
+            let status = handbackStatus ?? nil
             if !handbackLetGo, let offered = handbackOfferedAt, now > offered.addingTimeInterval(Self.handbackAckWait) {
                 handbackLetGo = true
                 return [.releasePump, .send(.handback(status))]

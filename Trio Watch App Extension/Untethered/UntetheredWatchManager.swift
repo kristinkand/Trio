@@ -65,7 +65,7 @@ import WatchKit
             self.updateTimers()
             // a hand-back the last process left: the pump offered stays without loops; one still draining goes on
             if self.data.session.phase == .ending {
-                if self.data.session.handbackStatus == nil { self.handback() } else { self.isFinalizing = true }
+                if self.data.session.handbackOfferedAt == nil { self.handback() } else { self.isFinalizing = true }
             }
             // what the last process handed over it can no longer follow; it goes once the phone link is up
             self.requeueUnconfirmed(stream: false)

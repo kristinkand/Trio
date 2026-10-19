@@ -1095,7 +1095,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     /// After a pause in the phone's own loops, what the pod delivered and no record explains, booked and shown as an
     /// audit finding: a watch that started without the phone and then failed leaves exactly this (LoopKit/Loop#2545).
     @MainActor private func checkPodGap() async {
-        guard UntetheredGate.phoneMayDose, state.audit == nil,
+        // only a watch that may start without the phone can dose unseen
+        guard settingsManager.settings.allowUntetheredStartWithoutPhoneWatch,
+              UntetheredGate.phoneMayDose, state.audit == nil,
               let current = (apsManager.pumpManager as? PumpDeliveryOdometer)?.deliveredUnits
         else { return }
         let pod = (apsManager.pumpManager as? OmniPumpManager)?.state.podState?.activatedAt
@@ -1523,6 +1525,14 @@ extension UntetheredPhoneManager: SettingsObserver, PreferencesObserver, PumpSet
 {
     func settingsDidChange(_ settings: TrioSettings) {
         scheduleStandingGrant(settingsChanged: true)
+        // with the start without the phone off, no other controller may use the pod: the guard set for it goes
+        if !settings.allowUntetheredStartWithoutPhoneWatch, UntetheredGate.phoneMayDose {
+            DispatchQueue.main.async { [weak self] in
+                guard let control = self?.apsManager.pumpManager as? ExclusiveDeviceControl,
+                      control.refusesForeignSessionsSince != nil else { return }
+                control.refusesForeignSessionsSince = nil
+            }
+        }
         if !state.session.isIdle {
             send(.dosingModeChanged(settings.dosingMode), epoch: state.session.epoch)
         }
