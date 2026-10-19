@@ -9,10 +9,12 @@ struct TrioMainWatchView: View {
     // Pages in order: bubble, chart, the watch's own G7 reading, then untethered mode's status page, where it
     // starts from the wrist and its history opens, and while it loops, the watch's own loop status.
     private let watchSensorPage = 2
+    /// Untethered mode off on the phone: no status page, but a session still running keeps it.
+    private var showsUntethered: Bool { state.untetheredMode || untethered.isActive }
     private var statusPage: Int { watchSensorPage + 1 }
     /// The watch's own loop status, while it loops.
     private var loopPage: Int? { untethered.isActive ? statusPage + 1 : nil }
-    private var lastPage: Int { loopPage ?? statusPage }
+    private var lastPage: Int { showsUntethered ? loopPage ?? statusPage : watchSensorPage }
 
     // misc
     @State private var currentPage: Int = 0
@@ -117,7 +119,9 @@ struct TrioMainWatchView: View {
                 WatchG7View()
                     .tag(watchSensorPage)
 
-                UntetheredStatusView(manager: untethered).tag(statusPage)
+                if showsUntethered {
+                    UntetheredStatusView(manager: untethered).tag(statusPage)
+                }
                 if let loopPage {
                     UntetheredLoopStatusView(manager: untethered).tag(loopPage)
                 }
@@ -127,6 +131,9 @@ struct TrioMainWatchView: View {
             }
             // the loop page goes with the session; stay on the status page, not on none
             .onChange(of: lastPage) { _, _ in
+                if currentPage > lastPage { currentPage = lastPage }
+            }
+            .onChange(of: showsUntethered) { _, _ in
                 if currentPage > lastPage { currentPage = lastPage }
             }
             .onAppear {

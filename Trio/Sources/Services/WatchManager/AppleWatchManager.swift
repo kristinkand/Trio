@@ -662,6 +662,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         message[Self.complicationTargetKey] = NSDecimalNumber(decimal: currentGlucoseTarget).doubleValue
         message[WatchMessageKeys.allowUntetheredStartWithoutPhoneWatch] = settingsManager.settings
             .allowUntetheredStartWithoutPhoneWatch
+        message[WatchMessageKeys.untetheredModeWatch] = settingsManager.settings.untetheredModeWatch
 
         // if session is reachable, it means watch App is in the foreground -> send watchState as message
         // if session is not reachable, it means it's in background -> send watchState as userInfo
