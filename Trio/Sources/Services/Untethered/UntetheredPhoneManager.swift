@@ -683,6 +683,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     /// Untethered mode offered at all (Settings › Apple Watch).
     var isEnabled: Bool { settingsManager.settings.untetheredModeWatch }
 
+    /// The home screen is tinted while the watch has the pump (Settings › Apple Watch).
+    var tintsHomeScreen: Bool { isWatchInCharge && settingsManager.settings.untetheredTintHomeWatch }
+
     @MainActor private func preflight() throws {
         guard isEnabled else {
             throw UntetheredError.unavailable(String(localized: "Untethered mode is off in Settings › Apple Watch."))
@@ -1559,6 +1562,8 @@ extension UntetheredPhoneManager: SettingsObserver, PreferencesObserver, PumpSet
 {
     func settingsDidChange(_ settings: TrioSettings) {
         scheduleStandingGrant(settingsChanged: true)
+        // the home screen's tint reads a setting
+        DispatchQueue.main.async { self.objectWillChange.send() }
         // with the start without the phone off, no other controller may use the pod: the guard set for it goes
         if !settings.untetheredModeWatch || !settings.allowUntetheredStartWithoutPhoneWatch, UntetheredGate.phoneMayDose {
             DispatchQueue.main.async { [weak self] in

@@ -57,7 +57,8 @@ Turning the setting off deletes the copy on the watch and hides the button.
 
 - The watch's own G7 reader (Trio Watch App Extension/G7Direct) reads the sensor for display and alarms when untethered mode isn't running, and steps aside while it is: both use the sensor's single watch slot. Untethered alarms use the same thresholds as the reader (the phone's glucose alarms).
 - The watch-face graph is fed by both the reader and untethered mode.
-- Not ported yet: EJM0's Fallback Loop (the watch starting by itself when the phone's readings stop). It would compete with the reader for the sensor's watch slot.
+- EJM0 has since removed the Fallback Loop (the watch starting by itself when the phone's readings stop); it would have competed with the reader for the sensor's watch slot.
+- **Tint Home Screen While Watch Loops** (Settings › Apple Watch, on by default): while the watch has the pump, the whole home screen takes a light wash of the untethered color, not only the bar at the bottom.
 
 ## For reviewers
 

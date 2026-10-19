@@ -12,6 +12,7 @@ extension WatchConfig {
         @Published var showForecastWatch = false
         @Published var allowUntetheredStartWithoutPhoneWatch = false
         @Published var untetheredModeWatch = true
+        @Published var untetheredTintHomeWatch = true
 
         /// Garmin watch settings containing all watch-related configuration
         @Published var garminSettings = GarminWatchSettings()
@@ -30,6 +31,7 @@ extension WatchConfig {
                 allowUntetheredStartWithoutPhoneWatch = $0
             }
             subscribeSetting(\.untetheredModeWatch, on: $untetheredModeWatch) { untetheredModeWatch = $0 }
+            subscribeSetting(\.untetheredTintHomeWatch, on: $untetheredTintHomeWatch) { untetheredTintHomeWatch = $0 }
 
             devices = garmin.devices
         }
