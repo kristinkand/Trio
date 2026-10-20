@@ -100,6 +100,14 @@ struct MainChartView: View {
     /// Drives post-flick deceleration; cancelled by any new touch or data-driven scroll.
     @State private var momentumTask: Task<Void, Never>?
 
+    /// True while a finger (or two, pinching) is on the chart. Unlike `onEnded`, a `@GestureState` also resets when
+    /// the system cancels the touch: the dashboard's scroll view taking it over for a pull, a banner, the app going
+    /// inactive. Then `onEnded` never ran, and the touch state below stayed as if a finger were still down: inspect
+    /// latched, a selection showing, a pinch that never ended, until a long press on the chart ended it.
+    @GestureState private var isTouchDown = false
+    @GestureState private var isPinchDown = false
+    @Environment(\.scenePhase) private var scenePhase
+
     /// Auto-pans the chart while a scrubbing finger rests in the viewport's edge zones.
     @State private var edgePanTask: Task<Void, Never>?
 
@@ -174,6 +182,19 @@ struct MainChartView: View {
             momentumTask?.cancel()
             inspectHoldTask?.cancel()
             edgePanTask?.cancel()
+        }
+        // a touch the system cancelled ends here, as `onEnded` would have ended it
+        .onChange(of: isTouchDown) { _, down in
+            if !down { endTouch() }
+        }
+        .onChange(of: isPinchDown) { _, down in
+            if !down { endPinch() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase != .active else { return }
+            momentumTask?.cancel()
+            endTouch()
+            endPinch()
         }
         .onChange(of: scrollPosition) {
             updateRenderWindow()
@@ -504,6 +525,7 @@ extension MainChartView {
     /// ever re-lays the canvas.
     private var panAndInspectGesture: some Gesture {
         DragGesture(minimumDistance: 0)
+            .updating($isTouchDown) { _, down, _ in down = true }
             .onChanged { value in
                 momentumTask?.cancel()
                 guard !isPinching else {
@@ -565,6 +587,25 @@ extension MainChartView {
                 let velocity = -timeDelta(forTranslation: value.velocity.width)
                 startMomentum(velocitySecondsPerSecond: velocity)
             }
+    }
+
+    /// Clears what a finger on the chart leaves behind, for a touch that ended without `onEnded`. Momentum a
+    /// finished flick started is left running.
+    private func endTouch() {
+        inspectHoldTask?.cancel()
+        edgePanTask?.cancel()
+        if selection != nil { selection = nil }
+        touchDownTime = nil
+        isInspectLatched = false
+        lastTouchLocation = nil
+        panBaseline = nil
+    }
+
+    /// A pinch the system cancelled: the preview un-stretches without committing a zoom.
+    private func endPinch() {
+        guard pinchAnchor != nil else { return }
+        pinchScale = 1
+        pinchAnchor = nil
     }
 
     /// Arms the inspect hold: after `Config.inspectHoldDelay`, if the touch is still down
@@ -679,6 +720,7 @@ extension MainChartView {
     /// grid (`Config.zoomStepRatio`) to bound the number of re-layouts per pinch.
     private var magnifyGesture: some Gesture {
         MagnifyGesture(minimumScaleDelta: 0.01)
+            .updating($isPinchDown) { _, down, _ in down = true }
             .onChanged { value in
                 momentumTask?.cancel()
                 if pinchAnchor == nil {
