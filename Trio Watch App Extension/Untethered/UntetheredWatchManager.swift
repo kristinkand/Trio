@@ -35,6 +35,8 @@ import WatchKit
     @ObservationIgnored private var bolusEndTimer: Timer?
     /// When the pod link was last torn down and searched for afresh.
     @ObservationIgnored var lastPodLinkReset: Date?
+    /// When the user was last told the pod can't be reached; repeated while the stall lasts.
+    @ObservationIgnored var lastPodLinkNotice: Date?
     /// A sensor pairing is due: Trio has to be in front for its Bluetooth pairing request.
     var isPairingSensor = false
     @ObservationIgnored var pairingKeepAlive: SensorPairingKeepAlive?
