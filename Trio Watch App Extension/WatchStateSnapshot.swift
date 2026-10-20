@@ -6,6 +6,7 @@
 //
 import Foundation
 import SwiftUI
+import UIKit
 import WidgetKit
 
 enum WatchStateSnapshot {
@@ -100,7 +101,7 @@ enum ComplicationStore {
         let cutoff = Date().addingTimeInterval(-span)
         // the phone and untethered mode already colored each reading by the scheme
         var points = state.glucoseValues.filter { $0.date >= cutoff }
-            .map { TrioComplicationData.Point(date: $0.date, value: $0.glucose, color: $0.color.toHexString()) }
+            .map { TrioComplicationData.Point(date: $0.date, value: $0.glucose, color: ComplicationColor.hex($0.color)) }
         var trend = state.trend
         var delta = state.delta
         // the watch's own reader may be ahead of the phone: keep its newer readings
@@ -150,16 +151,16 @@ enum ComplicationStore {
         var shaded = range(isMmol: isMmol)
         if let old, old.isMmol == isMmol { shaded = (low: old.low, high: old.high) }
         // colored as the phone colors it: the dynamic scheme ramps between fixed ends around the target
-        let scheme = old?.colorScheme.flatMap(GlucoseColorScheme.init(rawValue:)) ?? .staticColor
+        let dynamic = old?.colorScheme == "dynamicColor"
         let toMgDL = isMmol ? 1 / mmolFactor : 1
-        let color = getDynamicGlucoseColor(
-            glucoseValue: Decimal(reading.glucose),
-            highGlucoseColorValue: scheme == .dynamicColor ? 220 : Decimal(shaded.high * toMgDL),
-            lowGlucoseColorValue: scheme == .dynamicColor ? 55 : Decimal(shaded.low * toMgDL),
-            targetGlucose: Decimal(old?.targetMgDL ?? 100),
-            glucoseColorScheme: scheme
+        let color = ComplicationColor.hex(
+            glucose: Double(reading.glucose),
+            low: dynamic ? 55 : shaded.low * toMgDL,
+            high: dynamic ? 220 : shaded.high * toMgDL,
+            target: old?.targetMgDL ?? 100,
+            dynamic: dynamic
         )
-        points.append(.init(date: reading.date, value: value, color: color.toHexString()))
+        points.append(.init(date: reading.date, value: value, color: color))
         save(
             TrioComplicationData(
                 points: points,
@@ -173,5 +174,34 @@ enum ComplicationStore {
             ),
             previousLatest: old?.points.last?.date
         )
+    }
+}
+
+/// The phone's glucose coloring (`getDynamicGlucoseColor` in Trio/Sources/Helpers/DynamicGlucoseColor.swift), which
+/// the watch target doesn't build: a hue from red at the low end through green at the target to purple at the high
+/// end, or with the static scheme the three fixed colors of the same gradient. All values in mg/dL.
+enum ComplicationColor {
+    static func hex(glucose: Double, low: Double, high: Double, target: Double, dynamic: Bool) -> String {
+        let red = 0.0, green = 120.0 / 360.0, purple = 270.0 / 360.0
+        let hue: Double
+        if glucose <= low {
+            hue = red
+        } else if glucose >= high {
+            hue = purple
+        } else if !dynamic {
+            hue = green
+        } else if glucose <= target {
+            hue = target > low ? red + (glucose - low) / (target - low) * (green - red) : green
+        } else {
+            hue = high > target ? green + (glucose - target) / (high - target) * (purple - green) : green
+        }
+        return hex(Color(hue: hue, saturation: 0.6, brightness: 0.9))
+    }
+
+    /// "#RRGGBB", as the phone's `Color.toHexString`.
+    static func hex(_ color: Color) -> String {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return String(format: "#%02X%02X%02X", Int(red * 255), Int(green * 255), Int(blue * 255))
     }
 }
