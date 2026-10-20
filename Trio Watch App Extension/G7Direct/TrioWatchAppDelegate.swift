@@ -88,6 +88,8 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
                 }
                 WatchG7Reader.shared.noteWake()
                 WatchG7Reader.shared.scheduleBackgroundRefresh()
+                // the session's own wake, after the reader's: one refresh is pending at a time
+                UntetheredWatchManager.shared.scheduleSessionRefresh()
                 // A few seconds for the re-check to lodge its request before suspending.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                     refreshTask.setTaskCompletedWithSnapshot(false)
