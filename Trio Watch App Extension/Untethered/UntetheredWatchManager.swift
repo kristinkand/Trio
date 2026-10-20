@@ -35,6 +35,9 @@ import WatchKit
     @ObservationIgnored private var bolusEndTimer: Timer?
     /// When the pod link was last torn down and searched for afresh.
     @ObservationIgnored var lastPodLinkReset: Date?
+    /// A sensor pairing is due: Trio has to be in front for its Bluetooth pairing request.
+    var isPairingSensor = false
+    @ObservationIgnored var pairingKeepAlive: SensorPairingKeepAlive?
 
     /// Records travel in batches small enough for an interactive message.
     private static let recordsPerMessage = 40
@@ -568,6 +571,7 @@ import WatchKit
                   let cgm = type.init(adopting: configuration, localState: localState(for: configuration.managerIdentifier))
         {
             Task { await WatchLogger.shared.log("⌚️ Untethered: new sensor, pairing the watch afresh", force: true) }
+            sensorPairingDue()
             store.update {
                 $0.cgmBuiltFrom = Self.plist(configuration.state)
                 $0.pendingPumpAlerts.removeAll { $0.managerIdentifier == cgm.pluginIdentifier }
@@ -580,6 +584,7 @@ import WatchKit
 
     /// The watch stops connecting; its saved state stays for the next session.
     private func stopCGM() {
+        sensorPairingDone()
         guard let cgm = cgmManager else { return }
         saveCGMState()
         cgm.cgmManagerDelegate = nil
