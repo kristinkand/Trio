@@ -5,6 +5,10 @@ import WatchConnectivity
 /// WatchState manages the communication between the Watch app and the iPhone app using WatchConnectivity.
 /// It handles glucose data synchronization and sending treatment requests (bolus, carbs) to the phone.
 @Observable final class WatchState: NSObject, WCSessionDelegate {
+    /// The one instance the screens and the watch's own G7 reader share, so readings the watch takes itself
+    /// reach the same screens as the phone's.
+    static let shared = WatchState()
+
     // MARK: - Properties
 
     /// The WatchConnectivity session instance used for communication
@@ -583,6 +587,19 @@ import WatchConnectivity
             forecastConeMin = forecastPayload[WatchMessageKeys.forecastConeMin] as? [Double] ?? []
             forecastConeMax = forecastPayload[WatchMessageKeys.forecastConeMax] as? [Double] ?? []
             forecastLines = forecastPayload[WatchMessageKeys.forecastLines] as? [String: [Double]] ?? [:]
+        }
+
+        // Sensor details, alarm thresholds and units for the watch's own G7 reading.
+        WatchG7Reader.shared.updateFromPhone(message)
+        // after the reader took the units and alert thresholds from the same message
+        if message[WatchMessageKeys.glucoseValues] != nil {
+            ComplicationStore.update(
+                from: self,
+                lowMgDL: message["complicationRangeLowMgDL"] as? Double,
+                highMgDL: message["complicationRangeHighMgDL"] as? Double,
+                colorScheme: message["complicationColorScheme"] as? String,
+                targetMgDL: message["complicationTargetMgDL"] as? Double
+            )
         }
     }
 }

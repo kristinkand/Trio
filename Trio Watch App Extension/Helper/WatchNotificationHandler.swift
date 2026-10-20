@@ -28,6 +28,21 @@ final class WatchNotificationHandler: NSObject, UNUserNotificationCenterDelegate
         }
     }
 
+    /// Shows the watch's own G7 reader alerts (raised while the iPhone is out of reach) even when Trio is open on the
+    /// wrist. Everything else keeps the system's default handling.
+    func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        let id = notification.request.identifier
+        if id.hasPrefix(WatchG7Reader.notificationIdentifierPrefix) {
+            completionHandler([.banner, .list, .sound])
+        } else {
+            completionHandler([])
+        }
+    }
+
     /// UNUserNotificationCenterDelegate method called when user interacts with a notification on watch.
     /// This can be called off the main thread. WCSession.transferUserInfo is thread-safe.
     func userNotificationCenter(

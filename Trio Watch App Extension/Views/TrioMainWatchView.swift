@@ -3,7 +3,10 @@ import SwiftUI
 import WatchKit
 
 struct TrioMainWatchView: View {
-    @State private var state = WatchState()
+    @State private var state = WatchState.shared
+
+    /// Pages in order: bubble, chart, the watch's own G7 reading.
+    private let watchSensorPage = 2
 
     // misc
     @State private var currentPage: Int = 0
@@ -64,11 +67,16 @@ struct TrioMainWatchView: View {
             TabView(selection: $currentPage) {
                 // Page 1: Current glucose trend in "BG bobble"
                 ZStack {
-                    GlucoseTrendView(
-                        state: state,
-                        rotationDegrees: rotationDegrees,
-                        isWatchStateDated: isWatchStateDated || isSessionUnreachable
-                    )
+                    // Re-evaluated every 15 s: "stale" and "the watch has a newer
+                    // reading" depend on the clock, not only on new data, so the
+                    // bubble switches as soon as the phone's data ages out.
+                    TimelineView(.periodic(from: .now, by: 15)) { _ in
+                        GlucoseTrendView(
+                            state: state,
+                            rotationDegrees: rotationDegrees,
+                            isWatchStateDated: isWatchStateDated || isSessionUnreachable
+                        )
+                    }
 
                     if state.showSyncingAnimation {
                         Image(systemName: "iphone.radiowaves.left.and.right")
@@ -93,6 +101,10 @@ struct TrioMainWatchView: View {
                     glucoseValues: state.glucoseValues
                 )
                 .tag(1)
+
+                // Page 3: the watch reading the G7 itself
+                WatchG7View()
+                    .tag(watchSensorPage)
             }
             .onAppear {
                 /// Hard reset variables when main view appears
@@ -102,7 +114,7 @@ struct TrioMainWatchView: View {
             }
             .background(trioBackgroundColor)
             .tabViewStyle(.verticalPage)
-            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: 1, by: 1)
+            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: Double(watchSensorPage), by: 1)
             .onChange(of: state.trend) { _, newTrend in
                 withAnimation {
                     updateRotation(for: newTrend)
