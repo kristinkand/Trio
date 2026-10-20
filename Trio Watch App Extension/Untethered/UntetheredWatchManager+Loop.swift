@@ -1210,11 +1210,19 @@ extension UntetheredWatchManager {
         Task { await WatchLogger.shared.log("⌚️ Untethered alarm: \(title) \(body)", force: true) }
     }
 
+    /// The alarms that mean nobody is looping or the user is in danger: critical with Settings › Notifications ›
+    /// Critical Alerts on, so they get through Silent Mode and Focus on the wrist without the phone too.
+    static let criticalAlarmIDs: Set<String> = [
+        notificationPrefix + "urgentLow", notLoopingID, noReadingsID, podLinkID
+    ]
+
     func notify(id: String, title: String, body: String, after delay: TimeInterval? = nil) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = .default
+        let critical = Self.criticalAlarmIDs.contains(id)
+            && UserDefaults.standard.bool(forKey: WatchMessageKeys.useCriticalAlertsWatch)
+        content.sound = critical ? .defaultCritical : .default
         // not time-sensitive: the watch app has no entitlement for it; plain, as the reader's alerts that do arrive
         let trigger = delay.flatMap { $0 > 0 ? UNTimeIntervalNotificationTrigger(timeInterval: $0, repeats: false) : nil }
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)

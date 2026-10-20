@@ -70,6 +70,8 @@ enum WatchMessageKeys {
     static let untetheredWake = "untetheredWake"
     /// Settings › Apple Watch › Allow Start Without iPhone, with every watch state.
     static let allowUntetheredStartWithoutPhoneWatch = "allowUntetheredStartWithoutPhoneWatch"
+    /// Settings › Notifications › Critical Alerts, with every watch state: the watch's own safety alarms follow it.
+    static let useCriticalAlertsWatch = "useCriticalAlertsWatch"
 
     // Forecast
     static let showForecastWatch = "showForecastWatch"

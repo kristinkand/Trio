@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UserNotifications
 import WatchConnectivity
 
 /// WatchState manages the communication between the Watch app and the iPhone app using WatchConnectivity.
@@ -80,6 +81,20 @@ import WatchConnectivity
     {
         didSet {
             UserDefaults.standard.set(allowUntetheredStartWithoutPhone, forKey: WatchMessageKeys.allowUntetheredStartWithoutPhoneWatch)
+        }
+    }
+
+    /// Settings › Notifications › Critical Alerts, as the phone last sent it; kept, so the watch's alarms follow it
+    /// while the phone is away. Turning it on asks watchOS for critical alerts, which only a build carrying the
+    /// critical-alerts entitlement is granted; without it the alarms stay ordinary notifications.
+    var useCriticalAlerts: Bool = UserDefaults.standard.bool(forKey: WatchMessageKeys.useCriticalAlertsWatch) {
+        didSet {
+            UserDefaults.standard.set(useCriticalAlerts, forKey: WatchMessageKeys.useCriticalAlertsWatch)
+            if useCriticalAlerts {
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .criticalAlert]) { granted, _ in
+                    Task { await WatchLogger.shared.log("⌚️ Critical alerts on: watch notifications allowed=\(granted)", force: true) }
+                }
+            }
         }
     }
 
@@ -661,6 +676,10 @@ import WatchConnectivity
 
         if let mode = message[WatchMessageKeys.untetheredModeWatch] as? Bool, mode != untetheredMode {
             untetheredMode = mode
+        }
+
+        if let critical = message[WatchMessageKeys.useCriticalAlertsWatch] as? Bool, critical != useCriticalAlerts {
+            useCriticalAlerts = critical
         }
 
         if let allow = message[WatchMessageKeys.allowUntetheredStartWithoutPhoneWatch] as? Bool {
