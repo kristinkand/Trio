@@ -482,6 +482,25 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
     }
 
+    /// Carb entries (without fat and protein equivalents) and boluses of the last 24 hours, for the watch chart.
+    private func chartTreatments() async -> (carbs: [TimeInterval], boluses: [[String: Any]]) {
+        let context = CoreDataStack.shared.newTaskContext()
+        context.name = "watchChartTreatments"
+        let since = Date.oneDayAgo
+        return await context.perform {
+            let carbRequest = NSFetchRequest<CarbEntryStored>(entityName: "CarbEntryStored")
+            carbRequest.predicate = NSPredicate.carbsForChart(since: since)
+            let carbs = ((try? context.fetch(carbRequest)) ?? []).compactMap { $0.date?.timeIntervalSince1970 }
+            let bolusRequest = NSFetchRequest<PumpEventStored>(entityName: "PumpEventStored")
+            bolusRequest.predicate = NSPredicate(format: "timestamp >= %@ AND bolus != nil", since as NSDate)
+            let boluses: [[String: Any]] = ((try? context.fetch(bolusRequest)) ?? []).compactMap { event in
+                guard let date = event.timestamp, let bolus = event.bolus else { return nil }
+                return ["date": date.timeIntervalSince1970, "smb": bolus.isSMB]
+            }
+            return (carbs, boluses)
+        }
+    }
+
     /// Fetches last pump event that is a non-external bolus from CoreData
     /// - Returns: NSManagedObjectIDs for last bolus
     func fetchLastBolus() async throws -> NSManagedObjectID? {
@@ -665,6 +684,10 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         message[WatchMessageKeys.untetheredModeWatch] = settingsManager.settings.untetheredModeWatch
         message[WatchMessageKeys.useCriticalAlertsWatch] = settingsManager.settings.useCriticalAlerts
         message[WatchMessageKeys.phoneAppVersion] = UntetheredVersion.current
+        // carbs and boluses as markers on the watch chart: times only, the values would crowd a watch screen
+        let treatments = await chartTreatments()
+        message[WatchMessageKeys.chartCarbs] = treatments.carbs
+        message[WatchMessageKeys.chartBoluses] = treatments.boluses
 
         // if session is reachable, it means watch App is in the foreground -> send watchState as message
         // if session is not reachable, it means it's in background -> send watchState as userInfo
