@@ -60,6 +60,9 @@ import WatchConnectivity
 
     // chart lines and markers
     /// The phone's low and high glucose and current target, in mg/dL.
+    /// The current glucose is the watch's own reading (untethered mode), not the phone's.
+    var currentGlucoseIsWatchOwn = false
+
     /// Kept, so the lines and the time-in-range bar stay while the phone is away and after a relaunch.
     var chartLowMgDL: Double? = UserDefaults.standard.object(forKey: "chartLowMgDL") as? Double {
         didSet { UserDefaults.standard.set(chartLowMgDL, forKey: "chartLowMgDL") }
