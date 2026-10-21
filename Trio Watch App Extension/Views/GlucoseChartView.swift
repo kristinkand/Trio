@@ -209,7 +209,9 @@ struct GlucoseChartView: View {
 
     private var yAxisDomain: ClosedRange<Double> {
         guard let bounds = yAxisBounds else { return 0 ... 1 }
-        let padding = max((bounds.max - bounds.min) * 0.20, 10)
+        // as on the watch face: 0.5 mmol/L or 10 mg/dL past the readings and lines; the fixed 10 was mg/dL
+        // only, and in mmol/L left the readings squeezed into a band in the middle
+        let padding = WatchG7Reader.shared.isMmol ? 0.5 : 10
         return (bounds.min - padding) ... (bounds.max + padding)
     }
 
