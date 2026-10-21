@@ -58,16 +58,17 @@ struct GlucoseChartView: View {
     @State private var timeWindow: TimeWindow = .oneHour
     /// Scrubbing back in time with the Digital Crown, in five-minute steps; tap the chart to start and to stop.
     /// As LoopFollow's watch app does it (nightscout/LoopFollow PR 785, AGPL-3.0).
-    @State private var isScrubbing = false
-    @State private var scrubSteps = 0.0
-    @FocusState private var crownFocused: Bool
+    /// Owned by the main view, which owns the crown: one crown binding that scrubs here and turns pages
+    /// otherwise, so nothing has to hand the crown back after scrubbing.
+    @Binding var isScrubbing: Bool
+    @Binding var scrubSteps: Double
 
-    private var scrubOffset: TimeInterval { isScrubbing ? scrubSteps * 300 : 0 }
+    private var scrubOffset: TimeInterval { isScrubbing ? max(0, scrubSteps) * 300 : 0 }
 
     /// Back to the oldest reading the phone sent (24 hours).
-    private var maxScrubSteps: Double {
-        guard let oldest = glucoseValues.first?.date else { return 0 }
-        return max(0, (Date().timeIntervalSince(oldest) / 300).rounded(.down))
+    static func maxScrubSteps(_ glucoseValues: [(date: Date, glucose: Double, color: Color)]) -> Double {
+        guard let oldest = glucoseValues.first?.date else { return 1 }
+        return max(1, (Date().timeIntervalSince(oldest) / 300).rounded(.down))
     }
 
     /// The time the scrub line points at: where "now" sits when not scrubbing.
@@ -354,24 +355,8 @@ struct GlucoseChartView: View {
             }
         }
         .onTapGesture {
+            scrubSteps = 0
             isScrubbing.toggle()
-            scrubSteps = 0
-            crownFocused = isScrubbing
-        }
-        .focusable(isScrubbing)
-        .focused($crownFocused)
-        .digitalCrownRotation(
-            $scrubSteps,
-            from: 0,
-            through: max(maxScrubSteps, 1),
-            by: 1,
-            sensitivity: .medium,
-            isContinuous: false,
-            isHapticFeedbackEnabled: true
-        )
-        .onDisappear {
-            isScrubbing = false
-            scrubSteps = 0
         }
     }
 
@@ -391,6 +376,10 @@ struct GlucoseChartView: View {
     @ViewBuilder private var timeInRangeBar: some View {
         if let tir = timeInRange {
             VStack(spacing: 1) {
+                Text("Last 24 h", comment: "Watch chart: span of the time-in-range bar")
+                    .font(.system(size: 11, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 GeometryReader { geometry in
                     HStack(spacing: 1) {
                         ForEach(
