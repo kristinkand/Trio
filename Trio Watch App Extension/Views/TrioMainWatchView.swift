@@ -153,13 +153,8 @@ struct TrioMainWatchView: View {
             }
             .background(trioBackgroundColor)
             .tabViewStyle(.verticalPage)
-            .modifier(ChartScrubCrown(
-                isScrubbing: $isScrubbingChart,
-                scrubSteps: $chartScrubSteps,
-                currentPage: $currentPage,
-                lastPage: lastPage,
-                maxSteps: GlucoseChartView.maxScrubSteps(state.glucoseValues)
-            ))
+            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: Double(lastPage), by: 1)
+            .modifier(ChartScrubEnd(isScrubbing: $isScrubbingChart, scrubSteps: $chartScrubSteps, currentPage: currentPage))
             .onChange(of: state.trend) { _, newTrend in
                 withAnimation {
                     updateRotation(for: newTrend)
@@ -340,28 +335,15 @@ struct TrioMainWatchView: View {
     TrioMainWatchView()
 }
 
-/// The crown turns pages, or scrubs the chart while scrubbing is on: one binding, so the crown is never left with
-/// a view that no longer wants it. Scrubbing ends with a tap on the chart, by turning the crown back past now, after
-/// 10 seconds without a turn, or on leaving the chart page; the next turn then pages again.
-struct ChartScrubCrown: ViewModifier {
+/// Ends the chart's scrubbing (GlucoseChartView), which then hands the crown back to the pages: by turning the
+/// crown back past now, after 10 seconds without a turn, or on leaving the chart page. A tap on the chart ends it too.
+struct ChartScrubEnd: ViewModifier {
     @Binding var isScrubbing: Bool
     @Binding var scrubSteps: Double
-    @Binding var currentPage: Int
-    let lastPage: Int
-    let maxSteps: Double
+    let currentPage: Int
 
     func body(content: Content) -> some View {
         content
-            .digitalCrownRotation(
-                isScrubbing ? $scrubSteps : $currentPage.doubleBinding(),
-                // one step below now ends scrubbing
-                from: isScrubbing ? -1 : 0,
-                through: isScrubbing ? maxSteps : Double(lastPage),
-                by: 1,
-                sensitivity: .medium,
-                isContinuous: false,
-                isHapticFeedbackEnabled: true
-            )
             .onChange(of: scrubSteps) { _, steps in
                 if isScrubbing, steps < 0 { stop() }
             }
