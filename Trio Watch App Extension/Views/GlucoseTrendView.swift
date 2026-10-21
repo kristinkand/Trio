@@ -13,6 +13,12 @@ struct GlucoseTrendView: View {
         reader.readingToShow(phoneDataIsDated: isWatchStateDated)
     }
 
+    /// The value shown is one the watch read from the sensor itself (its reader, or untethered mode),
+    /// not the phone's.
+    private var readingIsWatchOwn: Bool {
+        directReading != nil || state.currentGlucoseIsWatchOwn
+    }
+
     private var showsGlucose: Bool {
         !isWatchStateDated || directReading != nil
     }
@@ -210,6 +216,14 @@ struct GlucoseTrendView: View {
                             .fontWeight(.semibold)
                             .font(.system(.caption))
                             .foregroundStyle(.secondary)
+                    }
+
+                    // where the reading comes from
+                    if showsGlucose {
+                        Image(systemName: readingIsWatchOwn ? "applewatch" : "iphone")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel(readingIsWatchOwn ? "Reading from the watch" : "Reading from the iPhone")
                     }
                 }
             }
