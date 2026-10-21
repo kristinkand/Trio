@@ -136,8 +136,7 @@ extension Home.StateModel {
 
     private static let extendedStatsPanelRefreshInterval: TimeInterval = 5 * 60
 
-    /// Also the watch's copy of the panel (AppleWatchManager.watchStatsPanel).
-    static func computeStatsPanelStats(
+    private static func computeStatsPanelStats(
         range: HomeStatsPanelRange,
         timeInRangeType: TimeInRangeType
     ) async throws -> HomeStatsPanelStats {
