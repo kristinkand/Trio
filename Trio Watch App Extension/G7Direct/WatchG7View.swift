@@ -31,7 +31,7 @@ struct WatchG7View: View {
                     Button {
                         showDetails = true
                     } label: {
-                        Text("Details", comment: "Button: open the watch sensor details and log")
+                        Text("Log", comment: "Button: open the watch sensor details and log")
                             .font(.footnote)
                     }
                 } else if reader.isEnabled {
@@ -46,7 +46,7 @@ struct WatchG7View: View {
                     Button {
                         showDetails = true
                     } label: {
-                        Text("Details", comment: "Button: open the watch sensor details and log")
+                        Text("Log", comment: "Button: open the watch sensor details and log")
                             .font(.footnote)
                     }
                 } else {
@@ -97,6 +97,20 @@ struct WatchG7DetailsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 6) {
+                // to Messages or Mail, for whoever helps with testing
+                ShareLink(
+                    item: shareText,
+                    subject: Text("Trio watch sensor log"),
+                    preview: SharePreview("Trio watch sensor log")
+                ) {
+                    Label {
+                        Text("Share log", comment: "Button: share the watch sensor log")
+                    } icon: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .font(.footnote)
+                }
+
                 VStack(alignment: .leading, spacing: 2) {
                     row(String(localized: "Sensor", comment: "Watch sensor details label"), reader.sensorName ?? "–")
                     row(String(localized: "Code", comment: "Watch sensor details label: pairing code received"), reader.pairingCode == nil ? "–" : "✓")
@@ -153,6 +167,22 @@ struct WatchG7DetailsView: View {
                 Text("Pair again", comment: "Confirm resetting the watch's sensor pairing")
             }
         }
+    }
+
+    /// The details above the log, then the whole log (up to 200 lines), oldest first.
+    private var shareText: String {
+        let coverage = reader.recentCoverage
+        let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")
+            + " (" + (Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?") + ")"
+        let header = [
+            "Trio watch sensor log, \(Date().formatted(date: .abbreviated, time: .shortened))",
+            "Trio \(version)",
+            "Sensor: \(reader.sensorName ?? "–")",
+            "Paired: \(reader.hasWatchKey ? "yes" : "no") · connected: \(reader.isConnected ? "yes" : "no")",
+            "Last 2 h: \(coverage.count)/\(coverage.expected) readings, longest gap \(coverage.longestGapMinutes) min",
+            "Units: \(reader.units)"
+        ]
+        return (header + [""] + reader.logLines).joined(separator: "\n")
     }
 
     private func row(_ label: String, _ value: String) -> some View {

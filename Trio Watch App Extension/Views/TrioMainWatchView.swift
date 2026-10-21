@@ -158,6 +158,7 @@ struct TrioMainWatchView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     VStack {
                         Image(systemName: "syringe.fill")
+                            .font(.system(size: 15))
                             .foregroundStyle(Color.insulin)
 
                         Text(isPhoneDataUnusable ? "--" : state.iob ?? "--")
@@ -170,6 +171,7 @@ struct TrioMainWatchView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     VStack {
                         Image(systemName: "fork.knife")
+                            .font(.system(size: 15))
                             .foregroundStyle(Color.orange)
 
                         Text(isPhoneDataUnusable ? "--" : state.cob ?? "--")
@@ -180,8 +182,8 @@ struct TrioMainWatchView: View {
                 }
 
                 ToolbarItemGroup(placement: .bottomBar) {
-                    if currentPage != statusPage, currentPage != loopPage {
-                        // the status and loop pages have no treatment controls
+                    if currentPage == 0 {
+                        // treatments, overrides and temp targets on the first page only; the chart gets the room
                         Button {
                             showingOverrideSheet = true
                         } label: {
