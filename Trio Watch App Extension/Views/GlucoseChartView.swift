@@ -1,6 +1,7 @@
 import Charts
 import Foundation
 import SwiftUI
+import WatchKit
 
 struct WatchTreatmentMarker: Identifiable {
     enum Kind { case bolus, smb, carbs }
@@ -62,6 +63,9 @@ struct GlucoseChartView: View {
     /// otherwise, so nothing has to hand the crown back after scrubbing.
     @Binding var isScrubbing: Bool
     @Binding var scrubSteps: Double
+    /// The chart takes the crown by focus while scrubbing (the vertical pages take it otherwise, by themselves)
+    /// and gives it back when scrubbing ends.
+    @FocusState private var crownFocused: Bool
 
     private var scrubOffset: TimeInterval { isScrubbing ? max(0, scrubSteps) * 300 : 0 }
 
@@ -353,6 +357,28 @@ struct GlucoseChartView: View {
         .onTapGesture {
             scrubSteps = 0
             isScrubbing.toggle()
+        }
+        .focusable(isScrubbing)
+        .focused($crownFocused)
+        .digitalCrownRotation(
+            $scrubSteps,
+            // one step below now ends scrubbing
+            from: -1,
+            through: Self.maxScrubSteps(glucoseValues),
+            by: 1,
+            sensitivity: .medium,
+            isContinuous: false,
+            isHapticFeedbackEnabled: true
+        )
+        // focus follows scrubbing both ways, also when the main view ends it (timeout, past now, page change)
+        .onChange(of: isScrubbing) { _, scrubbing in
+            if scrubbing {
+                // once the chart is focusable, on the next pass
+                DispatchQueue.main.async { crownFocused = true }
+                WKInterfaceDevice.current().play(.click)
+            } else {
+                crownFocused = false
+            }
         }
     }
 
