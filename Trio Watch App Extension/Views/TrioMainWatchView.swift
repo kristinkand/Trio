@@ -10,6 +10,9 @@ struct TrioMainWatchView: View {
 
     // misc
     @State private var currentPage: Int = 0
+    /// Scrubbing the chart with the crown (see GlucoseChartView).
+    @State private var isScrubbingChart = false
+    @State private var chartScrubSteps = 0.0
     @State private var rotationDegrees: Double = 0.0
     @State private var showingTempTargetSheet = false
 
@@ -98,7 +101,9 @@ struct TrioMainWatchView: View {
                 // Page 2: Glucose chart
                 GlucoseChartView(
                     state: state,
-                    glucoseValues: state.glucoseValues
+                    glucoseValues: state.glucoseValues,
+                    isScrubbing: $isScrubbingChart,
+                    scrubSteps: $chartScrubSteps
                 )
                 .tag(1)
 
@@ -114,7 +119,13 @@ struct TrioMainWatchView: View {
             }
             .background(trioBackgroundColor)
             .tabViewStyle(.verticalPage)
-            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: Double(watchSensorPage), by: 1)
+            .modifier(ChartScrubCrown(
+                isScrubbing: $isScrubbingChart,
+                scrubSteps: $chartScrubSteps,
+                currentPage: $currentPage,
+                lastPage: watchSensorPage,
+                maxSteps: GlucoseChartView.maxScrubSteps(state.glucoseValues)
+            ))
             .onChange(of: state.trend) { _, newTrend in
                 withAnimation {
                     updateRotation(for: newTrend)
@@ -285,4 +296,46 @@ struct TrioMainWatchView: View {
 
 #Preview {
     TrioMainWatchView()
+}
+
+/// The crown turns pages, or scrubs the chart while scrubbing is on: one binding, so the crown is never left with
+/// a view that no longer wants it. Scrubbing ends with a tap on the chart, by turning the crown back past now, after
+/// 10 seconds without a turn, or on leaving the chart page; the next turn then pages again.
+struct ChartScrubCrown: ViewModifier {
+    @Binding var isScrubbing: Bool
+    @Binding var scrubSteps: Double
+    @Binding var currentPage: Int
+    let lastPage: Int
+    let maxSteps: Double
+
+    func body(content: Content) -> some View {
+        content
+            .digitalCrownRotation(
+                isScrubbing ? $scrubSteps : $currentPage.doubleBinding(),
+                // one step below now ends scrubbing
+                from: isScrubbing ? -1 : 0,
+                through: isScrubbing ? maxSteps : Double(lastPage),
+                by: 1,
+                sensitivity: .medium,
+                isContinuous: false,
+                isHapticFeedbackEnabled: true
+            )
+            .onChange(of: scrubSteps) { _, steps in
+                if isScrubbing, steps < 0 { stop() }
+            }
+            .onChange(of: currentPage) { _, page in
+                if page != 1, isScrubbing { stop() }
+            }
+            // restarts with every turn; 10 s still ends it
+            .task(id: isScrubbing ? scrubSteps : -2) {
+                guard isScrubbing else { return }
+                try? await Task.sleep(for: .seconds(10))
+                if !Task.isCancelled, isScrubbing { stop() }
+            }
+    }
+
+    private func stop() {
+        withAnimation { isScrubbing = false }
+        scrubSteps = 0
+    }
 }
