@@ -664,6 +664,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             .allowUntetheredStartWithoutPhoneWatch
         message[WatchMessageKeys.untetheredModeWatch] = settingsManager.settings.untetheredModeWatch
         message[WatchMessageKeys.useCriticalAlertsWatch] = settingsManager.settings.useCriticalAlerts
+        message[WatchMessageKeys.phoneAppVersion] = UntetheredVersion.current
 
         // if session is reachable, it means watch App is in the foreground -> send watchState as message
         // if session is not reachable, it means it's in background -> send watchState as userInfo
