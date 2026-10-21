@@ -371,65 +371,52 @@ struct GlucoseChartView: View {
         }
     }
 
-    /// The phone's home stats panel under the chart, in the face the phone shows: time in range with its bar,
-    /// the bar alone, or the averages; nothing when it is hidden there.
+    /// Below, in range and above the low and high lines over the last 24 hours, in percent of the readings.
+    private var timeInRange: (low: Double, inRange: Double, high: Double)? {
+        guard let low = lowLine, let high = highLine else { return nil }
+        let dayAgo = Date().addingTimeInterval(-24 * 3600)
+        let values = glucoseValues.filter { $0.date >= dayAgo }.map(\.glucose)
+        guard !values.isEmpty else { return nil }
+        let count = Double(values.count)
+        let below = Double(values.filter { $0 < low }.count) / count * 100
+        let above = Double(values.filter { $0 > high }.count) / count * 100
+        return (below, 100 - below - above, above)
+    }
+
+    /// The time-in-range bar: low red, in range green, high yellow, with the percentages under it.
     @ViewBuilder private var timeInRangeBar: some View {
-        if let panel = state.statsPanel, !panel.isHidden {
-            VStack(alignment: .leading, spacing: 2) {
-                switch panel.face {
-                case "averages":
-                    Text("Avg \(panel.average ?? "--") · GMI \(panel.gmi ?? "--")")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    caption(panel.averageSubtitle ?? "", panel: panel)
-                case "distributionBar":
-                    distributionBar(panel)
-                    caption(String(localized: "Time in Range") + " " + (panel.scope ?? ""), panel: panel)
-                default:
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(panel.inRange.map(percent) ?? "-- %")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                        caption(String(localized: "in range") + " " + (panel.scope ?? ""), panel: panel)
+        if let tir = timeInRange {
+            VStack(spacing: 1) {
+                GeometryReader { geometry in
+                    HStack(spacing: 1) {
+                        ForEach(
+                            [
+                                RangeShare(id: "low", share: tir.low, color: .loopRed),
+                                RangeShare(id: "inRange", share: tir.inRange, color: .loopGreen),
+                                RangeShare(id: "high", share: tir.high, color: .loopYellow)
+                            ].filter { $0.share > 0 }
+                        ) { part in
+                            Rectangle()
+                                .fill(part.color)
+                                .frame(width: max(2, (geometry.size.width - 2) * part.share / 100))
+                        }
                     }
-                    distributionBar(panel)
+                    .clipShape(Capsule())
                 }
-            }
-            .monospacedDigit()
-        }
-    }
-
-    /// Very low red, low orange, in range green, high purple, as the phone's bar.
-    private func distributionBar(_ panel: WatchStatsPanel) -> some View {
-        let parts = panel.hasData ? [
-            RangeShare(id: "veryLow", share: panel.veryLow ?? 0, color: .red),
-            RangeShare(id: "low", share: panel.low ?? 0, color: .orange),
-            RangeShare(id: "inRange", share: panel.inRange ?? 0, color: .loopGreen),
-            RangeShare(id: "high", share: panel.high ?? 0, color: .purple)
-        ].filter { $0.share > 0.5 } : [RangeShare(id: "none", share: 100, color: Color.secondary.opacity(0.3))]
-        return GeometryReader { geometry in
-            let spacing: CGFloat = 2
-            let available = max(geometry.size.width - spacing * CGFloat(max(parts.count - 1, 0)), 0)
-            let total = max(parts.map(\.share).reduce(0, +), 1)
-            HStack(spacing: spacing) {
-                ForEach(parts) { part in
-                    Capsule()
-                        .fill(part.color)
-                        .frame(width: available * part.share / total)
+                .frame(height: 5)
+                HStack {
+                    Text(percent(tir.low)).foregroundStyle(Color.loopRed)
+                    Spacer()
+                    Text("\(percent(tir.inRange)) in range").foregroundStyle(Color.loopGreen)
+                    Spacer()
+                    Text(percent(tir.high)).foregroundStyle(Color.loopYellow)
                 }
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .monospacedDigit()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Last 24 hours: \(percent(tir.inRange)) in range, \(percent(tir.low)) low, \(percent(tir.high)) high")
         }
-        .frame(height: 5)
-    }
-
-    /// The span, and the time the phone computed it when that is more than 15 minutes ago.
-    private func caption(_ text: String, panel: WatchStatsPanel) -> some View {
-        let old = Date().timeIntervalSince(panel.date) > 15 * 60
-        return Text(old ? "\(text) · \(panel.date.formatted(date: .omitted, time: .shortened))" : text)
-            .font(.system(size: 11, design: .rounded))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
     }
 
     private struct RangeShare: Identifiable {
@@ -439,7 +426,7 @@ struct GlucoseChartView: View {
     }
 
     private func percent(_ value: Double) -> String {
-        value.formatted(.number.precision(.fractionLength(0 ... 1))) + " %"
+        "\(Int(value.rounded())) %"
     }
 
     /// Time and glucose at the scrub line.

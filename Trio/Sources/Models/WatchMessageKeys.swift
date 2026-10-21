@@ -6,8 +6,6 @@ enum WatchMessageKeys {
     static let chartCarbs = "chartCarbs"
     /// Boluses of the last 24 hours: `["date": seconds since 1970, "smb": Bool]`, for the watch chart's markers.
     static let chartBoluses = "chartBoluses"
-    /// The home screen's stats panel as the phone shows it: face, span and figures (see AppleWatchManager.watchStatsPanel).
-    static let statsPanel = "statsPanel"
     static let requestWatchUpdate = "requestWatchUpdate"
     static let watchState = "watchState"
     static let acknowledged = "acknowledged"
