@@ -98,6 +98,8 @@ import WatchKit
     func refresh() {
         data = store.data
         updateReaderStandAside()
+        // the first page marks the reading as the watch's own while this mode reads the sensor
+        if WatchState.shared.currentGlucoseIsWatchOwn != isActive { WatchState.shared.currentGlucoseIsWatchOwn = isActive }
         if isActive {
             publishToWatchState()
         } else if !WatchState.shared.treatmentMarkers.isEmpty {
