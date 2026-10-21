@@ -106,6 +106,13 @@ import WatchConnectivity
 
     // chart lines and markers
     /// The phone's low and high glucose and current target, in mg/dL.
+    /// The phone's home stats panel, kept, so it stays while the phone is away (with its time).
+    var statsPanel: WatchStatsPanel? = UserDefaults.standard.data(forKey: "statsPanel")
+        .flatMap { try? JSONDecoder().decode(WatchStatsPanel.self, from: $0) }
+    {
+        didSet { UserDefaults.standard.set(try? JSONEncoder().encode(statsPanel), forKey: "statsPanel") }
+    }
+
     /// The current glucose is the watch's own reading (untethered mode), not the phone's.
     var currentGlucoseIsWatchOwn = false
 
@@ -719,6 +726,9 @@ import WatchConnectivity
         if let low = message["complicationRangeLowMgDL"] as? Double, low != chartLowMgDL { chartLowMgDL = low }
         if let high = message["complicationRangeHighMgDL"] as? Double, high != chartHighMgDL { chartHighMgDL = high }
         if let target = message["complicationTargetMgDL"] as? Double, target != chartTargetMgDL { chartTargetMgDL = target }
+        if let panel = message[WatchMessageKeys.statsPanel] as? [String: Any] {
+            statsPanel = WatchStatsPanel(panel)
+        }
         if let carbs = message[WatchMessageKeys.chartCarbs] as? [TimeInterval],
            let boluses = message[WatchMessageKeys.chartBoluses] as? [[String: Any]]
         {
@@ -743,5 +753,36 @@ import WatchConnectivity
                 targetMgDL: message["complicationTargetMgDL"] as? Double
             )
         }
+    }
+}
+
+/// The phone's home stats panel (Settings › User Interface): face, span and figures as the phone computed them.
+struct WatchStatsPanel: Codable, Equatable {
+    var face: String
+    var scope: String?
+    var averageSubtitle: String?
+    var date: Date
+    var veryLow: Double?
+    var low: Double?
+    var inRange: Double?
+    var high: Double?
+    var average: String?
+    var gmi: String?
+
+    var isHidden: Bool { face == "hidden" }
+    var hasData: Bool { inRange != nil }
+
+    init?(_ panel: [String: Any]) {
+        guard let face = panel["face"] as? String else { return nil }
+        self.face = face
+        scope = panel["scope"] as? String
+        averageSubtitle = panel["averageSubtitle"] as? String
+        date = (panel["date"] as? TimeInterval).map { Date(timeIntervalSince1970: $0) } ?? Date()
+        veryLow = panel["veryLow"] as? Double
+        low = panel["low"] as? Double
+        inRange = panel["inRange"] as? Double
+        high = panel["high"] as? Double
+        average = panel["average"] as? String
+        gmi = panel["gmi"] as? String
     }
 }

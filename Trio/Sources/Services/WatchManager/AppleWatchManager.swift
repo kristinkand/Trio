@@ -482,6 +482,53 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
     }
 
+    /// The last figures for spans longer than a day, which read up to three months of readings.
+    private var watchStatsCache: (range: HomeStatsPanelRange, type: TimeInRangeType, at: Date, stats: HomeStatsPanelStats)?
+
+    /// The home screen's stats panel for the watch: the same face, span and figures as Settings › User Interface sets
+    /// them, computed as the home screen does, so both show the same numbers. Formatted here, in the user's units.
+    @MainActor private func watchStatsPanel() async -> [String: Any] {
+        let settings = settingsManager.settings
+        let face = settings.homeStatsPanelFace
+        guard face != .hidden else { return ["face": face.rawValue] }
+        let range = settings.homeStatsPanelRange
+        let type = settings.timeInRangeType
+        let stats: HomeStatsPanelStats
+        let isShortSpan = range == .today || range == .day
+        if !isShortSpan, let cache = watchStatsCache, cache.range == range, cache.type == type,
+           Date().timeIntervalSince(cache.at) < 5 * 60
+        {
+            stats = cache.stats
+        } else {
+            do {
+                stats = try await Home.StateModel.computeStatsPanelStats(range: range, timeInRangeType: type)
+            } catch {
+                debug(.watchManager, "⌚️❌ Stats panel for the watch: \(error)")
+                return ["face": HomeStatsPanelFace.hidden.rawValue]
+            }
+            watchStatsCache = (range, type, Date(), stats)
+        }
+        var panel: [String: Any] = [
+            "face": face.rawValue,
+            "scope": range.scopeName,
+            "averageSubtitle": range.averageSubtitle,
+            "date": Date().timeIntervalSince1970
+        ]
+        guard let mean = stats.meanGlucose else { return panel }
+        panel["veryLow"] = stats.veryLowPct
+        panel["low"] = stats.lowPct
+        panel["inRange"] = stats.inRangePct
+        panel["high"] = stats.highPct + stats.veryHighPct
+        panel["average"] = units == .mmolL
+            ? Decimal(mean).asMmolL.formatted(.number.precision(.fractionLength(1))) + " " + GlucoseUnits.mmolL.rawValue
+            : "\(Int(mean.rounded())) " + GlucoseUnits.mgdL.rawValue
+        let gmiPercentage = 3.31 + 0.02392 * mean
+        panel["gmi"] = settings.eA1cDisplayUnit == .mmolMol
+            ? "\(Int(((gmiPercentage - 2.152) * 10.929).rounded())) mmol/mol"
+            : gmiPercentage.formatted(.number.precision(.fractionLength(1))) + " %"
+        return panel
+    }
+
     /// Carb entries (without fat and protein equivalents) and boluses of the last 24 hours, for the watch chart.
     private func chartTreatments() async -> (carbs: [TimeInterval], boluses: [[String: Any]]) {
         let context = CoreDataStack.shared.newTaskContext()
@@ -688,6 +735,8 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         let treatments = await chartTreatments()
         message[WatchMessageKeys.chartCarbs] = treatments.carbs
         message[WatchMessageKeys.chartBoluses] = treatments.boluses
+        // under the watch chart, the stats panel exactly as the home screen shows it
+        message[WatchMessageKeys.statsPanel] = await watchStatsPanel()
 
         // if session is reachable, it means watch App is in the foreground -> send watchState as message
         // if session is not reachable, it means it's in background -> send watchState as userInfo
