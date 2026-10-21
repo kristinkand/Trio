@@ -27,6 +27,7 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
     }
 
     func applicationDidBecomeActive() {
+        WatchG7Reader.shared.appBecameActive()   // before the recheck, so it holds in the app
         WatchG7Reader.shared.noteWake()
     }
 

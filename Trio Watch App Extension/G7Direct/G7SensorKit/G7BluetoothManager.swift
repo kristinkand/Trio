@@ -141,6 +141,10 @@ protocol G7AcquisitionArm: AnyObject {
     func noteReading(at timestamp: Date)
     /// Any wake: put acquisition right if a lost callback left nothing standing.
     func recheck()
+    /// Trio: the app leaves the screen; watchOS may freeze it within seconds.
+    func leavingScreen()
+    /// Trio: the app is in front again.
+    func becameActive()
 }
 
 class G7BluetoothManager: NSObject {
@@ -283,6 +287,19 @@ class G7BluetoothManager: NSObject {
             guard self.delegate != nil, self.centralManager.state == .poweredOn,
                   (self.activePeripheral?.state ?? .disconnected) != .connected else { return }
             self.acquisitionArm?.recheck()
+        }
+    }
+
+    /// Trio: the app is in front; the watch's acquisition holds in the app and may run a scan pass again.
+    func appBecameActive() {
+        managerQueue.async { self.acquisitionArm?.becameActive() }
+    }
+
+    /// Trio: the app leaves the screen; the watch's acquisition puts its next connect in now.
+    func appLeavingScreen() {
+        managerQueue.async {
+            guard self.delegate != nil else { return }
+            self.acquisitionArm?.leavingScreen()
         }
     }
 

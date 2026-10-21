@@ -249,6 +249,17 @@ import WatchKit
         session?.recheck()
     }
 
+    /// The app's scene phase, for the acquisition's wait past the sensor's tail: held in the app while in front,
+    /// handed to the daemon as a start delay behind (idea from xDrip4iOS 7.2.0, see G7WatchAcquisition).
+    func appBecameActive() {
+        session?.appBecameActive()
+    }
+
+    func appLeavingScreen() {
+        guard !isStandingAside else { return }
+        session?.appLeavingScreen()
+    }
+
     // MARK: - Ahead of silence
 
     private static let noReadingsID = "trio.watchG7.noReadings"
@@ -398,6 +409,7 @@ import WatchKit
             self.session = session
             appendLog("Starting")
             session.resume()
+            if WKApplication.shared().applicationState == .active { session.appBecameActive() }
         }
     }
 

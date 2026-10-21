@@ -13,7 +13,7 @@
 [submodule "G7SensorKit"]
 	path = G7SensorKit
 	url = https://github.com/kristinkand/G7SensorKit.git
-	branch = untethered
+	branch = untethered-plus
 [submodule "MinimedKit"]
 	path = MinimedKit
 	url = https://github.com/loopandlearn/MinimedKit.git

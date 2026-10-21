@@ -127,6 +127,13 @@ final class WatchG7Session: G7BluetoothManagerDelegate {
         bluetoothManager.recheckAcquisition()
     }
 
+    /// The app's scene phase, for the acquisition: in front it holds in the app, behind it hands the wait to the daemon.
+    func appBecameActive() { bluetoothManager.appBecameActive() }
+    func appLeavingScreen() {
+        guard lockedIsActive.value else { return }
+        bluetoothManager.appLeavingScreen()
+    }
+
     /// New credentials from the phone, or a reset. Drops the link so the next
     /// connection uses them.
     func update(credentials: WatchG7Credentials) {
