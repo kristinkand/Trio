@@ -189,6 +189,11 @@ struct TrioAccessoryRectangularView: View {
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 2]))
                         .foregroundStyle(lineColor(threshold == data.low ? .red : .yellow))
                 }
+                if let target = data.targetMgDL {
+                    RuleMark(y: .value("Target", data.isMmol ? target * 0.0555 : target))
+                        .lineStyle(StrokeStyle(lineWidth: 1))
+                        .foregroundStyle(lineColor(.green))
+                }
                 ForEach(points, id: \.date) { point in
                     PointMark(x: .value("Time", point.date), y: .value("Glucose", point.value))
                         .symbolSize(10)
@@ -205,7 +210,7 @@ struct TrioAccessoryRectangularView: View {
         }
     }
 
-    /// Red for low and yellow for high on a multicolor face; in one tint, both lines in that tint.
+    /// Red for low, green for the target and yellow for high on a multicolor face; in one tint, both lines in that tint.
     private func lineColor(_ color: Color) -> Color {
         isFullColor ? color.opacity(0.8) : Color.primary.opacity(0.5)
     }

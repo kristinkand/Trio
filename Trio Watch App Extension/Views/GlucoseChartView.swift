@@ -56,6 +56,28 @@ struct GlucoseChartView: View {
     let glucoseValues: [(date: Date, glucose: Double, color: Color)]
 
     @State private var timeWindow: TimeWindow = .threeHours
+    /// Scrubbing back in time with the Digital Crown, in five-minute steps; tap the chart to start and to stop.
+    /// As LoopFollow's watch app does it (nightscout/LoopFollow PR 785, AGPL-3.0).
+    @State private var isScrubbing = false
+    @State private var scrubSteps = 0.0
+    @FocusState private var crownFocused: Bool
+
+    private var scrubOffset: TimeInterval { isScrubbing ? scrubSteps * 300 : 0 }
+
+    /// Back to the oldest reading the phone sent (24 hours).
+    private var maxScrubSteps: Double {
+        guard let oldest = glucoseValues.first?.date else { return 0 }
+        return max(0, (Date().timeIntervalSince(oldest) / 300).rounded(.down))
+    }
+
+    /// The time the scrub line points at: where "now" sits when not scrubbing.
+    private var scrubDate: Date { Date().addingTimeInterval(-scrubOffset) }
+
+    /// The phone's values in mg/dL, the chart's in the display units.
+    private var displayFactor: Double { WatchG7Reader.shared.isMmol ? 0.0555 : 1 }
+    private var lowLine: Double? { state.chartLowMgDL.map { $0 * displayFactor } }
+    private var highLine: Double? { state.chartHighMgDL.map { $0 * displayFactor } }
+    private var targetLine: Double? { state.chartTargetMgDL.map { $0 * displayFactor } }
 
     enum TimeWindow: Int {
         case threeHours = 3
@@ -90,15 +112,24 @@ struct GlucoseChartView: View {
     }
 
     private var xAxisDomain: ClosedRange<Date> {
-        let now = Date()
+        let now = Date().addingTimeInterval(-scrubOffset)
         let startDate = now.addingTimeInterval(pastOffset)
         let endDate = now.addingTimeInterval(futureOffset)
         return startDate ... max(now, endDate)
     }
 
     private var filteredValues: [(date: Date, glucose: Double, color: Color)] {
-        let cutoffDate = Date().addingTimeInterval(pastOffset)
-        return glucoseValues.filter { $0.date >= cutoffDate }
+        let domain = xAxisDomain
+        return glucoseValues.filter { domain.contains($0.date) }
+    }
+
+    /// The reading nearest the scrub line, within half a reading's spacing either way.
+    private var scrubReading: (date: Date, glucose: Double, color: Color)? {
+        let marker = scrubDate
+        guard let nearest = glucoseValues.min(by: {
+            abs($0.date.timeIntervalSince(marker)) < abs($1.date.timeIntervalSince(marker))
+        }) else { return nil }
+        return abs(nearest.date.timeIntervalSince(marker)) <= 150 ? nearest : nil
     }
 
     struct ForecastConePoint: Identifiable {
@@ -162,7 +193,8 @@ struct GlucoseChartView: View {
     private var yAxisBounds: (min: Double, max: Double)? {
         let values = filteredValues.map(\.glucose) +
             forecastConePoints.flatMap { [$0.min, $0.max] } +
-            forecastLinePoints.map(\.value)
+            forecastLinePoints.map(\.value) +
+            [lowLine, highLine].compactMap { $0 }
 
         guard let minValue = values.min(),
               let maxValue = values.max()
@@ -205,6 +237,29 @@ struct GlucoseChartView: View {
                 Text("Check phone and CGM connectivity.").font(.caption)
             } else {
                 Chart {
+                    // the low and high thresholds dashed, the target solid, as on the watch face
+                    if let lowLine {
+                        RuleMark(y: .value("Low", lowLine))
+                            .foregroundStyle(Color.red.opacity(0.6))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    }
+                    if let highLine {
+                        RuleMark(y: .value("High", highLine))
+                            .foregroundStyle(Color.yellow.opacity(0.6))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    }
+                    if let targetLine {
+                        RuleMark(y: .value("Target", targetLine))
+                            .foregroundStyle(Color.loopGreen.opacity(0.6))
+                            .lineStyle(StrokeStyle(lineWidth: 1))
+                    }
+
+                    if isScrubbing {
+                        RuleMark(x: .value("Scrub", scrubDate))
+                            .foregroundStyle(Color.white.opacity(0.8))
+                            .lineStyle(StrokeStyle(lineWidth: 1))
+                    }
+
                     ForEach(filteredValues, id: \.date) { reading in
                         PointMark(
                             x: .value("Time", reading.date),
@@ -214,7 +269,11 @@ struct GlucoseChartView: View {
                         .symbolSize(glucosePointSize)
                     }
 
-                    TreatmentMarks(markers: state.treatmentMarkers, glucose: filteredValues)
+                    // untethered mode's own history while it runs, else the phone's
+                    TreatmentMarks(
+                        markers: state.treatmentMarkers.isEmpty ? state.phoneTreatmentMarkers : state.treatmentMarkers,
+                        glucose: filteredValues
+                    )
 
                     if state.showForecast {
                         if state.isForecastCone {
@@ -248,7 +307,7 @@ struct GlucoseChartView: View {
                 .chartLegend(.hidden)
                 .chartXAxis(.hidden)
                 .chartXScale(domain: xAxisDomain)
-                .chartYAxisLabel("\(timeWindow.rawValue) h", alignment: .topLeading)
+                .chartYAxisLabel(isScrubbing ? "" : "\(timeWindow.rawValue) h", alignment: .topLeading)
                 .chartYAxis {
                     AxisMarks(position: .trailing, values: yAxisValues) { value in
                         AxisGridLine(stroke: .init(lineWidth: 0.65, dash: [2, 3]))
@@ -273,13 +332,62 @@ struct GlucoseChartView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .frame(maxHeight: .infinity)
+                .overlay(alignment: .top) {
+                    if isScrubbing { scrubHeader }
+                }
             }
         }
         .padding(.horizontal, 6)
-        .onTapGesture {
+        .contentShape(Rectangle())
+        // tap: scrub with the crown, tap again: back to now; a long press changes the time span
+        .onLongPressGesture {
             withAnimation {
                 timeWindow = timeWindow.next
             }
         }
+        .onTapGesture {
+            isScrubbing.toggle()
+            scrubSteps = 0
+            crownFocused = isScrubbing
+        }
+        .focusable(isScrubbing)
+        .focused($crownFocused)
+        .digitalCrownRotation(
+            $scrubSteps,
+            from: 0,
+            through: max(maxScrubSteps, 1),
+            by: 1,
+            sensitivity: .medium,
+            isContinuous: false,
+            isHapticFeedbackEnabled: true
+        )
+        .onDisappear {
+            isScrubbing = false
+            scrubSteps = 0
+        }
+    }
+
+    /// Time and glucose at the scrub line.
+    private var scrubHeader: some View {
+        HStack {
+            Text(scrubDate, style: .time)
+                .foregroundStyle(.secondary)
+            Spacer()
+            if let reading = scrubReading {
+                Text(formattedGlucose(reading.glucose))
+                    .foregroundStyle(reading.color)
+            } else {
+                Text("–").foregroundStyle(.secondary)
+            }
+        }
+        .font(.system(.headline, design: .rounded))
+        .monospacedDigit()
+        .padding(.horizontal, 8)
+        .padding(.vertical, 2)
+        .background(Capsule().fill(Color.black.opacity(0.6)))
+    }
+
+    private func formattedGlucose(_ glucose: Double) -> String {
+        WatchG7Reader.shared.isMmol ? String(format: "%.1f", glucose) : "\(Int(glucose.rounded()))"
     }
 }

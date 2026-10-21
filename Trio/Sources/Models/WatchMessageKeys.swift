@@ -2,6 +2,10 @@ enum WatchMessageKeys {
     // Request/Response Keys
     static let date = "date"
     static let units = "units"
+    /// Carb entries of the last 24 hours, as times (seconds since 1970), for the watch chart's markers.
+    static let chartCarbs = "chartCarbs"
+    /// Boluses of the last 24 hours: `["date": seconds since 1970, "smb": Bool]`, for the watch chart's markers.
+    static let chartBoluses = "chartBoluses"
     static let requestWatchUpdate = "requestWatchUpdate"
     static let watchState = "watchState"
     static let acknowledged = "acknowledged"

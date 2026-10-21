@@ -104,6 +104,14 @@ import WatchConnectivity
         didSet { UserDefaults.standard.set(phoneAppVersion, forKey: WatchMessageKeys.phoneAppVersion) }
     }
 
+    // chart lines and markers
+    /// The phone's low and high glucose and current target, in mg/dL.
+    var chartLowMgDL: Double?
+    var chartHighMgDL: Double?
+    var chartTargetMgDL: Double?
+    /// Carbs and boluses of the last 24 hours from the phone, times only.
+    var phoneTreatmentMarkers: [WatchTreatmentMarker] = []
+
     // Acknowlegement handling
     var showCommsAnimation: Bool = false
     var showAcknowledgmentBanner: Bool = false
@@ -696,6 +704,21 @@ import WatchConnectivity
             if allow != allowUntetheredStartWithoutPhone { allowUntetheredStartWithoutPhone = allow }
             // also a copy an earlier build left, when it was sent regardless
             if !allow || !untetheredMode { DispatchQueue.main.async { UntetheredWatchManager.shared.dropStandingGrant() } }
+        }
+
+        if let low = message["complicationRangeLowMgDL"] as? Double { chartLowMgDL = low }
+        if let high = message["complicationRangeHighMgDL"] as? Double { chartHighMgDL = high }
+        if let target = message["complicationTargetMgDL"] as? Double { chartTargetMgDL = target }
+        if let carbs = message[WatchMessageKeys.chartCarbs] as? [TimeInterval],
+           let boluses = message[WatchMessageKeys.chartBoluses] as? [[String: Any]]
+        {
+            phoneTreatmentMarkers = boluses.compactMap { entry -> WatchTreatmentMarker? in
+                guard let time = entry["date"] as? TimeInterval else { return nil }
+                let smb = entry["smb"] as? Bool ?? false
+                return WatchTreatmentMarker(id: "bolus-\(time)", date: Date(timeIntervalSince1970: time), kind: smb ? .smb : .bolus)
+            } + carbs.map { time in
+                WatchTreatmentMarker(id: "carbs-\(time)", date: Date(timeIntervalSince1970: time), kind: .carbs)
+            }
         }
 
         // Sensor details, alarm thresholds and units for the watch's own G7 reading.
