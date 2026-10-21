@@ -60,9 +60,16 @@ import WatchConnectivity
 
     // chart lines and markers
     /// The phone's low and high glucose and current target, in mg/dL.
-    var chartLowMgDL: Double?
-    var chartHighMgDL: Double?
-    var chartTargetMgDL: Double?
+    /// Kept, so the lines and the time-in-range bar stay while the phone is away and after a relaunch.
+    var chartLowMgDL: Double? = UserDefaults.standard.object(forKey: "chartLowMgDL") as? Double {
+        didSet { UserDefaults.standard.set(chartLowMgDL, forKey: "chartLowMgDL") }
+    }
+    var chartHighMgDL: Double? = UserDefaults.standard.object(forKey: "chartHighMgDL") as? Double {
+        didSet { UserDefaults.standard.set(chartHighMgDL, forKey: "chartHighMgDL") }
+    }
+    var chartTargetMgDL: Double? = UserDefaults.standard.object(forKey: "chartTargetMgDL") as? Double {
+        didSet { UserDefaults.standard.set(chartTargetMgDL, forKey: "chartTargetMgDL") }
+    }
     /// Carbs and boluses of the last 24 hours from the phone, times only.
     var phoneTreatmentMarkers: [WatchTreatmentMarker] = []
 
@@ -597,9 +604,9 @@ import WatchConnectivity
             forecastLines = forecastPayload[WatchMessageKeys.forecastLines] as? [String: [Double]] ?? [:]
         }
 
-        if let low = message["complicationRangeLowMgDL"] as? Double { chartLowMgDL = low }
-        if let high = message["complicationRangeHighMgDL"] as? Double { chartHighMgDL = high }
-        if let target = message["complicationTargetMgDL"] as? Double { chartTargetMgDL = target }
+        if let low = message["complicationRangeLowMgDL"] as? Double, low != chartLowMgDL { chartLowMgDL = low }
+        if let high = message["complicationRangeHighMgDL"] as? Double, high != chartHighMgDL { chartHighMgDL = high }
+        if let target = message["complicationTargetMgDL"] as? Double, target != chartTargetMgDL { chartTargetMgDL = target }
         if let carbs = message[WatchMessageKeys.chartCarbs] as? [TimeInterval],
            let boluses = message[WatchMessageKeys.chartBoluses] as? [[String: Any]]
         {
