@@ -751,7 +751,43 @@ import WatchKit
     func session(_: WatchG7Session, log line: String) {
         DispatchQueue.main.async {
             self.appendLog(line)
+            self.notePairingStep(line)
         }
+    }
+
+    // MARK: - Pairing in front
+
+    @ObservationIgnored private var pairingKeepAlive: ReaderPairingKeepAlive?
+
+    /// A pairing needs Trio on the screen for the system's Bluetooth pairing request; the watch dims within seconds
+    /// and the sensor drops the link a second after asking (2026-10-22: 05:00, and again until the watch was held
+    /// up). Trio is kept in front for up to 10 minutes once a pairing starts while it is open, and the wrist feels
+    /// the request coming. Matched on the kit's log lines.
+    private func notePairingStep(_ line: String) {
+        if line.contains("Running the certificate exchange")
+            || line.contains("Pairing: running the key exchange")
+            || line.contains("the sensor no longer accepts the saved key")
+        {
+            keepInFrontForPairing()
+        } else if line.contains("expect the system pairing prompt") {
+            WKInterfaceDevice.current().play(.notification)
+        } else if line.hasPrefix("Bonded") || line.hasPrefix("Already authenticated and bonded") || line.hasPrefix("Reading ") {
+            guard let keepAlive = pairingKeepAlive else { return }
+            pairingKeepAlive = nil
+            keepAlive.stop()
+            appendLog("Paired: Trio no longer held in front")
+        }
+    }
+
+    private func keepInFrontForPairing() {
+        guard pairingKeepAlive?.isRunning != true, WKApplication.shared().applicationState == .active else { return }
+        let keepAlive = ReaderPairingKeepAlive { [weak self] reason in
+            self?.appendLog("Pairing screen hold ended (\(reason))")
+            self?.pairingKeepAlive = nil
+        }
+        pairingKeepAlive = keepAlive
+        keepAlive.start()
+        appendLog("Pairing: keeping Trio in front for up to 10 minutes")
     }
 
     func session(_: WatchG7Session, didChangeConnection connected: Bool) {
@@ -793,5 +829,40 @@ enum WatchG7SlotKey {
     static func record(peripheral: UUID) {
         guard peripheral != self.peripheral else { return }
         UserDefaults.standard.set(peripheral.uuidString, forKey: peripheralKey)
+    }
+}
+
+/// Keeps Trio in front for a sensor pairing: a self-care extended runtime session (WKBackgroundModes self-care, at
+/// most 10 minutes), started while the app is active. watchOS then returns to Trio, not the clock, when the wrist
+/// comes up, so the Bluetooth pairing request can show.
+final class ReaderPairingKeepAlive: NSObject, WKExtendedRuntimeSessionDelegate {
+    private let session = WKExtendedRuntimeSession()
+    private let onEnd: (String) -> Void
+
+    init(onEnd: @escaping (String) -> Void) {
+        self.onEnd = onEnd
+        super.init()
+        session.delegate = self
+    }
+
+    var isRunning: Bool { session.state == .running || session.state == .notStarted }
+
+    func start() { session.start() }
+
+    func stop() {
+        if session.state == .running { session.invalidate() }
+    }
+
+    func extendedRuntimeSessionDidStart(_: WKExtendedRuntimeSession) {}
+
+    func extendedRuntimeSessionWillExpire(_: WKExtendedRuntimeSession) {}
+
+    func extendedRuntimeSession(
+        _: WKExtendedRuntimeSession,
+        didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason,
+        error: Error?
+    ) {
+        let text = error.map { "\(reason.rawValue): \($0.localizedDescription)" } ?? "\(reason.rawValue)"
+        DispatchQueue.main.async { self.onEnd(text) }
     }
 }
