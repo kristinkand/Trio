@@ -18,6 +18,13 @@ import WatchKit
             TrioMainWatchView()
         }
         .onChange(of: scenePhase) { _, newScenePhase in
+            // wrist down (inactive) or another app (background): watchOS can freeze the app next, also inside the
+            // reader's wait after a reading (2026-10-20 06:51); in front again, the reader waits in the app
+            if newScenePhase != .active {
+                WatchG7Reader.shared.appLeavingScreen()
+            } else {
+                WatchG7Reader.shared.appBecameActive()
+            }
             if newScenePhase == .background {
                 Task {
                     await WatchLogger.shared.flushPersistedLogs()

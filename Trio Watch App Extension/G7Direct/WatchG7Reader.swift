@@ -392,12 +392,14 @@ import WatchKit
         if let session {
             session.update(credentials: credentials)
             session.resume()
+            syncForeground()
         } else {
             let session = WatchG7Session(credentials: credentials, latestReadingDate: latest?.date)
             session.delegate = self
             self.session = session
             appendLog("Starting")
             session.resume()
+            syncForeground()
         }
     }
 
@@ -752,6 +754,28 @@ import WatchKit
         DispatchQueue.main.async {
             self.appendLog(line)
             self.notePairingStep(line)
+        }
+    }
+
+    // MARK: - Foreground
+
+    /// The app's scene phase, for the acquisition's wait past the sensor's tail: held in the app while in front,
+    /// handed to the daemon as a start delay only when the app leaves the screen during it (idea from xDrip4iOS
+    /// 7.2.0, see G7WatchAcquisition).
+    func appBecameActive() {
+        session?.appBecameActive()
+    }
+
+    func appLeavingScreen() {
+        session?.appLeavingScreen()
+    }
+
+    /// Tells the acquisition whether Trio is in front right now, as on (re)starting the session.
+    private func syncForeground() {
+        if WKApplication.shared().applicationState == .active {
+            session?.appBecameActive()
+        } else {
+            session?.appNoteBackground()
         }
     }
 
