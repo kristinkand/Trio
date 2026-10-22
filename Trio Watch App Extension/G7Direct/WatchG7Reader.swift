@@ -773,7 +773,43 @@ import WatchKit
     func session(_: WatchG7Session, log line: String) {
         DispatchQueue.main.async {
             self.appendLog(line)
+            self.notePairingStep(line)
         }
+    }
+
+    // MARK: - Pairing in front
+
+    @ObservationIgnored private var pairingKeepAlive: SensorPairingKeepAlive?
+
+    /// A pairing needs Trio on the screen for the system's Bluetooth pairing request; the watch dims within seconds
+    /// and the sensor drops the link a second after asking (2026-10-22: 05:00, and again until the watch was held
+    /// up). As untethered mode does, Trio is kept in front for up to 10 minutes once a pairing starts while it is
+    /// open, and the wrist feels the request coming. Matched on the kit's log lines, as untethered mode does.
+    private func notePairingStep(_ line: String) {
+        if line.contains("Running the certificate exchange")
+            || line.contains("Pairing: running the key exchange")
+            || line.contains("the sensor no longer accepts the saved key")
+        {
+            keepInFrontForPairing()
+        } else if line.contains("expect the system pairing prompt") {
+            WKInterfaceDevice.current().play(.notification)
+        } else if line.hasPrefix("Bonded") || line.hasPrefix("Already authenticated and bonded") || line.hasPrefix("Reading ") {
+            guard let keepAlive = pairingKeepAlive else { return }
+            pairingKeepAlive = nil
+            keepAlive.stop()
+            appendLog("Paired: Trio no longer held in front")
+        }
+    }
+
+    private func keepInFrontForPairing() {
+        guard pairingKeepAlive?.isRunning != true, WKApplication.shared().applicationState == .active else { return }
+        let keepAlive = SensorPairingKeepAlive { [weak self] reason in
+            self?.appendLog("Pairing screen hold ended (\(reason))")
+            self?.pairingKeepAlive = nil
+        }
+        pairingKeepAlive = keepAlive
+        keepAlive.start()
+        appendLog("Pairing: keeping Trio in front for up to 10 minutes")
     }
 
     func session(_: WatchG7Session, didChangeConnection connected: Bool) {
