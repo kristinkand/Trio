@@ -84,6 +84,12 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     /// The last reading's sensor timestamp, for the 3-miss test. Seeded at launch from the
     /// manager's persisted `latestReadingTimestamp`.
     private var lastReadingAt: Date?
+    /// Trio: A reading came over the link that is up now.
+    private var readingOnLink = false
+    /// Trio: The last quick retry; at most one a minute, so a sensor that keeps dropping isn't asked every second.
+    private var lastQuickRetryAt: Date?
+    /// A link that closes this soon after coming up, without a reading, is asked for again at once.
+    static let quickRetryWindow: TimeInterval = 12
 
     init(manager: G7BluetoothManager) {
         self.manager = manager
@@ -174,6 +180,7 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
         let waited = lodgedAt.map { Date().timeIntervalSince($0) }
         lodged = false; lodgedAt = nil
         linkUpAt = Date()
+        readingOnLink = false
         if bootstrapPass { endBootstrapPass(reason: "connected") }
         watchLog(String(format: "link up %@ %@ · pid %d", peripheral.name ?? "unnamed",
                         waited.map { String(format: "%.0f s after the lodge", $0) } ?? "(restored launch)",
@@ -189,6 +196,18 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
         linkUpAt = nil; lodged = false; lodgedAt = nil
         guard !bootstrapPass else { return false }
         let code = (error as NSError?).map { " [\($0.domain)#\($0.code)] \($0.localizedDescription)" } ?? ""
+        // Trio: Closed early without a reading (timed out, dropped before authentication): the sensor still takes
+        // connections for a while in its burst, the phone connected again 5 to 19 s after a first link 21 times on
+        // 21/22 October and got its reading, where the watch waited out the tail and lost it (10 of 16 such links).
+        // So ask again at once instead, once a minute at most. An Android tip, too: retry before the device gives up.
+        if !readingOnLink, sinceLinkUp < Self.quickRetryWindow,
+           Date().timeIntervalSince(lastQuickRetryAt ?? .distantPast) > 60
+        {
+            lastQuickRetryAt = Date()
+            watchLog(String(format: "sensor closed %.1f s after link-up without a reading%@ — asking again at once, in the same burst", sinceLinkUp, code))
+            lodge(peripheral, why: "quick retry in the same burst")
+            return true
+        }
         relodge(peripheral, sinceLinkUp: sinceLinkUp, why: String(format: "sensor closed %.1f s after link-up%@", sinceLinkUp, code))
         return true
     }
@@ -251,6 +270,7 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
 
     func noteReading(at timestamp: Date) {
         lastReadingAt = timestamp
+        readingOnLink = true
     }
 
     /// Trio: the app is in front: its own hold waits out the sensor's tail, and a scan pass can run.
