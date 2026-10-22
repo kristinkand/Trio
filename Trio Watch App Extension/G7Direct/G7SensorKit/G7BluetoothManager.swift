@@ -145,6 +145,8 @@ protocol G7AcquisitionArm: AnyObject {
     func leavingScreen()
     /// Trio: the app is in front again.
     func becameActive()
+    /// Trio: the app is not in front; nothing else to do.
+    func noteBackground()
 }
 
 class G7BluetoothManager: NSObject {
@@ -293,6 +295,11 @@ class G7BluetoothManager: NSObject {
     /// Trio: the app is in front; the watch's acquisition holds in the app and may run a scan pass again.
     func appBecameActive() {
         managerQueue.async { self.acquisitionArm?.becameActive() }
+    }
+
+    /// Trio: the app is not in front, without any other step (see `G7WatchAcquisition.noteBackground`).
+    func appNoteBackground() {
+        managerQueue.async { self.acquisitionArm?.noteBackground() }
     }
 
     /// Trio: the app leaves the screen; the watch's acquisition puts its next connect in now.

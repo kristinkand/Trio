@@ -130,9 +130,13 @@ final class WatchG7Session: G7BluetoothManagerDelegate {
     /// The app's scene phase, for the acquisition: in front it holds in the app, behind it hands the wait to the daemon.
     func appBecameActive() { bluetoothManager.appBecameActive() }
     func appLeavingScreen() {
-        guard lockedIsActive.value else { return }
+        // paused (untethered mode has the sensor): the acquisition still learns it is behind, or it would hold in
+        // the app and scan as if in front once it resumes (22 October, 01:15 to 04:54: no reading)
+        guard lockedIsActive.value else { return bluetoothManager.appNoteBackground() }
         bluetoothManager.appLeavingScreen()
     }
+
+    func appNoteBackground() { bluetoothManager.appNoteBackground() }
 
     /// New credentials from the phone, or a reset. Drops the link so the next
     /// connection uses them.

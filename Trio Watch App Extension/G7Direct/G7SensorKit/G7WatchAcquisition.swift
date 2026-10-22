@@ -258,6 +258,11 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
         isForeground = true
     }
 
+    /// Trio: the app is not in front, but the arm must not act on it (the reader stands aside for untethered mode).
+    func noteBackground() {
+        isForeground = false
+    }
+
     /// Trio: the app leaves the screen (wrist down or another app), and watchOS may freeze it within seconds, also
     /// inside a hold (2026-10-20 06:51, no connect for 34 minutes). A running hold ends now and what's left of its wait
     /// goes with the request as a start delay; otherwise a request goes in if none stands.
@@ -298,11 +303,10 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
             lodge(peripheral, why: "\(why) · nothing to wait for")
             return
         }
-        if !isForeground, !startDelayUnavailable {
-            // Trio: the daemon waits out the tail, not the app (see `isForeground`)
-            lodge(peripheral, why: why, startDelay: wait)
-            return
-        }
+        // Trio: the start delay only hands over a hold the app is about to lose (`leavingScreen`). As the ordinary
+        // wait after every reading it cost readings: on 21/22 October the burst after a delayed request went
+        // unserved about once in 35 minutes (12:45, 15:00, 00:25, 00:40), against none in 8 hours with the hold
+        // on 19/20 October.
         holdPending = true
         holdEndsAt = Date().addingTimeInterval(wait)
         watchLog(String(format: "%@ · holding the process %.1f s past the sensor's tail, then a plain connect", why, wait))

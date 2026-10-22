@@ -256,8 +256,17 @@ import WatchKit
     }
 
     func appLeavingScreen() {
-        guard !isStandingAside else { return }
+        // also while standing aside: the session only notes it then (see WatchG7Session.appLeavingScreen)
         session?.appLeavingScreen()
+    }
+
+    /// Tells the acquisition whether Trio is in front right now, as on resuming after untethered mode.
+    private func syncForeground() {
+        if WKApplication.shared().applicationState == .active {
+            session?.appBecameActive()
+        } else {
+            session?.appNoteBackground()
+        }
     }
 
     // MARK: - Ahead of silence
@@ -403,13 +412,14 @@ import WatchKit
         if let session {
             session.update(credentials: credentials)
             session.resume()
+            syncForeground()
         } else {
             let session = WatchG7Session(credentials: credentials, latestReadingDate: latest?.date)
             session.delegate = self
             self.session = session
             appendLog("Starting")
             session.resume()
-            if WKApplication.shared().applicationState == .active { session.appBecameActive() }
+            syncForeground()
         }
     }
 
