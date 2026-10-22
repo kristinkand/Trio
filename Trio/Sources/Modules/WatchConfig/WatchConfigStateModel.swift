@@ -11,6 +11,7 @@ extension WatchConfig {
         @Published var confirmBolusFaster = false
         @Published var showForecastWatch = false
         @Published var allowUntetheredStartWithoutPhoneWatch = false
+        @Published var fallbackLoopWatch = false
         @Published var untetheredModeWatch = true
         @Published var untetheredTintHomeWatch = true
 
@@ -30,6 +31,7 @@ extension WatchConfig {
             subscribeSetting(\.allowUntetheredStartWithoutPhoneWatch, on: $allowUntetheredStartWithoutPhoneWatch) {
                 allowUntetheredStartWithoutPhoneWatch = $0
             }
+            subscribeSetting(\.fallbackLoopWatch, on: $fallbackLoopWatch) { fallbackLoopWatch = $0 }
             subscribeSetting(\.untetheredModeWatch, on: $untetheredModeWatch) { untetheredModeWatch = $0 }
             subscribeSetting(\.untetheredTintHomeWatch, on: $untetheredTintHomeWatch) { untetheredTintHomeWatch = $0 }
 

@@ -67,6 +67,9 @@ struct TrioSettings: JSON, Equatable, Encodable {
     /// Lets the watch start untethered mode from the phone's saved grant while the iPhone is unavailable. Off until
     /// chosen: the watch would dose from a copy of the phone's state that may be some time old.
     var allowUntetheredStartWithoutPhoneWatch: Bool = false
+    /// With Allow Start Without iPhone on: the watch starts untethered mode by itself when the iPhone stops
+    /// sending readings and is out of reach (Elias Maurer's fallback loop). Off until chosen.
+    var fallbackLoopWatch: Bool = false
     /// Untethered watch mode offered at all: off, neither the phone nor the watch starts it.
     var untetheredModeWatch: Bool = true
     /// The home screen's background takes the untethered color while the watch has the pump.
@@ -387,6 +390,10 @@ extension TrioSettings: Decodable {
 
         if let allowStart = try? container.decode(Bool.self, forKey: .allowUntetheredStartWithoutPhoneWatch) {
             settings.allowUntetheredStartWithoutPhoneWatch = allowStart
+        }
+
+        if let fallbackLoopWatch = try? container.decode(Bool.self, forKey: .fallbackLoopWatch) {
+            settings.fallbackLoopWatch = fallbackLoopWatch
         }
 
         if let showForecastWatch = try? container.decode(Bool.self, forKey: .showForecastWatch) {
