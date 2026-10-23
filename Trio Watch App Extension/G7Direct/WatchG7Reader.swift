@@ -586,6 +586,23 @@ import WatchKit
         }
     }
 
+    // MARK: - Sensor warning (first page and watch face)
+
+    /// Something about the sensor needs a look: it reports a problem. Shown as a yellow triangle on the first page
+    /// and the watch face; page 3 says what it is.
+    var showsSensorWarning: Bool {
+        isEnabled && sensorProblemLabel != nil
+    }
+
+    /// Hands the warning to the watch face when it may have changed.
+    func refreshSensorWarning() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.refreshSensorWarning() }
+            return
+        }
+        ComplicationStore.setSensorWarning(showsSensorWarning)
+    }
+
     // MARK: - Sensor state alerts
 
     private enum SensorAlert: String {
@@ -653,8 +670,7 @@ import WatchKit
         appendLog("Sensor sends glucose again")
     }
 
-    /// Once per sensor problem: it is cleared by the next good reading. "Failed" is critical when Critical Alerts
-    /// are on for the watch, as untethered mode's sensor alarms are.
+    /// Once per sensor problem: it is cleared by the next good reading.
     private func raiseSensorAlert(_ alert: SensorAlert) {
         let key = Key.lastAlert + alert.rawValue
         guard defaults.object(forKey: key) == nil else { return }
@@ -662,8 +678,7 @@ import WatchKit
         let content = UNMutableNotificationContent()
         content.title = alert.title
         content.body = alert.body
-        let critical = alert == .failed && defaults.bool(forKey: WatchMessageKeys.useCriticalAlertsWatch)
-        content.sound = critical ? .defaultCritical : .default
+        content.sound = .default
         UNUserNotificationCenter.current().add(UNNotificationRequest(
             identifier: Self.notificationIdentifierPrefix + alert.rawValue,
             content: content,
@@ -798,10 +813,12 @@ import WatchKit
                 self.sensorProblem = problem
                 self.appendLog("Sensor answered without a reading (\(problem))")
                 self.noteSensorState(message.algorithmState)
+                self.refreshSensorWarning()
                 return
             }
             self.sensorProblem = nil
             self.sensorStateRecovered()
+            self.refreshSensorWarning()
             self.isReconnecting = false
             let reading = WatchG7Reading(
                 date: receivedAt.addingTimeInterval(-TimeInterval(message.age)),
