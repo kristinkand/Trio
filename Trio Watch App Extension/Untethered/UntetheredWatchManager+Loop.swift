@@ -1479,7 +1479,6 @@ extension UntetheredWatchManager {
             state.iob = determination.iob.map { String(format: "%.2f", NSDecimalNumber(decimal: $0).doubleValue) }
             state.cob = determination.cob.map { $0.formatted(.number.precision(.fractionLength(0))) }
         }
-        state.lastLoopDate = data.lastLoopDate
         if let lastLoop = data.lastLoopDate {
             // the phone's own rounding, so the ring turns as it does there
             let minutes = Int((Date().timeIntervalSince(lastLoop) - 30) / 60) + 1
@@ -1487,7 +1486,14 @@ extension UntetheredWatchManager {
         }
         state.lastWatchStateUpdate = Date().timeIntervalSince1970
         guard inFront else {
-            ComplicationStore.update(from: state, watchLoops: true)
+            // this fork's complication store takes the units and range; the target stays as last given
+            ComplicationStore.update(
+                from: state,
+                isMmol: units != .mgdL,
+                lowMgDL: NSDecimalNumber(decimal: grant.lowGlucose).doubleValue,
+                highMgDL: NSDecimalNumber(decimal: grant.highGlucose).doubleValue,
+                colorScheme: grant.glucoseColorScheme
+            )
             return
         }
         if let determination = data.lastDetermination {
