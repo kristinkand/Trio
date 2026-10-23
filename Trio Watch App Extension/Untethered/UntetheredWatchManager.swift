@@ -401,6 +401,7 @@ import WatchKit
         // before the alarms are booked, so No Sensor Readings counts from the reader's newest reading
         if !wasActive, isActive { seedFallbackReadings() }
         if wasActive != isActive {
+            WatchG7Reader.shared.refreshSensorWarning()
             handOverAlertNotifications(toWatch: isActive)
             noteSessionBattery(started: isActive)
         }
