@@ -22,6 +22,8 @@ import WatchKit
         didSet { watchGatePodCommands(on: cgmManager) }
     }
     @ObservationIgnored var isLooping = false
+    /// watchOS ended the running loop's background time: it starts no further pod command.
+    @ObservationIgnored var loopHoldExpired = false
     /// A treatment came in while a loop ran; its determination follows.
     @ObservationIgnored var isDeterminationPending = false
     /// A mode changed while a loop ran; its constrained determination and enactment follow.
