@@ -63,9 +63,6 @@ extension Home.RootView {
     var adjustmentTint: Color? {
         if overrideString != nil { return Color.purple }
         if tempTargetString != nil { return Color.loopGreen }
-        // Weekend Profile is mutually exclusive with a real Override/Temp Target (see
-        // WeekendProfileStore) so it only ever shows once neither of those is active.
-        if isWeekendProfileActive { return Color.mint }
         return nil
     }
 
@@ -297,29 +294,6 @@ extension Home.RootView {
             }
     }
 
-    @ViewBuilder func adjustmentsWeekendProfileView() -> some View {
-        Group {
-            adjustmentIcon("sun.max.fill", tint: Color.mint)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(WeekendProfileStore.name)
-                    .font(.subheadline).fontWeight(.semibold)
-                    .frame(alignment: .leading)
-
-                Text("Active")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            // Weekend Profile is started/stopped from Adjustments, not cancelled from here --
-            // clear icon keeps text aligned with the other adjustment states.
-            Image(systemName: "xmark.app")
-                .font(.title)
-                .foregroundStyle(Color.clear)
-        }
-    }
-
     @ViewBuilder func noActiveAdjustmentsView() -> some View {
         Group {
             adjustmentIcon("slider.horizontal.2.gobackward", tint: Color.secondary)
@@ -410,8 +384,6 @@ extension Home.RootView {
                         Spacer()
                         adjustmentsCancelTempTargetView()
                     }
-                } else if isWeekendProfileActive {
-                    adjustmentsWeekendProfileView()
                 } else {
                     noActiveAdjustmentsView()
                 }
@@ -552,54 +524,6 @@ extension Home.RootView {
         }
     }
 
-    /// In-app mirror of the meal-time reminder alarm: a live countdown until the user can eat, with the
-    /// meal summary and a cancel button.
-    @ViewBuilder func mealTimeReminderCountdownView(_ reminder: PendingMealTimeReminder) -> some View {
-        let carbsText = Formatter.integerFormatter.string(from: reminder.carbs as NSDecimalNumber) ?? "0"
-        let bolusText = Formatter.decimalFormatterWithTwoFractionDigits
-            .string(from: reminder.bolusAmount as NSDecimalNumber) ?? "0"
-        let mealSummary = carbsText + String(localized: " g · ", comment: "Separator in meal-time reminder meal summary") +
-            bolusText + String(localized: " U", comment: "Insulin unit")
-
-        HStack {
-            Image(systemName: "fork.knife")
-                .font(.system(size: 25))
-                .accessibilityHidden(true)
-
-            Spacer()
-
-            VStack {
-                Text("Meal-Time Reminder")
-                    .font(.subheadline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Text(mealSummary)
-                    .font(.caption)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }.padding(.leading, 5)
-
-            Spacer()
-
-            // `max` keeps the range valid if this renders after the fire date but before expiry clears it.
-            Text(timerInterval: Date.now ... max(Date.now, reminder.fireDate), countsDown: true)
-                .font(.title3.monospacedDigit())
-                .foregroundStyle(.orange)
-                .accessibilityLabel(Text("Time until you can eat"))
-
-            Button {
-                state.cancelMealTimeReminder()
-            } label: {
-                Image(systemName: "stop.fill")
-                    .font(.system(size: 25))
-            }
-            .accessibilityLabel(Text("Stop meal-time reminder"))
-        }
-        .padding(.horizontal, 10)
-        .padding(.trailing, 8)
-        .frame(height: HomeLayout.statsBannerHeight)
-        .glassPanel(tint: .orange, tintOpacity: 0.18, strokeOpacity: 0.30)
-        .padding(.horizontal, 10)
-    }
-
     func statsDistributionBar(_ segments: [(color: Color, fraction: CGFloat)]) -> some View {
         GeometryReader { g in
             let spacing: CGFloat = 2
@@ -737,7 +661,6 @@ extension Home.RootView {
             pumpTimeMismatch: state.pumpStatusBadgeImage != nil,
             lastGlucoseDate: state.glucoseFromPersistence.last?.date,
             maxIOB: state.maxIOB,
-            pendingMealTimeReminder: state.pendingMealTimeReminder,
             hasUnacknowledgedReleaseNotes: releaseNotesService.hasUnacknowledgedNotes,
             dosingMode: state.dosingMode,
             now: state.timerDate
@@ -857,8 +780,6 @@ extension Home.RootView {
             ) {
                 openDosingModeSetting()
             }
-        case let .mealTimeReminderCountdown(reminder):
-            mealTimeReminderCountdownView(reminder)
         case .stats:
             statsBanner()
         }

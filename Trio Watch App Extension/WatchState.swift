@@ -5,6 +5,10 @@ import WatchConnectivity
 /// WatchState manages the communication between the Watch app and the iPhone app using WatchConnectivity.
 /// It handles glucose data synchronization and sending treatment requests (bolus, carbs) to the phone.
 @Observable final class WatchState: NSObject, WCSessionDelegate {
+    /// The one instance the screens and the watch's own G7 reader share, so readings the watch takes itself
+    /// reach the same screens as the phone's.
+    static let shared = WatchState()
+
     // MARK: - Properties
 
     /// The WatchConnectivity session instance used for communication
@@ -27,6 +31,7 @@ import WatchConnectivity
     var lastLoopTime: String? = "--"
     var overridePresets: [OverridePresetWatch] = []
     var tempTargetPresets: [TempTargetPresetWatch] = []
+    var snoozeUntilDate: Date = .distantPast
 
     /// treatments inputs
     /// used to store carbs for combined meal-bolus-treatments
@@ -53,6 +58,24 @@ import WatchConnectivity
     var forecastConeMin: [Double] = []
     var forecastConeMax: [Double] = []
     var forecastLines: [String: [Double]] = [:] // "iob" / "cob" / "uam" / "zt" -> values
+
+    // chart lines and markers
+    /// The phone's low and high glucose and current target, in mg/dL.
+    /// The current glucose is the watch's own reading (untethered mode), not the phone's.
+    var currentGlucoseIsWatchOwn = false
+
+    /// Kept, so the lines and the time-in-range bar stay while the phone is away and after a relaunch.
+    var chartLowMgDL: Double? = UserDefaults.standard.object(forKey: "chartLowMgDL") as? Double {
+        didSet { UserDefaults.standard.set(chartLowMgDL, forKey: "chartLowMgDL") }
+    }
+    var chartHighMgDL: Double? = UserDefaults.standard.object(forKey: "chartHighMgDL") as? Double {
+        didSet { UserDefaults.standard.set(chartHighMgDL, forKey: "chartHighMgDL") }
+    }
+    var chartTargetMgDL: Double? = UserDefaults.standard.object(forKey: "chartTargetMgDL") as? Double {
+        didSet { UserDefaults.standard.set(chartTargetMgDL, forKey: "chartTargetMgDL") }
+    }
+    /// Carbs and boluses of the last 24 hours from the phone, times only.
+    var phoneTreatmentMarkers: [WatchTreatmentMarker] = []
 
     // Acknowlegement handling
     var showCommsAnimation: Bool = false
@@ -576,6 +599,10 @@ import WatchConnectivity
             self.isForecastCone = isForecastCone
         }
 
+        if let snoozeTimestamp = message[WatchMessageKeys.snoozeUntilDate] as? TimeInterval {
+            snoozeUntilDate = Date(timeIntervalSince1970: snoozeTimestamp)
+        }
+
         if let forecastPayload = message[WatchMessageKeys.forecastData] as? [String: Any] {
             if let startTimestamp = forecastPayload[WatchMessageKeys.forecastStartDate] as? TimeInterval {
                 forecastStartDate = Date(timeIntervalSince1970: startTimestamp)
@@ -585,7 +612,32 @@ import WatchConnectivity
             forecastLines = forecastPayload[WatchMessageKeys.forecastLines] as? [String: [Double]] ?? [:]
         }
 
+        if let low = message["complicationRangeLowMgDL"] as? Double, low != chartLowMgDL { chartLowMgDL = low }
+        if let high = message["complicationRangeHighMgDL"] as? Double, high != chartHighMgDL { chartHighMgDL = high }
+        if let target = message["complicationTargetMgDL"] as? Double, target != chartTargetMgDL { chartTargetMgDL = target }
+        if let carbs = message[WatchMessageKeys.chartCarbs] as? [TimeInterval],
+           let boluses = message[WatchMessageKeys.chartBoluses] as? [[String: Any]]
+        {
+            phoneTreatmentMarkers = boluses.compactMap { entry -> WatchTreatmentMarker? in
+                guard let time = entry["date"] as? TimeInterval else { return nil }
+                let smb = entry["smb"] as? Bool ?? false
+                return WatchTreatmentMarker(id: "bolus-\(time)", date: Date(timeIntervalSince1970: time), kind: smb ? .smb : .bolus)
+            } + carbs.map { time in
+                WatchTreatmentMarker(id: "carbs-\(time)", date: Date(timeIntervalSince1970: time), kind: .carbs)
+            }
+        }
+
         // Sensor details, alarm thresholds and units for the watch's own G7 reading.
         WatchG7Reader.shared.updateFromPhone(message)
+        // after the reader took the units and alert thresholds from the same message
+        if message[WatchMessageKeys.glucoseValues] != nil {
+            ComplicationStore.update(
+                from: self,
+                lowMgDL: message["complicationRangeLowMgDL"] as? Double,
+                highMgDL: message["complicationRangeHighMgDL"] as? Double,
+                colorScheme: message["complicationColorScheme"] as? String,
+                targetMgDL: message["complicationTargetMgDL"] as? Double
+            )
+        }
     }
 }

@@ -14,10 +14,6 @@ extension Date {
         Calendar.current.date(byAdding: .day, value: -1, to: Date())!
     }
 
-    static var twoDaysAgo: Date {
-        Calendar.current.date(byAdding: .day, value: -2, to: Date())!
-    }
-
     static var oneHourAgo: Date {
         Calendar.current.date(byAdding: .minute, value: -60, to: Date())!
     }
@@ -52,10 +48,6 @@ extension Date {
 
     static var threeMonthsAgo: Date {
         Calendar.current.date(byAdding: .month, value: -3, to: Date())!
-    }
-
-    static var sixMonthsAgo: Date {
-        Calendar.current.date(byAdding: .month, value: -6, to: Date())!
     }
 }
 

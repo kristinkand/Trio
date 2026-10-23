@@ -18,10 +18,7 @@ extension Adjustments.RootView {
 
     private var scheduledTempTargets: some View {
         Section {
-            // See the matching comment in AdjustmentsRootView+Overrides.swift: identify rows by
-            // objectID, not the optional `id` field, so a nil/duplicate id on a saved temp target
-            // can't crash this list.
-            ForEach(state.scheduledTempTargets, id: \.objectID) { tempTarget in
+            ForEach(state.scheduledTempTargets) { tempTarget in
                 tempTargetView(for: tempTarget)
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         actionButtonsForTempTargets(for: tempTarget, deleteRole: nil)
@@ -35,7 +32,7 @@ extension Adjustments.RootView {
 
     private var tempTargetPresets: some View {
         Section {
-            ForEach(state.tempTargetPresets, id: \.objectID) { preset in
+            ForEach(state.tempTargetPresets) { preset in
                 tempTargetView(for: preset, showCheckmark: showTempTargetCheckmark) {
                     requestTempTargetPresetActivation(preset)
                 }

@@ -18,8 +18,6 @@ extension Stat {
         @State var state = StateModel()
         @State private var selectedView: StateModel.StatisticViewType = .glucose
         @State private var isGlucoseDaySelected: Bool = false
-        @State private var showExportMenu = false
-        @State private var showFoodImpactInfo = false
 
         private var intervalOptions: [Stat.StateModel.StatsTimeIntervalWithToday] {
             state.selectedGlucoseChartType == .percentileByDay || state.selectedGlucoseChartType == .distributionByDay
@@ -47,10 +45,6 @@ extension Stat {
                             loopingView
                         case .meals:
                             mealsView
-                        case .algorithmAdjustments:
-                            algorithmAdjustmentsView
-                        case .foodImpact:
-                            foodImpactView
                         }
                     }
                     .padding()
@@ -69,14 +63,6 @@ extension Stat {
                             .foregroundColor(.tabBar)
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showExportMenu = true }) {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                }
-            }
-            .sheet(isPresented: $showExportMenu) {
-                StatExportMenuView(state: state)
             }
         }
 
@@ -451,81 +437,6 @@ extension Stat {
                     Text("Tap and hold a bar to reveal more details.")
                 }.foregroundStyle(Color.secondary)
             }.font(.footnote)
-        }
-
-        @ViewBuilder var algorithmAdjustmentsView: some View {
-            Picker("Duration", selection: $state.selectedIntervalForAlgorithmStats) {
-                ForEach(StateModel.StatsTimeIntervalWithToday.allCases, id: \.self) { interval in
-                    Text(interval.displayName)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            StatCard {
-                if state.algorithmAdjustmentStats.isEmpty {
-                    ContentUnavailableView(
-                        String(localized: "No Algorithm Data"),
-                        systemImage: "slider.horizontal.3",
-                        description: Text("Algorithm adjustment history will appear here once data is available.")
-                    )
-                } else {
-                    AlgorithmAdjustmentsChartsView(
-                        points: state.algorithmAdjustmentStats,
-                        units: state.units,
-                        selectedInterval: state.selectedIntervalForAlgorithmStats
-                    )
-                }
-            }
-
-            HStack {
-                Image(systemName: "info.circle").foregroundStyle(Color.primary)
-                Text("Shows ISF, Carb Ratio, Autosens Ratio (AF), and basal rate as the algorithm adjusted them over time.")
-                    .foregroundStyle(Color.secondary)
-            }.font(.footnote)
-        }
-
-        @ViewBuilder var foodImpactView: some View {
-            HStack {
-                Picker("Duration", selection: $state.selectedIntervalForMealImpactStats) {
-                    ForEach(StateModel.StatsTimeInterval.allCases, id: \.self) { timeInterval in
-                        Text(timeInterval.displayName)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                Button {
-                    showFoodImpactInfo = true
-                } label: {
-                    Image(systemName: "info.circle")
-                }
-                .buttonStyle(.borderless)
-                .padding(.leading, 4)
-            }
-            .popover(isPresented: $showFoodImpactInfo) {
-                Text(
-                    "Tracks each meal from prebolus through the BG peak to flattening back out. \"2nd rise\" flags meals where a later rise followed an earlier partial come-down -- often high-fat/protein meals."
-                )
-                .frame(width: 280)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding()
-                .presentationCompactAdaptation(.popover)
-            }
-
-            StatCard {
-                if state.mealImpactEvents.isEmpty {
-                    ContentUnavailableView(
-                        String(localized: "No Meal Data"),
-                        systemImage: "fork.knife",
-                        description: Text("Food impact will appear here once meals with carb entries are logged.")
-                    )
-                } else {
-                    MealImpactListView(
-                        events: state.mealImpactEvents,
-                        units: state.units,
-                        onOverrideChanged: { state.setupMealImpactStats() }
-                    )
-                }
-            }
         }
     }
 }

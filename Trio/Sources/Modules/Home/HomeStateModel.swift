@@ -28,22 +28,11 @@ extension Home {
         @ObservationIgnored @Injected() var overrideStorage: OverrideStorage!
         @ObservationIgnored @Injected() var bluetoothManager: BluetoothStateManager!
         @ObservationIgnored @Injected() var iobService: IOBService!
-        @ObservationIgnored @Injected() var mealTimeReminderService: MealTimeReminderService!
         @ObservationIgnored @Injected() var fileStorage: FileStorage!
         @ObservationIgnored @Injected() var unlockmanager: UnlockManager!
 
         var cgmStateModel: CGMSettings.StateModel {
             CGMSettings.StateModel.shared
-        }
-
-        @MainActor var pendingMealTimeReminder: PendingMealTimeReminder? {
-            guard resolver != nil else { return nil }
-            return mealTimeReminderService.pendingReminder
-        }
-
-        @MainActor func cancelMealTimeReminder() {
-            guard resolver != nil else { return }
-            mealTimeReminderService.cancelPendingReminders()
         }
 
         private let timer = DispatchTimer(timeInterval: 30)
@@ -61,6 +50,8 @@ extension Home {
             ?? BGTargets(units: .mgdL, userPreferredUnits: .mgdL, targets: [])
         var targetProfiles: [TargetProfile] = []
         var timerDate = Date()
+        var alarmsSnoozeUntil: Date = UserDefaults.standard
+            .object(forKey: "UserNotificationsManager.snoozeUntilDate") as? Date ?? .distantPast
         var dosingMode: DosingMode = .open
         var isLooping = false
         var statusTitle = ""
@@ -109,9 +100,6 @@ extension Home {
         var waitForSuggestion: Bool = false
         var glucoseFromPersistence: [GlucoseStored] = []
         var latestTwoGlucoseValues: [GlucoseStored] = []
-        var glucoseFromPersistenceYesterday: [GlucoseStored] = []
-        var showPreviousDayGlucose: Bool = false
-        var showTrendAnimation: Bool = true
         var carbsFromPersistence: [CarbEntryStored] = []
         var fpusFromPersistence: [CarbEntryStored] = []
         var determinationsFromPersistence: [OrefDetermination] = []
@@ -131,8 +119,6 @@ extension Home {
         var overrideRunStored: [OverrideRunStored] = []
         var tempTargetStored: [TempTargetStored] = []
         var tempTargetRunStored: [TempTargetRunStored] = []
-        /// Bumped whenever Profile starts, stops or ends, so the chart's mint band redraws.
-        var weekendProfileRevision: Int = 0
         var isOverrideCancelled: Bool = false
         var preprocessedData: [(id: UUID, forecast: Forecast, forecastValue: ForecastValue)] = []
         var pumpStatusHighlightMessage: String?
@@ -158,6 +144,35 @@ extension Home {
         var hasDeviceIssue: Bool {
             if pumpStatusHighlightMessage != nil { return true }
             return timerDate.timeIntervalSince(lastGlucoseDate ?? .distantPast) > MultiUsePanelState.cgmStaleAfter
+        }
+
+        /// What the pump is delivering right now.
+        var activeBasalDelivery: ScheduledBasalInference.Delivery? {
+            // no pump, no delivery to report
+            guard !pumpName.isEmpty else { return nil }
+
+            // the tick only drives re-evaluation; the real clock decides
+            let now = max(timerDate, Date())
+
+            return ScheduledBasalInference.delivery(
+                events: tempBasals.map { event in
+                    let start = event.timestamp ?? .distantPast
+                    // stored duration is whole minutes, rounded
+                    let end = event.tempBasal?.endDate
+                        ?? start.addingTimeInterval(Double(event.tempBasal?.duration ?? 0) * 60)
+                    return ScheduledBasalInference.BasalEvent(
+                        start: start,
+                        end: end,
+                        rate: event.tempBasal?.rate?.decimalValue ?? 0,
+                        isScheduled: event.tempBasal?.isScheduledBasal ?? false
+                    )
+                },
+                suspensions: suspendAndResumeEvents.compactMap { event in
+                    event.timestamp.map { ($0, event.type == EventType.pumpSuspend.rawValue) }
+                },
+                profile: basalProfile,
+                now: now
+            )
         }
 
         var showCarbsRequiredBadge: Bool = true
@@ -203,22 +218,6 @@ extension Home {
                 cacheName: nil
             )
             controller.delegate = glucoseControllerDelegate
-            return controller
-        }()
-
-        @ObservationIgnored let previousDayGlucoseControllerDelegate = FetchedResultsControllerDelegate()
-        @ObservationIgnored private(set) lazy var previousDayGlucoseController: NSFetchedResultsController<GlucoseStored> = {
-            let request = NSFetchRequest<GlucoseStored>(entityName: "GlucoseStored")
-            request.sortDescriptors = [NSSortDescriptor(keyPath: \GlucoseStored.date, ascending: true)]
-            request.predicate = NSPredicate.glucosePreviousDay
-            request.fetchBatchSize = 50
-            let controller = NSFetchedResultsController(
-                fetchRequest: request,
-                managedObjectContext: viewContext,
-                sectionNameKeyPath: nil,
-                cacheName: nil
-            )
-            controller.delegate = previousDayGlucoseControllerDelegate
             return controller
         }()
 
@@ -423,9 +422,6 @@ extension Home {
                 // Re-sync the chart domain even if no new reading arrived while backgrounded.
                 self.updateStartEndMarkers()
             }
-            reanchor(previousDayGlucoseController, with: NSPredicate.glucosePreviousDay) {
-                self.updatePreviousDayGlucoseFromController()
-            }
             reanchor(carbsController, with: NSPredicate.carbsForChart(since: chartHistoryStartDate)) {
                 self.updateCarbsFromController() }
             reanchor(fpuController, with: NSPredicate.fpusForChart(since: chartHistoryStartDate)) {
@@ -557,11 +553,16 @@ extension Home {
             broadcaster.register(BGTargetsObserver.self, observer: self)
             broadcaster.register(PumpReservoirObserver.self, observer: self)
             broadcaster.register(PumpDeactivatedObserver.self, observer: self)
+            broadcaster.register(SnoozeObserver.self, observer: self)
 
             timer.eventHandler = {
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     self.timerDate = Date()
+                    // pump status is not observable; a status-only change writes no event
+                    if self.manualTempBasal != self.apsManager.isManualTempBasal {
+                        self.manualTempBasal = self.apsManager.isManualTempBasal
+                    }
                     // The publisher only re-emits on state changes; re-pull
                     // so the arc + countdowns + status text advance during
                     // warmup / stabilizing / expiry. Simulator has no
@@ -719,8 +720,6 @@ extension Home {
             displayYgridLines = settingsManager.settings.yGridLines
             bolusDisplayThreshold = settingsManager.settings.bolusDisplayThreshold
             thresholdLines = settingsManager.settings.rulerMarks
-            showPreviousDayGlucose = settingsManager.settings.showPreviousDayGlucose
-            showTrendAnimation = settingsManager.settings.showTrendAnimation
             showCarbsRequiredBadge = settingsManager.settings.showCarbsRequiredBadge
             enableQuickPickTreatments = settingsManager.settings.enableQuickPickTreatments
             forecastDisplayType = settingsManager.settings.forecastDisplayType
@@ -996,8 +995,13 @@ extension Home.StateModel:
     BasalProfileObserver,
     BGTargetsObserver,
     PumpReservoirObserver,
-    PumpDeactivatedObserver
+    PumpDeactivatedObserver,
+    SnoozeObserver
 {
+    @MainActor func snoozeDidChange(_ untilDate: Date) {
+        alarmsSnoozeUntil = untilDate
+    }
+
     func determinationDidUpdate(_: Determination) {
         waitForSuggestion = false
     }
@@ -1017,9 +1021,6 @@ extension Home.StateModel:
         displayXgridLines = settingsManager.settings.xGridLines
         displayYgridLines = settingsManager.settings.yGridLines
         thresholdLines = settingsManager.settings.rulerMarks
-        showPreviousDayGlucose = settingsManager.settings.showPreviousDayGlucose
-        Task { await updatePreviousDayGlucoseFromController() }
-        showTrendAnimation = settingsManager.settings.showTrendAnimation
         bolusDisplayThreshold = settingsManager.settings.bolusDisplayThreshold
         showCarbsRequiredBadge = settingsManager.settings.showCarbsRequiredBadge
         enableQuickPickTreatments = settingsManager.settings.enableQuickPickTreatments

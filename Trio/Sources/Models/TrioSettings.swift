@@ -50,10 +50,6 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var insulinConcentration: Decimal = 1
     var showCobIobChart: Bool = true
     var rulerMarks: Bool = true
-    var showPreviousDayGlucose: Bool = false
-    /// Whether the animated trend icon (rocket/plane/UFO/parachute) shows briefly on the
-    /// Home dashboard each time it's opened.
-    var showTrendAnimation: Bool = true
     var bolusDisplayThreshold: BolusDisplayThreshold = .allUnits
     var forecastDisplayType: ForecastDisplayType = .cone
     var maxCarbs: Decimal = 250
@@ -66,7 +62,6 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var fattyMealFactor: Decimal = 0.7
     var sweetMeals: Bool = false
     var sweetMealFactor: Decimal = 1
-    var mealTimeReminderEnabled: Bool = false
     var displayPresets: Bool = true
     var confirmBolus: Bool = false
     var enableQuickPickTreatments: Bool = false
@@ -75,22 +70,11 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var smartStackView: LockScreenView = .simple
     var liveActivitySimpleFontSize: LiveActivityFontSize = .large
     var displayGlucoseForecasts: Bool = false
-    var showBubbleInLiveActivity: Bool = true
     var bolusShortcut: BolusShortcutLimit = .notAllowed
     var timeInRangeType: TimeInRangeType = .timeInTightRange
     var homeStatsPanelFace: HomeStatsPanelFace = .timeInRange
     var homeStatsPanelRange: HomeStatsPanelRange = .today
     var requireAdjustmentsConfirmation: Bool = false
-
-    /// Whether the app should request iOS's Critical Alerts authorization, letting
-    /// urgent alarms (e.g. urgent-low glucose, not-looping) bypass Silent Mode and Do Not Disturb.
-    var useCriticalAlerts: Bool = false
-
-    /// Whether a hardware volume-button press (while a critical alarm's own audio is
-    /// sounding) snoozes that alarm for 15 minutes. Off by default: an ordinary
-    /// volume-down press (e.g. during a call, or adjusting media volume) could
-    /// otherwise silence a genuine urgent-low alarm without the user meaning to.
-    var useVolumeButtonSnooze: Bool = false
 
     /// Selected Garmin watchface (Trio or SwissAlpine)
     var garminWatchface: GarminWatchface = .trio
@@ -240,10 +224,6 @@ extension TrioSettings: Decodable {
             settings.sweetMealFactor = sweetMealFactor
         }
 
-        if let mealTimeReminderEnabled = try? container.decode(Bool.self, forKey: .mealTimeReminderEnabled) {
-            settings.mealTimeReminderEnabled = mealTimeReminderEnabled
-        }
-
         if let overrideFactor = try? container.decode(Decimal.self, forKey: .overrideFactor) {
             settings.overrideFactor = overrideFactor
         }
@@ -306,22 +286,6 @@ extension TrioSettings: Decodable {
 
         if let rulerMarks = try? container.decode(Bool.self, forKey: .rulerMarks) {
             settings.rulerMarks = rulerMarks
-        }
-
-        if let useCriticalAlerts = try? container.decode(Bool.self, forKey: .useCriticalAlerts) {
-            settings.useCriticalAlerts = useCriticalAlerts
-        }
-
-        if let useVolumeButtonSnooze = try? container.decode(Bool.self, forKey: .useVolumeButtonSnooze) {
-            settings.useVolumeButtonSnooze = useVolumeButtonSnooze
-        }
-
-        if let showPreviousDayGlucose = try? container.decode(Bool.self, forKey: .showPreviousDayGlucose) {
-            settings.showPreviousDayGlucose = showPreviousDayGlucose
-        }
-
-        if let showTrendAnimation = try? container.decode(Bool.self, forKey: .showTrendAnimation) {
-            settings.showTrendAnimation = showTrendAnimation
         }
 
         if let bolusDisplayThreshold = try? container.decode(BolusDisplayThreshold.self, forKey: .bolusDisplayThreshold) {
@@ -391,10 +355,6 @@ extension TrioSettings: Decodable {
 
         if let displayGlucoseForecasts = try? container.decode(Bool.self, forKey: .displayGlucoseForecasts) {
             settings.displayGlucoseForecasts = displayGlucoseForecasts
-        }
-
-        if let showBubbleInLiveActivity = try? container.decode(Bool.self, forKey: .showBubbleInLiveActivity) {
-            settings.showBubbleInLiveActivity = showBubbleInLiveActivity
         }
 
         if let bolusShortcut = try? container.decode(BolusShortcutLimit.self, forKey: .bolusShortcut) {

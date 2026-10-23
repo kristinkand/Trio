@@ -37,9 +37,17 @@ import WatchKit
     private(set) var history: [WatchG7Reading]
     private(set) var isConnected = false
     private(set) var isSearching = false
+    /// Untethered mode holds the sensor (same watch display slot): the reader lets go until it ends.
+    private(set) var isStandingAside = false
+    /// Back from untethered mode, until the first reading arrives.
+    private(set) var isReconnecting = false
     private(set) var needsCodeForSensor: String? = nil
     /// The sensor's state when it last answered without a usable reading (warm-up, failed, ...).
     private(set) var sensorProblem: String? = nil
+    /// The same as a few words for the first page, so a missing reading is put down to the sensor, not the watch.
+    private(set) var sensorProblemLabel: String? = nil
+    /// Answers in a row with a temporary sensor issue; the second raises "Sensor Issue".
+    @ObservationIgnored private var temporaryIssueCount = 0
     private(set) var logLines: [String] = []
     /// When the last watch state update from the phone was made.
     private(set) var lastPhoneContact: Date?
@@ -176,6 +184,18 @@ import WatchKit
         guard isEnabled else {
             return String(localized: "Off", comment: "Watch G7 status: the watch does not read the sensor")
         }
+        if isStandingAside {
+            return String(
+                localized: "Paused: untethered mode reads the sensor",
+                comment: "Watch G7 status: untethered mode holds the sensor"
+            )
+        }
+        if isReconnecting, !isConnected {
+            return String(
+                localized: "Reconnecting to the sensor…",
+                comment: "Watch G7 status: pairing again after untethered mode"
+            )
+        }
         if phoneUsesG7Direct == false, sensorName == nil {
             return String(
                 localized: "iPhone isn't on G7 direct",
@@ -228,7 +248,99 @@ import WatchKit
 
     /// Any wake: a lost Bluetooth callback can leave nothing waiting for the sensor.
     func noteWake() {
+        flushLogIfDue()
+        guard !isStandingAside else { return }
         session?.recheck()
+    }
+
+    // MARK: - Ahead of silence
+
+    private static let noReadingsID = "trio.watchG7.noReadings"
+    /// Three readings missed on the sensor's 5-minute grid.
+    private static let noReadingsAfter: TimeInterval = 16 * 60
+
+    /// Booked after every reading, the watch's own or the phone's: it sounds even when nothing wakes the app any
+    /// more, which is how a failing background link showed until now (2026-10-18: the third page silent for hours).
+    /// Opening the app is what puts that right.
+    func bookNoReadingsAlert() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.bookNoReadingsAlert() }
+            return
+        }
+        let center = UNUserNotificationCenter.current()
+        guard isEnabled, !isStandingAside, sensorName != nil else {
+            center.removePendingNotificationRequests(withIdentifiers: [Self.noReadingsID])
+            return
+        }
+        let newest = [latest?.date, phoneGlucoseDate].compactMap { $0 }.max() ?? Date()
+        let delay = newest.addingTimeInterval(Self.noReadingsAfter).timeIntervalSinceNow
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "No Glucose on the Watch")
+        content.body = String(
+            localized: "Neither the sensor nor the iPhone has sent a reading for 15 minutes. Open Trio on the watch."
+        )
+        content.sound = .default
+        center.add(UNNotificationRequest(
+            identifier: Self.noReadingsID,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(60, delay), repeats: false)
+        ))
+    }
+
+    /// The log reaches the phone only when the app goes to the background after being open; a reader that only
+    /// runs in background wakes sends it at most every 30 minutes from a wake, so a test leaves a whole log.
+    private var lastLogFlush = Date()
+    private func flushLogIfDue() {
+        guard Date().timeIntervalSince(lastLogFlush) > 30 * 60,
+              !isStandingAside
+        else { return }
+        lastLogFlush = Date()
+        Task { await WatchLogger.shared.flushPersistedLogs(queued: true) }
+    }
+
+    /// Untethered mode takes the sensor in the same watch display slot from its first handshake on
+    /// and gives it back when it is idle again. Only one of the two may talk to the sensor; afterwards
+    /// the reader may have to pair again, which it does by itself with the code it has.
+    func standAside(_ aside: Bool) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard aside != isStandingAside else { return }
+        isStandingAside = aside
+        if aside {
+            appendLog("Paused: untethered mode has the sensor")
+            // untethered mode books its own "No Sensor Readings"
+            bookNoReadingsAlert()
+            session?.pause()
+            isConnected = false
+            isSearching = false
+        } else {
+            // The sensor keeps one key for the watch slot, and untethered mode may have paired it afresh,
+            // which made the reader's own key worthless: every hand-back then cost a full pairing over two
+            // sensor windows (test 17.10.: 19:22 to 19:23, and again from 19:45 to 19:55 the other way).
+            // Take the slot's newest key, so the next connection authenticates at once.
+            // Then connect to the sensor untethered mode just read, by its handle: the system keeps that
+            // request while the app sleeps, as untethered mode's own reconnects every 5 minutes show. A scan
+            // without a handle only found the sensor with the app open (test 17.10.: 4 s in front at 20:05,
+            // nothing in 43 minutes in the background from 20:55).
+            if pairingCode != nil {
+                if let slotKey = WatchG7SlotKey.current, slotKey != sharedKey {
+                    sharedKey = slotKey
+                    hasWatchKey = true
+                    defaults.set(slotKey, forKey: Key.sharedKey)
+                }
+                let handle = WatchG7SlotKey.peripheral
+                setPeripheralIdentifier(handle)
+                appendLog(
+                    handle == nil
+                        ? "Untethered mode over: reading again, searching for the sensor"
+                        : "Untethered mode over: reading again, connecting to the sensor it used"
+                )
+                session?.update(credentials: credentials)
+            } else {
+                appendLog("Untethered mode over: reading again")
+            }
+            isReconnecting = true
+            startSessionIfPossible()
+        }
     }
 
     /// Asks watchOS for a background wake about every 15 minutes (it decides
@@ -254,6 +366,7 @@ import WatchKit
             scheduleBackgroundRefresh()
         } else {
             appendLog("Turned off")
+            bookNoReadingsAlert()
             session?.pause()
             isConnected = false
             isSearching = false
@@ -279,16 +392,18 @@ import WatchKit
     }
 
     private func startSessionIfPossible() {
-        guard isEnabled, sensorName != nil else { return }
+        guard isEnabled, !isStandingAside, sensorName != nil else { return }
         if let session {
             session.update(credentials: credentials)
             session.resume()
+            syncForeground()
         } else {
             let session = WatchG7Session(credentials: credentials, latestReadingDate: latest?.date)
             session.delegate = self
             self.session = session
             appendLog("Starting")
             session.resume()
+            syncForeground()
         }
     }
 
@@ -315,6 +430,7 @@ import WatchKit
             phoneGlucoseDate = date
             defaults.set(date, forKey: Key.phoneGlucoseDate)
             session?.notePhoneReading(at: date)
+            bookNoReadingsAlert()
         }
 
         // Units from the dedicated key; the general one only from a state with
@@ -395,8 +511,16 @@ import WatchKit
             return
         }
         heldBluetoothTask = task
-        task.expirationHandler = { [weak self] in
-            DispatchQueue.main.async { self?.completeHeldBluetoothTask(task) }
+        let since = Date()
+        // the system may grant less than the hold: end the task right then (an app that overruns its background
+        // time is ended and woken less), and log the grant
+        task.expirationHandler = { [weak self, weak task] in
+            let expire = {
+                let granted = Date().timeIntervalSince(since)
+                Task { await WatchLogger.shared.log(String(format: "⌚️🩸 G7: Bluetooth wake expired by the system after %.1f s", granted)) }
+                if let task { self?.completeHeldBluetoothTask(task) }
+            }
+            if Thread.isMainThread { expire() } else { DispatchQueue.main.sync(execute: expire) }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 25) { [weak self] in
             self?.completeHeldBluetoothTask(task)
@@ -425,6 +549,7 @@ import WatchKit
         sharedKey = key
         hasWatchKey = key != nil
         defaults.set(key, forKey: Key.sharedKey)
+        if let key { WatchG7SlotKey.record(key, peripheral: peripheralIdentifier) }
     }
 
     private func setPeripheralIdentifier(_ identifier: UUID?) {
@@ -459,6 +584,108 @@ import WatchKit
         Task {
             await WatchLogger.shared.log("⌚️🩸 G7: \(line)")
         }
+    }
+
+    // MARK: - Sensor warning (first page and watch face)
+
+    /// Something about the sensor needs a look: it reports a problem. Shown as a yellow triangle on the first page
+    /// and the watch face; page 3 says what it is.
+    var showsSensorWarning: Bool {
+        isEnabled && sensorProblemLabel != nil
+    }
+
+    /// Hands the warning to the watch face when it may have changed.
+    func refreshSensorWarning() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.refreshSensorWarning() }
+            return
+        }
+        ComplicationStore.setSensorWarning(showsSensorWarning)
+    }
+
+    // MARK: - Sensor state alerts
+
+    private enum SensorAlert: String {
+        case failed = "sensorFailed"
+        case ended = "sensorEnded"
+        case issue = "sensorIssue"
+
+        var title: String {
+            switch self {
+            case .failed: return String(localized: "Sensor Failed", comment: "Watch G7 alert title: the sensor reports it has failed")
+            case .ended: return String(localized: "Sensor Session Ended", comment: "Watch G7 alert title: the sensor's session is over")
+            case .issue: return String(localized: "Sensor Issue", comment: "Watch G7 alert title: the sensor reports a temporary problem")
+            }
+        }
+
+        var body: String {
+            switch self {
+            case .failed:
+                return String(
+                    localized: "The G7 reports that it has failed and sends no more glucose. The watch and Trio are working; replace the sensor.",
+                    comment: "Watch G7 alert body: sensor failed"
+                )
+            case .ended:
+                return String(
+                    localized: "The G7 reports that its session is over and sends no more glucose. Replace the sensor.",
+                    comment: "Watch G7 alert body: sensor session ended"
+                )
+            case .issue:
+                return String(
+                    localized: "The G7 reports a temporary sensor issue and sends no glucose for now. The watch and Trio are working; readings come back when the sensor recovers.",
+                    comment: "Watch G7 alert body: temporary sensor issue"
+                )
+            }
+        }
+    }
+
+    /// A G7 that answers without glucose says why. Its own state is what the wrist should hear, also with the phone
+    /// nearby: a missing reading otherwise looks like the watch or Trio not updating. Warm-up only shows on the page.
+    private func noteSensorState(_ state: AlgorithmState) {
+        if state.sensorFailed {
+            sensorProblemLabel = String(localized: "Sensor failed", comment: "Watch first page: the sensor reports it has failed")
+            raiseSensorAlert(.failed)
+        } else if case let .known(known) = state, [.sessionExpired, .expired, .sessionEnded, .stopped].contains(known) {
+            sensorProblemLabel = String(localized: "Sensor ended", comment: "Watch first page: the sensor's session is over")
+            raiseSensorAlert(.ended)
+        } else if state.isInWarmup {
+            sensorProblemLabel = String(localized: "Sensor warming up", comment: "Watch first page: the sensor is warming up")
+        } else {
+            sensorProblemLabel = String(localized: "Sensor issue", comment: "Watch first page: the sensor sends no glucose for now")
+            temporaryIssueCount += 1
+            if temporaryIssueCount >= 2 { raiseSensorAlert(.issue) }
+        }
+    }
+
+    private func sensorStateRecovered() {
+        temporaryIssueCount = 0
+        guard sensorProblemLabel != nil else { return }
+        sensorProblemLabel = nil
+        for alert in [SensorAlert.failed, .ended, .issue] {
+            defaults.removeObject(forKey: Key.lastAlert + alert.rawValue)
+        }
+        UNUserNotificationCenter.current().removeDeliveredNotifications(
+            withIdentifiers: [SensorAlert.issue].map { Self.notificationIdentifierPrefix + $0.rawValue }
+        )
+        appendLog("Sensor sends glucose again")
+    }
+
+    /// Once per sensor problem: it is cleared by the next good reading.
+    private func raiseSensorAlert(_ alert: SensorAlert) {
+        let key = Key.lastAlert + alert.rawValue
+        guard defaults.object(forKey: key) == nil else { return }
+        defaults.set(Date(), forKey: key)
+        let content = UNMutableNotificationContent()
+        content.title = alert.title
+        content.body = alert.body
+        content.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(
+            identifier: Self.notificationIdentifierPrefix + alert.rawValue,
+            content: content,
+            trigger: nil
+        ))
+        WKInterfaceDevice.current().play(.failure)
+        appendLog("Alert: \(alert.title)")
     }
 
     // MARK: - Alerts
@@ -585,15 +812,22 @@ import WatchKit
                 let problem = String(describing: message.algorithmState)
                 self.sensorProblem = problem
                 self.appendLog("Sensor answered without a reading (\(problem))")
+                self.noteSensorState(message.algorithmState)
+                self.refreshSensorWarning()
                 return
             }
             self.sensorProblem = nil
+            self.sensorStateRecovered()
+            self.refreshSensorWarning()
+            self.isReconnecting = false
             let reading = WatchG7Reading(
                 date: receivedAt.addingTimeInterval(-TimeInterval(message.age)),
                 glucose: Int(glucose),
                 trendRate: message.trend
             )
             self.merge([reading])
+            ComplicationStore.add(reading)
+            self.bookNoReadingsAlert()
             self.appendLog("Reading \(self.format(Double(reading.glucose))) \(self.units) \(self.arrow(for: reading.trendName))")
             self.evaluateAlerts(for: reading)
         }
@@ -622,13 +856,72 @@ import WatchKit
     func session(_: WatchG7Session, didAdoptPeripheral identifier: UUID?) {
         DispatchQueue.main.async {
             self.setPeripheralIdentifier(identifier)
+            if let identifier { WatchG7SlotKey.record(peripheral: identifier) }
         }
     }
 
     func session(_: WatchG7Session, log line: String) {
         DispatchQueue.main.async {
             self.appendLog(line)
+            self.notePairingStep(line)
         }
+    }
+
+    // MARK: - Foreground
+
+    /// The app's scene phase, for the acquisition's wait past the sensor's tail: held in the app while in front,
+    /// handed to the daemon as a start delay only when the app leaves the screen during it (idea from xDrip4iOS
+    /// 7.2.0, see G7WatchAcquisition).
+    func appBecameActive() {
+        session?.appBecameActive()
+    }
+
+    func appLeavingScreen() {
+        session?.appLeavingScreen()
+    }
+
+    /// Tells the acquisition whether Trio is in front right now, as on (re)starting the session.
+    private func syncForeground() {
+        if WKApplication.shared().applicationState == .active {
+            session?.appBecameActive()
+        } else {
+            session?.appNoteBackground()
+        }
+    }
+
+    // MARK: - Pairing in front
+
+    @ObservationIgnored private var pairingKeepAlive: ReaderPairingKeepAlive?
+
+    /// A pairing needs Trio on the screen for the system's Bluetooth pairing request; the watch dims within seconds
+    /// and the sensor drops the link a second after asking (2026-10-22: 05:00, and again until the watch was held
+    /// up). Trio is kept in front for up to 10 minutes once a pairing starts while it is open, and the wrist feels
+    /// the request coming. Matched on the kit's log lines.
+    private func notePairingStep(_ line: String) {
+        if line.contains("Running the certificate exchange")
+            || line.contains("Pairing: running the key exchange")
+            || line.contains("the sensor no longer accepts the saved key")
+        {
+            keepInFrontForPairing()
+        } else if line.contains("expect the system pairing prompt") {
+            WKInterfaceDevice.current().play(.notification)
+        } else if line.hasPrefix("Bonded") || line.hasPrefix("Already authenticated and bonded") || line.hasPrefix("Reading ") {
+            guard let keepAlive = pairingKeepAlive else { return }
+            pairingKeepAlive = nil
+            keepAlive.stop()
+            appendLog("Paired: Trio no longer held in front")
+        }
+    }
+
+    private func keepInFrontForPairing() {
+        guard pairingKeepAlive?.isRunning != true, WKApplication.shared().applicationState == .active else { return }
+        let keepAlive = ReaderPairingKeepAlive { [weak self] reason in
+            self?.appendLog("Pairing screen hold ended (\(reason))")
+            self?.pairingKeepAlive = nil
+        }
+        pairingKeepAlive = keepAlive
+        keepAlive.start()
+        appendLog("Pairing: keeping Trio in front for up to 10 minutes")
     }
 
     func session(_: WatchG7Session, didChangeConnection connected: Bool) {
@@ -644,5 +937,66 @@ import WatchKit
             self.isSearching = searching
             self.needsCodeForSensor = needsCode
         }
+    }
+}
+
+/// The sensor holds a single key for the watch display slot, which the reader and untethered mode's G7
+/// manager both use. Whoever authenticates with a new key records it here, and the other takes it over
+/// at the hand-over instead of pairing again (a pairing costs two sensor windows, about 5 to 10 minutes).
+enum WatchG7SlotKey {
+    private static let key = "watchG7.slotKey"
+    private static let peripheralKey = "watchG7.slotPeripheral"
+
+    static var current: Data? { UserDefaults.standard.data(forKey: key) }
+
+    /// The sensor's Bluetooth handle as the last of the two to connect knew it. Both run in the same app, so
+    /// the system gives them the same handle for the same sensor.
+    static var peripheral: UUID? {
+        UserDefaults.standard.string(forKey: peripheralKey).flatMap(UUID.init(uuidString:))
+    }
+
+    static func record(_ sharedKey: Data, peripheral: UUID? = nil) {
+        if sharedKey != current { UserDefaults.standard.set(sharedKey, forKey: key) }
+        if let peripheral { record(peripheral: peripheral) }
+    }
+
+    static func record(peripheral: UUID) {
+        guard peripheral != self.peripheral else { return }
+        UserDefaults.standard.set(peripheral.uuidString, forKey: peripheralKey)
+    }
+}
+
+/// Keeps Trio in front for a sensor pairing: a self-care extended runtime session (WKBackgroundModes self-care, at
+/// most 10 minutes), started while the app is active. watchOS then returns to Trio, not the clock, when the wrist
+/// comes up, so the Bluetooth pairing request can show.
+final class ReaderPairingKeepAlive: NSObject, WKExtendedRuntimeSessionDelegate {
+    private let session = WKExtendedRuntimeSession()
+    private let onEnd: (String) -> Void
+
+    init(onEnd: @escaping (String) -> Void) {
+        self.onEnd = onEnd
+        super.init()
+        session.delegate = self
+    }
+
+    var isRunning: Bool { session.state == .running || session.state == .notStarted }
+
+    func start() { session.start() }
+
+    func stop() {
+        if session.state == .running { session.invalidate() }
+    }
+
+    func extendedRuntimeSessionDidStart(_: WKExtendedRuntimeSession) {}
+
+    func extendedRuntimeSessionWillExpire(_: WKExtendedRuntimeSession) {}
+
+    func extendedRuntimeSession(
+        _: WKExtendedRuntimeSession,
+        didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason,
+        error: Error?
+    ) {
+        let text = error.map { "\(reason.rawValue): \($0.localizedDescription)" } ?? "\(reason.rawValue)"
+        DispatchQueue.main.async { self.onEnd(text) }
     }
 }

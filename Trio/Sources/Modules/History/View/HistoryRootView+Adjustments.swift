@@ -45,7 +45,7 @@ extension History.RootView {
             )
         }
 
-        let combined = overrides + tempTargets + weekendProfileAdjustments
+        let combined = overrides + tempTargets
         return combined.sorted {
             if $0.startDate == $1.startDate {
                 return $0.endDate > $1.endDate
@@ -54,44 +54,8 @@ extension History.RootView {
         }
     }
 
-    /// Weekend Profile has no Core Data record the way Overrides/Temp Targets do (see
-    /// `WeekendProfileStore`), so it's anchored here from its own lightweight run history instead of
-    /// a `@FetchRequest`. Mirrors `overridesRunStoredFromOneDayAgo`/`tempTargetRunStoredFromOneDayAgo`
-    /// by only surfacing runs that overlap the last 24h, and appends a synthetic "still running"
-    /// entry (ending "now") while Weekend Profile is currently active so it's anchored here exactly
-    /// like an in-progress Override or Temp Target already is.
-    fileprivate var weekendProfileAdjustments: [AdjustmentItem] {
-        let cutoff = Date.oneDayAgo
-        var items = WeekendProfileStore.runHistory
-            .filter { $0.endDate >= cutoff }
-            .map { run -> AdjustmentItem in
-                AdjustmentItem(
-                    id: AnyHashable(run.id),
-                    name: run.name,
-                    startDate: run.startDate,
-                    endDate: run.endDate,
-                    target: nil,
-                    type: .weekendProfile
-                )
-            }
-
-        if WeekendProfileStore.isActive, let start = WeekendProfileStore.activeStartDate {
-            items.append(
-                AdjustmentItem(
-                    id: AnyHashable("weekendProfileActiveRun"),
-                    name: WeekendProfileStore.name,
-                    startDate: start,
-                    endDate: Date(),
-                    target: nil,
-                    type: .weekendProfile
-                )
-            )
-        }
-        return items
-    }
-
     fileprivate struct AdjustmentItem: Identifiable {
-        let id: AnyHashable
+        let id: NSManagedObjectID
         let name: String
         let startDate: Date
         let endDate: Date
@@ -102,7 +66,6 @@ extension History.RootView {
     fileprivate enum AdjustmentType {
         case override
         case tempTarget
-        case weekendProfile
 
         var symbolName: String {
             switch self {
@@ -110,23 +73,15 @@ extension History.RootView {
                 return "clock.arrow.2.circlepath"
             case .tempTarget:
                 return "target"
-            case .weekendProfile:
-                // Matches the icon used for the Weekend Profile indicator elsewhere in the app
-                // (see HomeRootView+BottomControls.swift).
-                return "sun.max.fill"
             }
         }
 
         var symbolColor: Color {
             switch self {
             case .override:
-                return .purple
+                return .orange
             case .tempTarget:
-                return .green
-            case .weekendProfile:
-                // Matches the color used for the Weekend Profile indicator elsewhere in the app
-                // (see HomeRootView+BottomControls.swift).
-                return .mint
+                return .blue
             }
         }
     }
@@ -152,7 +107,7 @@ extension History.RootView {
                 VStack(alignment: .leading) {
                     HStack {
                         Image(systemName: item.type.symbolName)
-                            .foregroundStyle(item.type.symbolColor)
+                            .foregroundStyle(item.type == .override ? Color.purple : Color.green)
                             .accessibilityHidden(true)
                         Text(item.name)
                             .font(.headline)

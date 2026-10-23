@@ -86,10 +86,6 @@ class TrioRemoteControl: Injectable {
             await handleStartOverrideCommand(commandPayload)
         case .cancelOverride:
             await handleCancelOverrideCommand(commandPayload)
-        case .startWeekendProfile:
-            await handleStartWeekendProfileCommand(commandPayload)
-        case .stopWeekendProfile:
-            await handleStopWeekendProfileCommand(commandPayload)
         case .deleteMeal:
             try await handleDeleteMealCommand(commandPayload)
         case .editMeal:

@@ -7,9 +7,6 @@ import Swinject
 extension Stat {
     @Observable final class StateModel: BaseStateModel<Provider> {
         @ObservationIgnored @Injected() var settings: SettingsManager!
-        @ObservationIgnored @Injected() var apsManager: APSManager!
-        @ObservationIgnored @Injected() var fetchGlucoseManager: FetchGlucoseManager!
-        @ObservationIgnored @Injected() var storage: FileStorage!
         var highLimit: Decimal = 180
         var lowLimit: Decimal = 70
         var eA1cDisplayUnit: EstimatedA1cDisplayUnit = .percent
@@ -20,8 +17,6 @@ extension Stat {
         var loopStatRecords: [LoopStatRecord] = []
         var loopStats: [LoopStatsProcessedData] = []
         var groupedLoopStats: [LoopStatsByPeriod] = []
-        var algorithmAdjustmentStats: [AlgorithmAdjustmentPoint] = []
-        var mealImpactEvents: [MealImpactEvent] = []
         var bolusStats: [BolusStats] = []
         var hourlyStats: [HourlyStats] = []
         var glucoseRangeStats: [GlucoseRangeStats] = []
@@ -62,24 +57,10 @@ extension Stat {
         // Selected Duration for Meal Stats
         var selectedIntervalForMealStats: StatsTimeInterval = .day
 
-        // Selected Duration for Food Impact Stats
-        var selectedIntervalForMealImpactStats: StatsTimeInterval = .day {
-            didSet {
-                setupMealImpactStats()
-            }
-        }
-
         // Selected Duration for Loop Stats
         var selectedIntervalForLoopStats: StatsTimeIntervalWithToday = .today {
             didSet {
                 setupLoopStatRecords()
-            }
-        }
-
-        // Selected Duration for Algorithm Adjustment Stats
-        var selectedIntervalForAlgorithmStats: StatsTimeIntervalWithToday = .today {
-            didSet {
-                setupAlgorithmAdjustmentStats()
             }
         }
 
@@ -120,9 +101,7 @@ extension Stat {
 
             setupTDDStats()
             setupBolusStats()
-            setupAlgorithmAdjustmentStats()
             setupMealStats()
-            setupMealImpactStats()
             setupGlucoseDailyStats()
             units = settingsManager.settings.units
             eA1cDisplayUnit = settingsManager.settings.eA1cDisplayUnit
@@ -159,7 +138,7 @@ extension Stat {
             }
         }
 
-        func fetchGlucose(for interval: StatsTimeIntervalWithToday) async -> [NSManagedObjectID] {
+        private func fetchGlucose(for interval: StatsTimeIntervalWithToday) async -> [NSManagedObjectID] {
             do {
                 let context = CoreDataStack.shared.newTaskContext()
                 context.name = "StatStateModel.fetchGlucose"
@@ -376,7 +355,7 @@ extension Stat.StateModel {
     }
 
     /// Defines the available time periods for duration-based statistics
-    enum StatsTimeInterval: String, CaseIterable, Identifiable, Codable {
+    enum StatsTimeInterval: String, CaseIterable, Identifiable {
         /// Single day interval
         case day = "D"
         /// Week interval
@@ -423,10 +402,6 @@ extension Stat.StateModel {
         case looping
         /// Meal-related statistics and correlations
         case meals
-        /// Algorithm adjustment history (ISF, CR, AF, basal rate) statistics
-        case algorithmAdjustments
-        /// Food impact statistics -- BG excursion tracked per meal, from prebolus through peak to flattening out
-        case foodImpact
 
         var id: String { rawValue }
 
@@ -440,16 +415,6 @@ extension Stat.StateModel {
                 return String(localized: "Looping", comment: "Title for looping and system statistics")
             case .meals:
                 return String(localized: "Meals", comment: "Title for meal-related statistics")
-            case .algorithmAdjustments:
-                return String(
-                    localized: "Algorithm",
-                    comment: "Title for algorithm adjustment history statistics (ISF, CR, AF, basal rate)"
-                )
-            case .foodImpact:
-                return String(
-                    localized: "Food Impact",
-                    comment: "Title for food impact statistics (BG excursion per meal)"
-                )
             }
         }
     }

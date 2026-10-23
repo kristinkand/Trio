@@ -60,18 +60,10 @@ final class BaseCarbEntryMutationService: CarbEntryMutationService, Injectable {
         guard let idString = replacement.id, let newID = UUID(uuidString: idString) else {
             throw CarbEntryMutationError.invalidReplacementID
         }
-        // An edited meal keeps the bolus type it was entered with (Super / Reduced Bolus),
-        // so its marker on the main chart and in Meal Impact keeps its color.
-        var edited = replacement
-        let bolusType = await bolusTypeFlags(rootObjectID)
-        edited.isSuperBolus = bolusType.isSuperBolus
-        edited.isReducedBolus = bolusType.isReducedBolus
-        let mealToStore = edited
-
         let snapshot = try await localMutations.run {
             let snapshot = try await self.snapshotRoot(rootObjectID)
-            await self.carbsStorage.deleteCarbsEntryStored(rootObjectID)
-            try await self.carbsStorage.storeCarbs([mealToStore], areFetchedFromRemote: false)
+            // One transaction, so a failed insert cannot leave the meal deleted without a replacement.
+            try await self.carbsStorage.replaceCarbs(rootObjectID, with: replacement)
             return snapshot
         }
         let failures = await deleteFromServices(snapshot)
@@ -84,17 +76,6 @@ final class BaseCarbEntryMutationService: CarbEntryMutationService, Injectable {
         async let healthKitUpload: () = healthkitManager.uploadCarbs()
         async let tidepoolUpload: () = tidepoolManager.uploadCarbs()
         _ = await [nightscoutUpload, healthKitUpload, tidepoolUpload]
-    }
-
-    private func bolusTypeFlags(_ objectID: NSManagedObjectID) async -> (isSuperBolus: Bool, isReducedBolus: Bool) {
-        let context = makeContext()
-        context.name = "bolusTypeFlags"
-        return await context.perform {
-            guard let row = try? context.existingObject(with: objectID) as? CarbEntryStored else {
-                return (false, false)
-            }
-            return (row.isSuperBolus, row.isReducedBolus)
-        }
     }
 
     private func snapshotRoot(_ objectID: NSManagedObjectID) async throws -> MealSnapshot {

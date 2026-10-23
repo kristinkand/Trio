@@ -13,6 +13,12 @@ struct GlucoseTrendView: View {
         reader.readingToShow(phoneDataIsDated: isWatchStateDated)
     }
 
+    /// The value shown is one the watch read from the sensor itself (its reader, or untethered mode),
+    /// not the phone's.
+    private var readingIsWatchOwn: Bool {
+        directReading != nil || state.currentGlucoseIsWatchOwn
+    }
+
     private var showsGlucose: Bool {
         !isWatchStateDated || directReading != nil
     }
@@ -43,6 +49,12 @@ struct GlucoseTrendView: View {
     }
 
     private var bottomText: String {
+        // the sensor's own state, when it sends no glucose: the reason, not "stale"
+        if let label = reader.sensorProblemLabel, !reader.isStandingAside,
+           (reader.latest.map { Date().timeIntervalSince($0.date) > 6 * 60 } ?? true)
+        {
+            return label
+        }
         if let directReading {
             let minutes = max(0, Int(Date().timeIntervalSince(directReading.date) / 60))
             return String(
@@ -210,6 +222,19 @@ struct GlucoseTrendView: View {
                             .fontWeight(.semibold)
                             .font(.system(.caption))
                             .foregroundStyle(.secondary)
+                    }
+
+                    // a sensor problem first: a yellow triangle catches the eye, page 3 says what it is
+                    if reader.showsSensorWarning {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.yellow)
+                            .accessibilityLabel("Sensor problem: see the sensor page")
+                    } else if showsGlucose {
+                        Image(systemName: readingIsWatchOwn ? "applewatch" : "iphone")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel(readingIsWatchOwn ? "Reading from the watch" : "Reading from the iPhone")
                     }
                 }
             }

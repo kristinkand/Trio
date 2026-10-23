@@ -13,7 +13,6 @@ extension History {
         @ObservationIgnored @Injected() var glucoseStorage: GlucoseStorage!
         @ObservationIgnored @Injected() var healthKitManager: HealthKitManager!
         @ObservationIgnored @Injected() var carbsStorage: CarbsStorage!
-        @ObservationIgnored @Injected() var placementLogStorage: PlacementLogStorage!
         @ObservationIgnored @Injected() var carbEntryMutationService: CarbEntryMutationService!
 
         var mode: Mode = .treatments
@@ -28,15 +27,6 @@ extension History {
 
         var carbEntryToEdit: CarbEntryStored?
         var showCarbEntryEditor = false
-
-        var newPlacementDate: Date = Date()
-        var newPlacementDeviceType: PlacementDeviceType = .pump
-        var newPlacementLocation: PlacementLocation = .abdomenLeftHigh
-        var newPlacementHasSiteIssue: Bool = false
-        var newPlacementIsPainful: Bool = false
-        var newPlacementIsPainfulGivingInsulin: Bool = false
-        var newPlacementHasInaccurateReadings: Bool = false
-        var editingPlacementLogObjectID: NSManagedObjectID?
 
         override func subscribe() {
             units = settingsManager.settings.units
@@ -57,62 +47,6 @@ extension History {
             let glucoseAsInt = Int(glucose)
 
             glucoseStorage.addManualGlucose(glucose: glucoseAsInt)
-        }
-
-        func startEditingPlacementLog(_ entry: PlacementLogStored) {
-            editingPlacementLogObjectID = entry.objectID
-            newPlacementDate = entry.date ?? Date()
-            newPlacementDeviceType = entry.deviceTypeEnum
-            newPlacementLocation = entry.locationEnum
-            newPlacementHasSiteIssue = entry.hasSiteIssue
-            newPlacementIsPainful = entry.isPainful
-            newPlacementIsPainfulGivingInsulin = entry.isPainfulGivingInsulin
-            newPlacementHasInaccurateReadings = entry.hasInaccurateReadings
-        }
-
-        func resetNewPlacementLogFields() {
-            editingPlacementLogObjectID = nil
-            newPlacementDate = Date()
-            newPlacementDeviceType = .pump
-            newPlacementLocation = .abdomenLeftHigh
-            newPlacementHasSiteIssue = false
-            newPlacementIsPainful = false
-            newPlacementIsPainfulGivingInsulin = false
-            newPlacementHasInaccurateReadings = false
-        }
-
-        func savePlacementLog() {
-            Task {
-                if let objectID = editingPlacementLogObjectID {
-                    await placementLogStorage.updatePlacementLog(
-                        objectID,
-                        date: newPlacementDate,
-                        deviceType: newPlacementDeviceType,
-                        location: newPlacementLocation,
-                        hasSiteIssue: newPlacementHasSiteIssue,
-                        isPainful: newPlacementIsPainful,
-                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin,
-                        hasInaccurateReadings: newPlacementHasInaccurateReadings
-                    )
-                } else {
-                    await placementLogStorage.addPlacementLog(
-                        date: newPlacementDate,
-                        deviceType: newPlacementDeviceType,
-                        location: newPlacementLocation,
-                        hasSiteIssue: newPlacementHasSiteIssue,
-                        isPainful: newPlacementIsPainful,
-                        isPainfulGivingInsulin: newPlacementIsPainfulGivingInsulin,
-                        hasInaccurateReadings: newPlacementHasInaccurateReadings
-                    )
-                }
-                resetNewPlacementLogFields()
-            }
-        }
-
-        func deletePlacementLog(_ objectID: NSManagedObjectID) {
-            Task {
-                await placementLogStorage.deletePlacementLog(objectID)
-            }
         }
     }
 }

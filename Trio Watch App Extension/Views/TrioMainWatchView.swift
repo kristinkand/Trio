@@ -3,10 +3,17 @@ import SwiftUI
 import WatchKit
 
 struct TrioMainWatchView: View {
-    @State private var state = WatchState()
+    @State private var state = WatchState.shared
+
+    /// Pages in order: bubble, chart, the watch's own G7 reading, alarm snooze.
+    private let watchSensorPage = 2
+    private let snoozePage = 3
 
     // misc
     @State private var currentPage: Int = 0
+    /// Scrubbing the chart with the crown (see GlucoseChartView).
+    @State private var isScrubbingChart = false
+    @State private var chartScrubSteps = 0.0
     @State private var rotationDegrees: Double = 0.0
     @State private var showingTempTargetSheet = false
 
@@ -95,13 +102,19 @@ struct TrioMainWatchView: View {
                 // Page 2: Glucose chart
                 GlucoseChartView(
                     state: state,
-                    glucoseValues: state.glucoseValues
+                    glucoseValues: state.glucoseValues,
+                    isScrubbing: $isScrubbingChart,
+                    scrubSteps: $chartScrubSteps
                 )
                 .tag(1)
 
                 // Page 3: the watch reading the G7 itself
                 WatchG7View()
-                    .tag(2)
+                    .tag(watchSensorPage)
+
+                // Page 4: alarm snooze (nightscout/Trio#1576, t1dude)
+                AlarmSnoozeView(state: state)
+                    .tag(snoozePage)
             }
             .onAppear {
                 /// Hard reset variables when main view appears
@@ -111,7 +124,8 @@ struct TrioMainWatchView: View {
             }
             .background(trioBackgroundColor)
             .tabViewStyle(.verticalPage)
-            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: 2, by: 1)
+            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: Double(snoozePage), by: 1)
+            .modifier(ChartScrubEnd(isScrubbing: $isScrubbingChart, scrubSteps: $chartScrubSteps, currentPage: currentPage))
             .onChange(of: state.trend) { _, newTrend in
                 withAnimation {
                     updateRotation(for: newTrend)
@@ -121,6 +135,7 @@ struct TrioMainWatchView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     VStack {
                         Image(systemName: "syringe.fill")
+                            .font(.system(size: 15))
                             .foregroundStyle(Color.insulin)
 
                         Text(isWatchStateDated || isSessionUnreachable ? "--" : state.iob ?? "--")
@@ -133,6 +148,7 @@ struct TrioMainWatchView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     VStack {
                         Image(systemName: "fork.knife")
+                            .font(.system(size: 15))
                             .foregroundStyle(Color.orange)
 
                         Text(isWatchStateDated || isSessionUnreachable ? "--" : state.cob ?? "--")
@@ -142,34 +158,37 @@ struct TrioMainWatchView: View {
                     }.font(.caption2)
                 }
 
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Button {
-                        showingOverrideSheet = true
-                    } label: {
-                        Image(systemName: "clock.arrow.2.circlepath")
-                            .foregroundStyle(Color.primary, isOverrideActive ? Color.primary : Color.purple)
-                    }
-                    .tint(isOverrideActive ? Color.purple : nil)
-                    .disabled(isWatchStateDated || isSessionUnreachable)
+                // treatments, overrides and temp targets on the first page only; the chart gets the room
+                if currentPage == 0 {
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        Button {
+                            showingOverrideSheet = true
+                        } label: {
+                            Image(systemName: "clock.arrow.2.circlepath")
+                                .foregroundStyle(Color.primary, isOverrideActive ? Color.primary : Color.purple)
+                        }
+                        .tint(isOverrideActive ? Color.purple : nil)
+                        .disabled(isWatchStateDated || isSessionUnreachable)
 
-                    Button {
-                        showingTreatmentMenuSheet = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .foregroundStyle(Color.bgDarkerDarkBlue)
-                    }
-                    .controlSize(.large)
-                    .buttonStyle(WatchOSButtonStyle(deviceType: state.deviceType))
-                    .disabled(isWatchStateDated || isSessionUnreachable)
+                        Button {
+                            showingTreatmentMenuSheet = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .foregroundStyle(Color.bgDarkerDarkBlue)
+                        }
+                        .controlSize(.large)
+                        .buttonStyle(WatchOSButtonStyle(deviceType: state.deviceType))
+                        .disabled(isWatchStateDated || isSessionUnreachable)
 
-                    Button {
-                        showingTempTargetSheet = true
-                    } label: {
-                        Image(systemName: "target")
-                            .foregroundStyle(isTempTargetActive ? Color.primary : Color.loopGreen.opacity(0.75))
+                        Button {
+                            showingTempTargetSheet = true
+                        } label: {
+                            Image(systemName: "target")
+                                .foregroundStyle(isTempTargetActive ? Color.primary : Color.loopGreen.opacity(0.75))
+                        }
+                        .tint(isTempTargetActive ? Color.loopGreen.opacity(0.75) : nil)
+                        .disabled(isWatchStateDated || isSessionUnreachable)
                     }
-                    .tint(isTempTargetActive ? Color.loopGreen.opacity(0.75) : nil)
-                    .disabled(isWatchStateDated || isSessionUnreachable)
                 }
             }
             .fullScreenCover(isPresented: $showingTreatmentMenuSheet) {
@@ -277,4 +296,33 @@ struct TrioMainWatchView: View {
 
 #Preview {
     TrioMainWatchView()
+}
+
+/// Ends the chart's scrubbing (GlucoseChartView), which then hands the crown back to the pages: by turning the
+/// crown back past now, after 10 seconds without a turn, or on leaving the chart page. A tap on the chart ends it too.
+struct ChartScrubEnd: ViewModifier {
+    @Binding var isScrubbing: Bool
+    @Binding var scrubSteps: Double
+    let currentPage: Int
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: scrubSteps) { _, steps in
+                if isScrubbing, steps < 0 { stop() }
+            }
+            .onChange(of: currentPage) { _, page in
+                if page != 1, isScrubbing { stop() }
+            }
+            // restarts with every turn; 10 s still ends it
+            .task(id: isScrubbing ? scrubSteps : -2) {
+                guard isScrubbing else { return }
+                try? await Task.sleep(for: .seconds(10))
+                if !Task.isCancelled, isScrubbing { stop() }
+            }
+    }
+
+    private func stop() {
+        withAnimation { isScrubbing = false }
+        scrubSteps = 0
+    }
 }

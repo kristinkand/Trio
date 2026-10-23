@@ -13,17 +13,9 @@ extension History {
         @State var errorMessage: String = ""
         @State var showFutureEntries: Bool = false // default to hide future entries
         @State var showManualGlucose: Bool = false
-        @State var showAddPlacementLog: Bool = false
         @State var isAmountUnconfirmed: Bool = true
         @State var showTreatmentTypeFilter = false
         @State var selectedTreatmentTypes: Set<TreatmentType> = Set(TreatmentType.allCases)
-
-        // Weekend Profile has no Core Data record / @FetchRequest to drive a live refresh of the
-        // Adjustments list the way Overrides and Temp Targets get for free -- this notification
-        // (posted by WeekendProfileSection whenever it starts, stops, or is edited) triggers a body
-        // re-render instead, which is enough to make `adjustmentsList` recompute its plain
-        // WeekendProfileStore-backed data fresh.
-        @State private var weekendProfileRefreshToken = false
 
         @Environment(\.colorScheme) var colorScheme
         @Environment(\.managedObjectContext) var context
@@ -64,13 +56,6 @@ extension History {
             animation: .bouncy
         ) var tempTargetRunStored: FetchedResults<TempTargetRunStored>
 
-        @FetchRequest(
-            entity: PlacementLogStored.entity(),
-            sortDescriptors: [NSSortDescriptor(keyPath: \PlacementLogStored.date, ascending: false)],
-            predicate: NSPredicate.allPlacementLogs,
-            animation: .bouncy
-        ) var placementLogStored: FetchedResults<PlacementLogStored>
-
         var body: some View {
             historyConfirmations(
                 ZStack(alignment: .center, content: {
@@ -86,24 +71,12 @@ extension History {
                         .pickerStyle(SegmentedPickerStyle())
                         .padding(.horizontal)
 
-                        if state.mode == .placementLog {
-                            HStack {
-                                Spacer()
-                                addButton("Add Placement", {
-                                    state.resetNewPlacementLogFields()
-                                    showAddPlacementLog = true
-                                })
-                                    .padding(.trailing)
-                            }
-                        }
-
                         Form {
                             switch state.mode {
                             case .treatments: treatmentsList
                             case .glucose: glucoseList
                             case .meals: mealsList
                             case .adjustments: adjustmentsList
-                            case .placementLog: placementLogList
                             }
                         }.scrollContentBackground(.hidden)
                             .background(appState.trioBackgroundColor(for: colorScheme))
@@ -139,7 +112,7 @@ extension History {
                             )
                         })
                         ToolbarItem(placement: .topBarTrailing, content: {
-                            addButton("Add Glucose", {
+                            addButton({
                                 showManualGlucose = true
                                 state.manualGlucose = 0
                             })
@@ -148,28 +121,20 @@ extension History {
                     .sheet(isPresented: $showManualGlucose) {
                         addGlucoseView()
                     }
-                    .sheet(isPresented: $showAddPlacementLog) {
-                        addPlacementLogView()
-                    }
                     .sheet(isPresented: $state.showCarbEntryEditor) {
                         if let carbEntry = state.carbEntryToEdit {
                             CarbEntryEditorView(state: state, carbEntry: carbEntry)
                         }
                     }
-                    .onReceive(
-                        Foundation.NotificationCenter.default.publisher(for: .didUpdateWeekendProfileConfiguration)
-                    ) { _ in
-                        weekendProfileRefreshToken.toggle()
-                    }
             )
         }
 
-        @ViewBuilder func addButton(_ label: LocalizedStringKey, _ action: @escaping () -> Void) -> some View {
+        @ViewBuilder func addButton(_ action: @escaping () -> Void) -> some View {
             Button(
                 action: action,
                 label: {
                     HStack {
-                        Text(label)
+                        Text("Add Glucose")
                         Image(systemName: "plus")
                             .font(.title2)
                     }

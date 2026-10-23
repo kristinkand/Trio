@@ -48,7 +48,6 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
 
     @Injected() private var alertHistoryStorage: AlertHistoryStorage!
     @Injected() private var broadcaster: Broadcaster!
-    @Injected() private var settingsManager: SettingsManager!
 
     let muter: AlertMuter
     private let throttler: AlertThrottler
@@ -185,42 +184,21 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
         // Honor `playsSound: false` (alert was issued with sound: nil) —
         // user explicitly opted out of audio on this alarm.
         guard let soundName = alert.sound?.filename else { return }
-        // Opt-in (Settings > Notifications): an ordinary volume-down press
-        // (e.g. mid-call, or adjusting media volume) while a critical alarm
-        // happens to be sounding would otherwise silence it without the
-        // user meaning to.
-        let volumeSnoozeEnabled = settingsManager.settings.useVolumeButtonSnooze
         Task { @MainActor in
-            // A hardware volume-button press while this alarm is sounding is
-            // treated the same as swiping away the in-app banner: a 15-min
-            // snooze of this specific alert, going through the same
-            // requestSnooze(identifier:duration:) path used everywhere else
-            // (per-tier / per-glucose-type snooze, full ack, stops this
-            // audio). The other snooze surfaces (banner swipe/long-press, UN
-            // actions, Snooze module) are untouched. Threaded through both of
-            // this function's audio paths below (AlarmKit's own fire
-            // callback, and the direct in-process fallback) so upstream's
-            // AlarmKit rework doesn't silently drop this opt-in.
-            let volumeSnoozeCallback: (() -> Void)? = volumeSnoozeEnabled ? { [weak self] in
-                self?.requestSnooze(identifier: alert.identifier, duration: 15 * 60)
-            } : nil
-
             // AlarmKit pierces silent/Focus and survives app suspension.
             if alarmScheduler == nil { alarmScheduler = CriticalAlertAlarmScheduler() }
             let scheduled = alarmScheduler?.scheduleAlarm(for: alert) { [weak self] in
-                Task { @MainActor in
-                    self?.playAudioFallback(soundNamed: soundName, onVolumeButtonPressed: volumeSnoozeCallback)
-                }
+                Task { @MainActor in self?.playAudioFallback(soundNamed: soundName) }
             } ?? false
             guard !scheduled else { return }
             // Fallback: in-process audio. Only sounds while Trio is running.
-            playAudioFallback(soundNamed: soundName, onVolumeButtonPressed: volumeSnoozeCallback)
+            playAudioFallback(soundNamed: soundName)
         }
     }
 
-    @MainActor private func playAudioFallback(soundNamed soundName: String, onVolumeButtonPressed: (() -> Void)? = nil) {
+    @MainActor private func playAudioFallback(soundNamed soundName: String) {
         if criticalAudioPlayer == nil { criticalAudioPlayer = CriticalAlertAudioPlayer() }
-        criticalAudioPlayer?.play(soundNamed: soundName, onVolumeButtonPressed: onVolumeButtonPressed)
+        criticalAudioPlayer?.play(soundNamed: soundName)
     }
 
     // MARK: - Issue / Retract
@@ -316,15 +294,7 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
         entry: Alert.CatalogEntry,
         to alert: Alert
     ) -> Alert {
-        // The master "mute all sounds" switch folds into the same nil-sound
-        // path the per-tier `playsSound: false` uses, so it silences every
-        // severity — Critical included — the same way regardless of whether
-        // this build/user has the Critical Alerts entitlement: the UN
-        // scheduler substitutes a critical sound at volume 0 rather than
-        // dropping the interruption level, and the AlarmKit / audio-fallback
-        // path no-ops without a sound filename.
-        let playsSound = config.playsSound && !DeviceAlertsStore.shared.muteAllSounds
-        return Alert(
+        Alert(
             identifier: alert.identifier,
             foregroundContent: alert.foregroundContent,
             backgroundContent: alert.backgroundContent,
@@ -333,7 +303,7 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
             // toggle can't demote a Critical alarm or promote a Normal one
             // past what the catalog says it is.
             interruptionLevel: config.overridesSilenceAndDND ? .critical : entry.interruptionLevel,
-            sound: playsSound ? .sound(name: config.soundFilename) : nil,
+            sound: config.playsSound ? .sound(name: config.soundFilename) : nil,
             metadata: alert.metadata
         )
     }

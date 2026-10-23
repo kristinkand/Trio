@@ -60,8 +60,24 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     private var lodgedAt: Date?
     /// A hold-then-connect is running; its end lodges.
     private var holdPending = false
+    /// Ends the running hold now; when it would end on its own.
+    private var endHold: (() -> Void)?
+    private var holdEndsAt: Date?
+    /// Trio: set from the app's scene phase (`G7BluetoothManager.appBecameActive` / `appLeavingScreen`). In front the
+    /// app waits out the sensor's tail itself, as CoreBluetooth ignores a start delay for an app in the foreground; in
+    /// the background the wait goes to the daemon with the request (`CBConnectPeripheralOptionStartDelayKey`), so no
+    /// hold in the app can be frozen half-way (2026-10-20 06:51 and 07:49). The idea is xDrip4iOS 7.2.0's (Johan
+    /// Degraeve and contributors, GPL-3.0, https://github.com/JohanDegraeve/xdripswift): its watch queues each
+    /// reconnect with that option instead of keeping the app awake. No code copied.
+    private var isForeground = false
+    /// The daemon refused a request carrying a start delay: plain connects from here on (as xDrip4iOS does).
+    private var startDelayUnavailable = false
+    /// The standing request carries a start delay.
+    private var lodgedWithDelay = false
     /// The one scan pass.
     private var bootstrapPass = false
+    /// Trio: background time held from the link-up until the sensor closes the link (or 15 s).
+    private var linkHold: (() -> Void)?
     private var bootstrapTimer: DispatchSourceTimer?
     /// When the last bootstrap pass started: a silent sensor is scanned for once per three bursts.
     private var lastBootstrapAt: Date?
@@ -71,7 +87,20 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
 
     init(manager: G7BluetoothManager) {
         self.manager = manager
+        _ = G7WatchAcquisition.buildChanged   // noted at every launch, restored or not
     }
+
+    /// Trio: true when this process runs a different build than the last one that ran. A connect restored
+    /// across an app update is one bluetoothd no longer serves (2026-10-18: build 565 installed at 18:42, its
+    /// restored request kept, no link for 45 minutes).
+    static let buildChanged: Bool = {
+        let key = "trio.g7watch.lastProcessBuild"
+        let build = (Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?")
+            + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")
+        let last = UserDefaults.standard.string(forKey: key)
+        UserDefaults.standard.set(build, forKey: key)
+        return last != nil && last != build
+    }()
 
     private var central: CBCentralManager { manager.centralManager }
     private var queue: DispatchQueue { manager.managerQueue }
@@ -99,9 +128,25 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
         let reference = [lastReadingAt, lastBootstrapAt].compactMap { $0 }.max()
         let missed = G7WatchAcquisition.missedBursts(since: reference)
         if !bootstrapPass, peripheral.state != .connected, missed >= G7WatchAcquisition.missedBurstsBeforeBootstrap {
-            if peripheral.state == .connecting { central.cancelPeripheralConnection(peripheral) }
+            let wasConnecting = peripheral.state == .connecting
+            guard isForeground else {
+                // Trio: in the background only the known sensor is asked for again; a scan pass there depends on a
+                // timer that stops with the app (2026-10-20 06:32: 18 minutes). The pass waits for the app in front,
+                // as xDrip4iOS 7.2.0 keeps discovery to the foreground. Counted like a pass: next try in three bursts.
+                lastBootstrapAt = Date()
+                watchLog("\(missed) bursts missed in the background — asking for the known sensor again (scan waits for the app in front)")
+                if wasConnecting { central.cancelPeripheralConnection(peripheral) }
+                lodged = false; lodgedAt = nil
+                lodgeFresh(peripheral.identifier, after: wasConnecting ? 2 : 0, why: "retrying the known sensor")
+                return
+            }
+            if wasConnecting { central.cancelPeripheralConnection(peripheral) }
             lodged = false; lodgedAt = nil
             startBootstrapPass(reason: "\(missed) bursts missed on the lodged request")
+            // Trio: a scan in the background is rationed and found nothing for 22 minutes (2026-10-18, 19:03 to
+            // 19:25, the app suspended through the pass); a request with the daemon is served while it sleeps.
+            // Lodge a fresh one alongside the scan, after the cancel has gone through.
+            lodgeFresh(peripheral.identifier, after: wasConnecting ? 2 : 0, why: "fresh connect alongside the scan pass")
             return
         }
         let sinceLinkUp = linkUpAt.map { Date().timeIntervalSince($0) } ?? .infinity
@@ -121,6 +166,11 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     }
 
     func connected(_ peripheral: CBPeripheral) {
+        // Trio: the Bluetooth wake that brings the link up is often granted no time at all (2026-10-18: "expired
+        // after 0.0 s" 11 of 12 times), and at 16:20 the app was suspended right after "link up", before the
+        // handshake: no reading for 20 minutes. Ask for time of our own until the sensor closes the link.
+        linkHold?()
+        linkHold = holdProcess(reason: "G7 link: handshake and reading", upTo: 15)
         let waited = lodgedAt.map { Date().timeIntervalSince($0) }
         lodged = false; lodgedAt = nil
         linkUpAt = Date()
@@ -133,6 +183,8 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     /// Returns true when the arm owns what happens next (the adopted sensor closed the link).
     func disconnected(_ peripheral: CBPeripheral, error: Error?) -> Bool {
         guard peripheral.identifier == manager.activePeripheralIdentifier else { return false }
+        linkHold?()
+        linkHold = nil
         let sinceLinkUp = linkUpAt.map { Date().timeIntervalSince($0) } ?? 0
         linkUpAt = nil; lodged = false; lodgedAt = nil
         guard !bootstrapPass else { return false }
@@ -147,6 +199,14 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
         let sinceLodge = lodgedAt.map { Date().timeIntervalSince($0) } ?? .infinity
         lodgedAt = nil
         let code = (error as NSError?).map { "\($0.domain)#\($0.code) \($0.localizedDescription)" } ?? "no error"
+        if lodgedWithDelay, sinceLodge < G7WatchAcquisition.synchronousRefusalWindow {
+            // Trio: the option itself refused: once, then plain requests with the hold in the app as before
+            startDelayUnavailable = true
+            lodgedWithDelay = false
+            watchLog("start delay refused (\(code)) — plain connects from here on")
+            lodge(peripheral, why: "after the start delay was refused")
+            return true
+        }
         switch G7WatchAcquisition.onConnectFailure(sinceLodge: sinceLodge) {
         case .backOff(let s):
             watchLog(String(format: "REFUSED %.2f s after the lodge (%@) — lodging again in %.0f s", sinceLodge, code, s))
@@ -175,10 +235,52 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     /// handshake starts on the link the system brought us back for.
     func restored(_ peripheral: CBPeripheral) {
         if peripheral.state == .connected { manager.centralManager(central, didConnect: peripheral) }
+        // Trio: a connect restored under this central's own identifier was lodged by this app's previous
+        // process, which watchOS ended while the request stood. Cancelling it as foreign ended the very link
+        // the system was bringing up, at every relaunch (Trio 2026-10-18: 07:46 and 07:51, "sensor closed
+        // 0.0 s after link-up", no reading for 35 minutes). Keep it; three missed bursts still cancel it
+        // and scan (the 2026-09-16 case of a request bluetoothd no longer held).
+        // Not across an app update, though: that request went unserved; the lodge cancels it and asks afresh.
+        else if peripheral.state == .connecting, !lodged, G7WatchAcquisition.buildChanged {
+            watchLog("restored with a connect from before this app was updated — replacing it")
+        } else if peripheral.state == .connecting, !lodged {
+            lodged = true; lodgedAt = Date()
+            watchLog("restored with this app's own connect still standing — keeping it")
+        }
     }
 
     func noteReading(at timestamp: Date) {
         lastReadingAt = timestamp
+    }
+
+    /// Trio: the app is in front: its own hold waits out the sensor's tail, and a scan pass can run.
+    func becameActive() {
+        isForeground = true
+    }
+
+    /// Trio: the app is not in front, but the arm must not act on it (the reader stands aside for untethered mode).
+    func noteBackground() {
+        isForeground = false
+    }
+
+    /// Trio: the app leaves the screen (wrist down or another app), and watchOS may freeze it within seconds, also
+    /// inside a hold (2026-10-20 06:51, no connect for 34 minutes). A running hold ends now and what's left of its wait
+    /// goes with the request as a start delay; otherwise a request goes in if none stands.
+    func leavingScreen() {
+        isForeground = false
+        guard central.state == .poweredOn else { return }
+        if holdPending, let end = endHold {
+            let remaining = max(0, holdEndsAt.map { $0.timeIntervalSinceNow } ?? 0)
+            watchLog(String(format: "app leaving the screen — ending the hold, lodging now (%.0f s left as start delay)", remaining))
+            holdPending = false; endHold = nil; holdEndsAt = nil
+            end()
+            if let p = manager.activePeripheral, p.state != .connected {
+                lodge(p, why: "app leaving the screen", startDelay: startDelayUnavailable ? 0 : remaining)
+            }
+            return
+        }
+        guard !lodged, !bootstrapPass, let p = manager.activePeripheral, p.state == .disconnected else { return }
+        lodge(p, why: "app leaving the screen")
     }
 
     // MARK: - The request
@@ -201,19 +303,28 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
             lodge(peripheral, why: "\(why) · nothing to wait for")
             return
         }
+        // Trio: the start delay only hands over a hold the app is about to lose (`leavingScreen`). As the ordinary
+        // wait after every reading it cost readings: on 21/22 October the burst after a delayed request went
+        // unserved about once in 35 minutes (12:45, 15:00, 00:25, 00:40), against none in 8 hours with the hold
+        // on 19/20 October.
         holdPending = true
+        holdEndsAt = Date().addingTimeInterval(wait)
         watchLog(String(format: "%@ · holding the process %.1f s past the sensor's tail, then a plain connect", why, wait))
-        holdProcess(reason: "G7 re-lodge after the sensor's tail", upTo: wait) { [weak self] systemEnded in
+        endHold = holdProcess(reason: "G7 re-lodge after the sensor's tail", upTo: wait) { [weak self] systemEnded in
             self?.queue.async {
-                guard let self else { return }
+                guard let self, self.holdPending else { return }
                 self.holdPending = false
+                self.endHold = nil
+                self.holdEndsAt = nil
                 self.lodge(peripheral, why: systemEnded ? "hold ended by the system" : "hold over")
             }
         }
     }
 
     /// ONE plain connect with the daemon. Never held, never withdrawn by us.
-    private func lodge(_ peripheral: CBPeripheral, why: String) {
+    /// `startDelay`: the daemon holds the request this long before it starts (whole seconds, at least one), in place
+    /// of a hold in the app. Ignored for an app in front, and after the daemon refused it once.
+    private func lodge(_ peripheral: CBPeripheral, why: String, startDelay: TimeInterval = 0) {
         dispatchPrecondition(condition: .onQueue(queue))
         guard central.state == .poweredOn, !lodged else { return }
         switch peripheral.state {
@@ -223,12 +334,7 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
             // with no link (2026-09-16). Cancel it and lodge our own; the timer covers a silent cancel.
             watchLog("restored as connecting with no request of ours — cancelling it and lodging a fresh connect")
             central.cancelPeripheralConnection(peripheral)
-            let id = peripheral.identifier
-            queue.asyncAfter(deadline: .now() + 2) { [weak self] in
-                guard let self, !self.lodged,
-                      let p = self.central.retrievePeripherals(withIdentifiers: [id]).first, p.state == .disconnected else { return }
-                self.lodge(p, why: "after cancelling a restored connect the daemon did not hold")
-            }
+            lodgeFresh(peripheral.identifier, after: 2, why: "after cancelling a restored connect the daemon did not hold")
             return
         case .disconnecting: return   // the close callback lodges: a connect issued during a cancel is lost inside CoreBluetooth
         default:             break
@@ -242,8 +348,42 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
         }
         manager.setNeedsCodeForSensor(nil)
         lodged = true; lodgedAt = Date()
-        central.connect(peripheral, options: nil)
-        watchLog("lodged — \(why) · the app may suspend")
+        let delaySeconds = startDelayUnavailable ? 0 : Int(startDelay.rounded(.up))
+        lodgedWithDelay = delaySeconds >= 1
+        if lodgedWithDelay {
+            central.connect(peripheral, options: [CBConnectPeripheralOptionStartDelayKey: NSNumber(value: delaySeconds)])
+            watchLog("lodged — \(why) · start delay \(delaySeconds) s · the app may suspend")
+        } else {
+            central.connect(peripheral, options: nil)
+            watchLog("lodged — \(why) · the app may suspend")
+        }
+    }
+
+    /// Trio: a plain connect `delay` seconds from now (after a cancel has gone through), the process held
+    /// meanwhile so a relaunch's few seconds don't end before it is lodged.
+    private func lodgeFresh(_ id: UUID, after delay: TimeInterval, why: String) {
+        let release = holdProcess(reason: "G7 fresh connect", upTo: delay + 2)
+        queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+            defer { release() }
+            guard let self, !self.lodged,
+                  let p = self.central.retrievePeripherals(withIdentifiers: [id]).first else { return }
+            switch p.state {
+            case .disconnected:
+                self.lodge(p, why: why)
+            case .connected:
+                return
+            default:
+                // Trio: a cancel that never answers leaves the sensor 'connecting' in this process for good, and each
+                // retry cancelled again and lodged nothing (2026-10-22 21:02 to 22:10, and 02:15 to 04:34 on 23 October:
+                // no reading until the app was relaunched). Connect anyway; the request goes to the daemon.
+                guard self.central.state == .poweredOn else { return }
+                if let delegate = self.manager.delegate, !delegate.bluetoothManagerCanAuthenticate(self.manager) { return }
+                self.lodged = true; self.lodgedAt = Date()
+                self.lodgedWithDelay = false
+                self.central.connect(p, options: nil)
+                self.watchLog("lodged — \(why) · the cancel went unanswered (state \(p.state.rawValue)), connecting anyway · the app may suspend")
+            }
+        }
     }
 
     /// performExpiringActivity, once-only: `onEnd` runs when `wait` elapses, when the system ends the
@@ -299,7 +439,8 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
         manager.setIsSearchingForSensor(false)
         watchLog("bootstrap pass over — \(reason)")
         guard reason != "connected" else { return }
-        if let p = manager.activePeripheral, p.state == .connecting { central.cancelPeripheralConnection(p); lodged = false; lodgedAt = nil }
+        // Trio: the fresh connect lodged with the pass stays; only a request of unknown standing is cancelled.
+        if !lodged, let p = manager.activePeripheral, p.state == .connecting { central.cancelPeripheralConnection(p); lodgedAt = nil }
         // Nothing adopted: stand down until the next wake (poweredOn / foreground / the phone's code).
         if manager.activePeripheralIdentifier != nil { scan() }
     }

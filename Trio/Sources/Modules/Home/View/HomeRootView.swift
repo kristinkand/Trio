@@ -35,12 +35,6 @@ extension Home {
         @State var showSnoozeSheet: Bool = false
         @State var showManualGlucose: Bool = false
         @State var showReleaseNotes: Bool = false
-        @State var alarmsSnoozeUntil: Date = .distantPast
-        // Weekend Profile has no Core Data entity to @FetchRequest, so its Home indicator (see
-        // adjustmentView() in HomeRootView+BottomControls.swift) reflects this UserDefaults-backed
-        // flag via a plain Notification post instead -- WeekendProfileSection posts
-        // .didUpdateWeekendProfileConfiguration whenever it changes.
-        @State var isWeekendProfileActive: Bool = WeekendProfileStore.isActive
         @ObservedObject var releaseNotesService = ReleaseNotesService.shared
         // Pull-down-to-force-loop (see HomeRootView+Refresh.swift)
         @State var pullOffset: CGFloat = 0
@@ -109,24 +103,61 @@ extension Home {
             .overlay(alignment: .topTrailing) {
                 // borderless capsule (not a control); centered in the basal
                 // pane band so it clears the y-axis labels on every device size
-                if let rate = currentBasalRateLabel {
-                    Text(rate)
-                        .font(.system(size: 14, weight: .semibold))
-                        .fontDesign(.rounded)
-                        .foregroundStyle(Color.insulin)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .glassMaterialFill(Capsule())
-                        .frame(height: chartHeight * 0.10)
-                        .padding(.trailing, 16)
+                if let basal = currentBasalReadout {
+                    HStack(spacing: 3) {
+                        if basal.isManual {
+                            Image(systemName: "hand.raised.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        Text(basal.label)
+                            .font(.system(size: 14, weight: .semibold))
+                            .fontDesign(.rounded)
+                    }
+                    .foregroundStyle(basal.isManual ? Color.loopManualTemp : Color.insulin)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .glassMaterialFill(Capsule())
+                    .frame(height: chartHeight * 0.10)
+                    .padding(.trailing, 16)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text(basal.accessibilityLabel))
                 }
             }
         }
 
-        private var currentBasalRateLabel: String? {
-            guard let rate = state.tempBasals.last?.tempBasal?.rate else { return nil }
-            let value = Formatter.decimalFormatterWithTwoFractionDigits.string(from: rate) ?? "\(rate)"
+        /// Rate pill: what the pump delivers, and whether the temp is the user's own.
+        private var currentBasalReadout: (label: String, accessibilityLabel: String, isManual: Bool)? {
+            switch state.activeBasalDelivery {
+            case .none:
+                return nil
+            case .suspended:
+                let label = String(localized: "Suspended", comment: "Basal delivery suspended on the pump")
+                return (label, label, false)
+            case let .temp(rate):
+                let manual = state.manualTempBasal
+                let label = basalRateLabel(rate)
+                let spoken = manual
+                    ? String(
+                        localized: "Manual basal \(basalRateAccessibilityLabel(rate))",
+                        comment: "Accessibility: manual temp basal rate the user set on the pump"
+                    )
+                    : basalRateAccessibilityLabel(rate)
+                return (label, spoken, manual)
+            case let .scheduled(rate):
+                return (basalRateLabel(rate), basalRateAccessibilityLabel(rate), false)
+            }
+        }
+
+        private func basalRateLabel(_ rate: Decimal) -> String {
+            let value = Formatter.decimalFormatterWithTwoFractionDigits
+                .string(from: NSDecimalNumber(decimal: rate)) ?? "\(rate)"
             return value + String(localized: " U/hr", comment: "Unit per hour with space")
+        }
+
+        private func basalRateAccessibilityLabel(_ rate: Decimal) -> String {
+            let value = Formatter.decimalFormatterWithTwoFractionDigits
+                .string(from: NSDecimalNumber(decimal: rate)) ?? "\(rate)"
+            return value + " " + UnitSpelling.spoken("U/hr")
         }
 
         @ViewBuilder private var chartInfoButton: some View {
@@ -156,6 +187,8 @@ extension Home {
             // viewport-sized content: rubber-bands for the pull-down, never scrolls
             ScrollView(.vertical, showsIndicators: false) {
                 dashboardContent(geo)
+                    .padding(.top, isForcingLoop ? HomeLayout.refreshIndicatorHeight : 0)
+                    .animation(.easeInOut(duration: 0.25), value: isForcingLoop)
                     .background(
                         GeometryReader { g in
                             Color.clear.preference(
@@ -233,33 +266,11 @@ extension Home {
             }
             // no inline text input here; a stale keyboard inset must never shrink the zone budget
             .ignoresSafeArea(.keyboard, edges: .bottom)
-            // Trend animation (rocket/plane/UFO/parachute): centered over the whole Home
-            // dashboard, so a tap anywhere here -- not just on the icon -- dismisses it.
-            .overlay(alignment: .center) {
-                TrendAnimationOverlay(
-                    direction: state.latestTwoGlucoseValues.last?.directionEnum,
-                    isEnabled: state.showTrendAnimation
-                )
-            }
             .onAppear {
                 configureView()
-                refreshAlarmsSnooze()
-                // Unconditional resync, not just on a freshly-caught expiry here: a stop
-                // performed on the Adjustments screen only reaches us via the one-shot
-                // `.didUpdateWeekendProfileConfiguration` notification below, which has no
-                // replay and can be missed if this view wasn't subscribed at the exact moment
-                // it posted (e.g. mid screen-transition). Re-reading the store's own ground
-                // truth here on every appearance closes that gap.
-                WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager)
-                isWeekendProfileActive = WeekendProfileStore.isActive
-                state.weekendProfileRevision &+= 1
             }
             .task {
                 await releaseNotesService.load()
-            }
-            // UserDefaults changes don't invalidate views; refresh on sheet dismissal
-            .onChange(of: showSnoozeSheet) {
-                if !showSnoozeSheet { refreshAlarmsSnooze() }
             }
             .navigationTitle("Home")
             .navigationBarHidden(true)
@@ -576,24 +587,6 @@ extension Home {
                     localized: "Quick-Pick Treatments learns from your manual boluses and carb entries over time. Once you've logged a few, it will suggest amounts based on what you typically enter at this time of day.",
                     comment: "Alert body explaining that quick-pick treatments history is empty"
                 ))
-            }
-            .onReceive(Foundation.NotificationCenter.default.publisher(for: .didUpdateWeekendProfileConfiguration)) { _ in
-                isWeekendProfileActive = WeekendProfileStore.isActive
-                state.weekendProfileRevision &+= 1
-            }
-            // Foreground-only catch-up for a timed Weekend Profile run's own bottom-bar
-            // indicator -- see WeekendProfileSection's checkForExpiry() doc comment for why this
-            // exists alongside Home.StateModel's loop-cycle-driven check and why dosing safety
-            // never depends on either of them actually running. Also unconditionally resyncs
-            // from the store (see the matching comment in .onAppear above) so a stop made on
-            // the Adjustments screen can never leave this indicator stuck stale for more than
-            // one tick, even if the one-shot notification below was missed.
-            .onReceive(Timer.publish(every: 15, on: .main, in: .common).autoconnect()) { _ in
-                WeekendProfileStore.expireIfNeeded(nightscoutManager: state.nightscoutManager)
-                if isWeekendProfileActive != WeekendProfileStore.isActive {
-                    isWeekendProfileActive = WeekendProfileStore.isActive
-                    state.weekendProfileRevision &+= 1
-                }
             }
         }
     }

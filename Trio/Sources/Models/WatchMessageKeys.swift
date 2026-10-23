@@ -2,6 +2,10 @@ enum WatchMessageKeys {
     // Request/Response Keys
     static let date = "date"
     static let units = "units"
+    /// Carb entries of the last 24 hours, as times (seconds since 1970), for the watch chart's markers.
+    static let chartCarbs = "chartCarbs"
+    /// Boluses of the last 24 hours: `["date": seconds since 1970, "smb": Bool]`, for the watch chart's markers.
+    static let chartBoluses = "chartBoluses"
     static let requestWatchUpdate = "requestWatchUpdate"
     static let watchState = "watchState"
     static let acknowledged = "acknowledged"
@@ -54,8 +58,9 @@ enum WatchMessageKeys {
 
     // Notification Actions
     static let snoozeDuration = "snoozeDuration"
+    static let snoozeUntilDate = "snoozeUntilDate"
 
-    // Watch reads the G7 itself (step 1 of watch independence: display and alerts only)
+    // Watch reads the G7 itself (display and alerts only)
     /// The G7 the phone reads directly ("DXCMxx"); empty when it reads none.
     static let g7DirectSensorName = "g7DirectSensorName"
     /// That sensor's 4-digit pairing code, so the watch can pair in its own slot.
