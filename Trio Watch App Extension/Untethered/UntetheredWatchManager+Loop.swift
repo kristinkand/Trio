@@ -891,12 +891,42 @@ extension UntetheredWatchManager: CGMManagerDelegate {
     }
 
     /// Keeps the app running until `release` is called, `wait` has passed, or watchOS ends it, whichever comes first.
+    ///
+    /// Logs how much time watchOS actually gave (Elias Maurer's suggestion, 23 October): "ended by watchOS" means the
+    /// system took the time back before the work was done, the case that would cut a pod command off.
     static func holdProcess(reason: String, upTo wait: TimeInterval) -> () -> Void {
         let gate = DispatchSemaphore(value: 0)
+        let requested = Date()
+        let state = NSLock()
+        var granted = false
+        var finished = false
+        let report: (String) -> Void = { outcome in
+            state.lock()
+            let first = !finished
+            finished = true
+            let wasGranted = granted
+            state.unlock()
+            guard first else { return }
+            let held = Date().timeIntervalSince(requested)
+            Task {
+                await WatchLogger.shared.log(
+                    String(
+                        format: "⌚️ Untethered: hold \"%@\" %@ after %.1f s%@",
+                        reason, outcome, held, wasGranted ? "" : " (never granted)"
+                    ),
+                    force: true
+                )
+            }
+        }
         DispatchQueue.global(qos: .userInitiated).async {
             ProcessInfo.processInfo.performExpiringActivity(withReason: reason) { expired in
-                if expired { return }
-                _ = gate.wait(timeout: .now() + wait)
+                if expired {
+                    report("ended by watchOS")
+                    return
+                }
+                state.lock(); granted = true; state.unlock()
+                let result = gate.wait(timeout: .now() + wait)
+                report(result == .timedOut ? "ran out its \(Int(wait)) s" : "released")
             }
         }
         let once = NSLock()
