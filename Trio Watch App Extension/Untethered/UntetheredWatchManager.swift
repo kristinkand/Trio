@@ -1520,14 +1520,17 @@ extension UntetheredWatchManager {
         fallbackGrantCopy = nil
         Task { await WatchLogger.shared.log("⌚️ Untethered: fallback — the watch has the pod", force: true) }
         let minutes = (WatchG7Reader.shared.phoneGlucoseDate).map { Int(Date().timeIntervalSince($0) / 60) }
+        let body = minutes.map {
+            String(
+                localized: "The iPhone has been silent for \($0) minutes and is out of reach. The watch runs the pump until it's back, then hands it back by itself."
+            )
+        } ?? String(localized: "The watch runs the pump until the iPhone is back, then hands it back by itself.")
+        // watchOS starts Extended Untethered Mode's workout only with Trio in front
+        let opensForWorkout = WatchState.shared.untetheredWorkout && WKApplication.shared().applicationState != .active
         notify(
             id: Self.notificationPrefix + "fallback",
             title: String(localized: "Watch Took Over"),
-            body: minutes.map {
-                String(
-                    localized: "The iPhone has been silent for \($0) minutes and is out of reach. The watch runs the pump until it's back, then hands it back by itself."
-                )
-            } ?? String(localized: "The watch runs the pump until the iPhone is back, then hands it back by itself.")
+            body: opensForWorkout ? body + " " + String(localized: "Open Trio to start the workout that keeps it awake.") : body
         )
     }
 
