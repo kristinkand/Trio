@@ -41,10 +41,12 @@ extension UntetheredWatchManager {
         if enacts { store.update { $0.lastLoopGlucose = newestGlucose } }
         // A Bluetooth wake often comes with almost no time from watchOS; without time of its own the app can be
         // suspended in the middle of reaching the pod, and the loop stalls until the app is opened.
-        let releaseHold = Self.holdProcess(reason: "Untethered loop", upTo: Self.loopHoldLimit)
+        loopHoldExpired = false
+        let releaseHold = Self.holdProcess(reason: "Untethered loop", upTo: Self.loopHoldLimit) { [weak self] in
+            self?.loopHoldExpired = true
+        }
         Task { @MainActor in
             defer {
-                releaseHold()
                 self.isLooping = false
                 if self.isModeChangePending {
                     self.isModeChangePending = false
@@ -53,6 +55,7 @@ extension UntetheredWatchManager {
                     self.isDeterminationPending = false
                     self.runLoop(.treatment)
                 }
+                self.endLoopHold(releaseHold)
             }
             if enacts {
                 _ = await withCheckedContinuation { (continuation: CheckedContinuation<Date?, Never>) in
@@ -251,6 +254,9 @@ extension UntetheredWatchManager {
     /// The phone's `APSManager.enactDetermination`.
     private func enact(_ determination: Determination, pump: PumpManager, dosingMode: DosingMode) async throws {
         if case .suspended = pump.status.basalDeliveryState { return }
+        // a pod command watchOS can freeze half-way is what leaves the pod link stuck (2026-10-19 08:09,
+        // 2026-10-20 02:25 and 12:11): none starts once the loop has no background time left
+        guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
         if let rate = determination.rate, let duration = determination.duration {
             try await pump.enactTempBasal(
                 unitsPerHour: rate.nearestDouble,
@@ -261,6 +267,7 @@ extension UntetheredWatchManager {
         if data.grant?.dosingMode == dosingMode, let units = determination.units, units > 0,
            pump.status.bolusState == .noBolus
         {
+            guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
             try await pump.enactBolus(units: units.nearestDouble, automatic: true)
         }
     }
@@ -291,6 +298,7 @@ enum UntetheredWatchError: LocalizedError {
     case noPump
     case notEnoughGlucose
     case staleGlucose
+    case noBackgroundTime
 
     var errorDescription: String? {
         switch self {
@@ -298,6 +306,7 @@ enum UntetheredWatchError: LocalizedError {
         case .staleGlucose: return String(localized: "Glucose data is stale: the most recent reading is more than 12 minutes old.")
         case .noDetermination: return String(localized: "The algorithm gave no result.")
         case .noPump: return String(localized: "The watch doesn't have the pump.")
+        case .noBackgroundTime: return String(localized: "watchOS gave the watch no background time for the pump.")
         }
     }
 }
@@ -755,7 +764,15 @@ extension UntetheredWatchManager: PumpManagerDelegate {
         message: String,
         completion: ((Error?) -> Void)?
     ) {
-        Task { await WatchLogger.shared.log("⌚️ Device: \(message)") }
+        if Self.isRawDump(message) {
+            // a sensor link writes over a hundred of these, written out at every wake: only with Trio in front
+            DispatchQueue.main.async {
+                guard WKApplication.shared().applicationState == .active else { return }
+                Task { await WatchLogger.shared.log("⌚️ Device: \(message)") }
+            }
+        } else {
+            Task { await WatchLogger.shared.log("⌚️ Device: \(message)") }
+        }
         DispatchQueue.main.async { self.noteSensorPairingEvent(message) }
         // ponytail: matched on G7SensorKit's log line, which is the only place it reports a link error;
         // move to a delegate call if the kit ever reports one. 14 = the peer removed the pairing,
@@ -768,6 +785,13 @@ extension UntetheredWatchManager: PumpManagerDelegate {
             }
         }
         completion?(nil)
+    }
+
+    /// A kit's raw packet line: a hex dump alone, or behind G7SensorKit's "backfill" or "control".
+    static func isRawDump(_ message: String) -> Bool {
+        let words = message.split(separator: " ")
+        guard let last = words.last, last.count >= 8, last.allSatisfy(\.isHexDigit) else { return false }
+        return words.count == 1 || (words.count == 2 && ["backfill", "control"].contains(words[0]))
     }
 
     func deviceManagerControlDidBecomeReady(_: DeviceManager) {
@@ -856,25 +880,82 @@ extension UntetheredWatchManager: CGMManagerDelegate {
 
     /// The most a loop holds the app awake: a pod command, retries included, is done well within it.
     static let loopHoldLimit: TimeInterval = 30
+    /// Past OmnipodKit's idle disconnect (4 s after the last command): an app asleep before it leaves the pod connected.
+    static let podIdleDisconnectWait: TimeInterval = 5
+
+    /// The loop is done and, past the pod's idle disconnect, the app has nothing to do until the next reading. In the
+    /// background the rest of G7's wait after the reading then goes to bluetoothd as a start delay, as when Trio leaves
+    /// the screen, so the app can sleep through it (2026-10-23 10:30: 23 s awake for nothing but that wait). Not in
+    /// front, not while a bolus runs (its progress and end are followed here), not once another loop started.
+    /// ponytail: the start delay as the ordinary wait lost bursts (kristinkand 3b3f1f3); here it covers only the rest
+    /// after a loop. If link-ups drop again, release only (`release()`) and keep G7's hold.
+    func endLoopHold(_ release: @escaping () -> Void) {
+        // a running workout keeps the app awake anyway: the sensor keeps its own hold, which loses no bursts
+        guard WKApplication.shared().applicationState != .active, !isBolusing, !isKeptAwake else { return release() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.podIdleDisconnectWait) { [weak self] in
+            defer { release() }
+            guard let self, !self.isLooping, !self.isBolusing,
+                  WKApplication.shared().applicationState != .active
+            else { return }
+            Task { await WatchLogger.shared.log("⌚️ Untethered: loop done, the sensor's wait goes to bluetoothd", force: true) }
+            watchCGMAppLeavingScreen(self.cgmManager)
+        }
+    }
 
     /// Keeps the app running until `release` is called, `wait` has passed, or watchOS ends it, whichever comes first.
-    static func holdProcess(reason: String, upTo wait: TimeInterval) -> () -> Void {
+    /// watchOS ends it by calling the block again with `expired`, or calls it only so when it grants no time: the hold
+    /// lets go at once, since an app that holds on past that gets less background time from then on, logs how long it
+    /// had, and `onExpire` tells the work to start nothing new.
+    static func holdProcess(
+        reason: String,
+        upTo wait: TimeInterval,
+        onExpire: (@MainActor() -> Void)? = nil
+    ) -> () -> Void {
         let gate = DispatchSemaphore(value: 0)
-        DispatchQueue.global(qos: .userInitiated).async {
-            ProcessInfo.processInfo.performExpiringActivity(withReason: reason) { expired in
-                if expired { return }
-                _ = gate.wait(timeout: .now() + wait)
-            }
-        }
+        let started = Date()
+        // each hold logs once, how it ended: released by us, or ended by watchOS (with what may have limited it)
         let once = NSLock()
-        var released = false
-        return {
+        var ended = false
+        let end = { () -> Bool in
             once.lock()
             defer { once.unlock() }
-            guard !released else { return }
-            released = true
-            gate.signal()
+            guard !ended else { return false }
+            ended = true
+            return true
         }
+        DispatchQueue.global(qos: .userInitiated).async {
+            ProcessInfo.processInfo.performExpiringActivity(withReason: reason) { expired in
+                guard expired else {
+                    if gate.wait(timeout: .now() + wait) == .timedOut, end() {
+                        logHold(reason, after: Date().timeIntervalSince(started), how: "held to its \(Int(wait)) s limit")
+                    }
+                    return
+                }
+                gate.signal()
+                guard end() else { return }
+                let granted = Date().timeIntervalSince(started)
+                let process = ProcessInfo.processInfo
+                let thermal = ["nominal", "fair", "serious", "critical"][min(process.thermalState.rawValue, 3)]
+                Task { @MainActor in
+                    let inFront = WKApplication.shared().applicationState == .active
+                    logHold(
+                        reason,
+                        after: granted,
+                        how: "background time ended by watchOS · lowPower=\(process.isLowPowerModeEnabled) thermal=\(thermal) front=\(inFront)"
+                    )
+                    onExpire?()
+                }
+            }
+        }
+        return {
+            let first = end()
+            gate.signal()
+            if first { logHold(reason, after: Date().timeIntervalSince(started), how: "released") }
+        }
+    }
+
+    private static func logHold(_ reason: String, after seconds: TimeInterval, how: String) {
+        Task { await WatchLogger.shared.log(String(format: "⌚️ hold %@: %.1f s, %@", reason, seconds, how), force: true) }
     }
 
     // MARK: Sensor pairing
@@ -944,6 +1025,50 @@ extension UntetheredWatchManager: CGMManagerDelegate {
     func appBecameActive() {
         watchCGMAppBecameActive(cgmManager)
         if isPairingSensor { keepTrioInFrontForPairing() }
+        updateWorkoutKeepAlive()
+    }
+
+    /// Extended Untethered Mode: the workout runs while the watch has the pump and the setting is on.
+    func updateWorkoutKeepAlive() {
+        guard isActive, WatchState.shared.untetheredWorkout else {
+            workoutKeepAlive?.stop()
+            workoutEndedByUser = false
+            return
+        }
+        guard workoutKeepAlive == nil, !workoutEndedByUser,
+              !workoutStartFailed || WKApplication.shared().applicationState == .active
+        else { return }
+        let keepAlive = UntetheredWorkoutKeepAlive(onChange: { [weak self] isRunning, note in
+            guard let self else { return }
+            Task { await WatchLogger.shared.log("⌚️ Untethered: extended mode workout \(note)", force: true) }
+            self.isKeptAwake = isRunning
+            if !isRunning { self.heartRate = nil }
+            if isRunning {
+                self.workoutStartFailed = false
+                // the session may have ended while it started
+                self.updateWorkoutKeepAlive()
+            } else {
+                self.workoutKeepAlive = nil
+                if note != "ended" {
+                    self.workoutStartFailed = true
+                } else if self.isActive, WatchState.shared.untetheredWorkout {
+                    // ended in watchOS, not by Trio: no new one until the next session
+                    self.workoutEndedByUser = true
+                }
+            }
+        }, onHeartRate: { [weak self] in self?.heartRate = $0 })
+        workoutKeepAlive = keepAlive
+        keepAlive.start()
+    }
+
+    /// watchOS relaunched Trio with its workout running: taken back, or ended when no longer wanted.
+    func recoverWorkout() {
+        guard workoutKeepAlive == nil else { return }
+        guard isActive, WatchState.shared.untetheredWorkout else {
+            HKHealthStore().recoverActiveWorkoutSession { session, _ in session?.end() }
+            return
+        }
+        updateWorkoutKeepAlive()
     }
 
     private func keepTrioInFrontForPairing() {
@@ -1326,6 +1451,9 @@ extension UntetheredWatchManager {
     func publishToWatchState() {
         guard isActive, let grant = data.grant else { return }
         let state = WatchState.shared
+        // in the background nobody sees the screens: the forecast, markers, presets and devices wait for the app to
+        // come forward (`refresh`), the complication's values don't
+        let inFront = WKApplication.shared().applicationState == .active
         let units = grant.units
         func display(_ mgdl: Int) -> Double {
             units == .mgdL ? Double(mgdl) : NSDecimalNumber(decimal: Decimal(mgdl).asMmolL).doubleValue
@@ -1341,6 +1469,16 @@ extension UntetheredWatchManager {
                 lowGlucoseColorValue: isDynamic ? 55 : grant.lowGlucose,
                 targetGlucose: target,
                 glucoseColorScheme: scheme
+            )
+        }
+        func updateComplication() {
+            ComplicationStore.update(
+                from: state,
+                isMmol: units != .mgdL,
+                lowMgDL: NSDecimalNumber(decimal: grant.lowGlucose).doubleValue,
+                highMgDL: NSDecimalNumber(decimal: grant.highGlucose).doubleValue,
+                colorScheme: grant.glucoseColorScheme,
+                targetMgDL: NSDecimalNumber(decimal: target).doubleValue
             )
         }
         let readings = data.glucose.sorted { $0.dateString < $1.dateString }
@@ -1361,6 +1499,18 @@ extension UntetheredWatchManager {
         if let determination = data.lastDetermination {
             state.iob = determination.iob.map { String(format: "%.2f", NSDecimalNumber(decimal: $0).doubleValue) }
             state.cob = determination.cob.map { $0.formatted(.number.precision(.fractionLength(0))) }
+        }
+        if let lastLoop = data.lastLoopDate {
+            // the phone's own rounding, so the ring turns as it does there
+            let minutes = Int((Date().timeIntervalSince(lastLoop) - 30) / 60) + 1
+            state.lastLoopTime = minutes > 1440 ? "--" : "\(minutes) min"
+        }
+        state.lastWatchStateUpdate = Date().timeIntervalSince1970
+        guard inFront else {
+            updateComplication()
+            return
+        }
+        if let determination = data.lastDetermination {
             // as `AppleWatchManager`: two hours of each line, or the cone between them
             let series = [
                 "iob": determination.predictions?.iob, "cob": determination.predictions?.cob,
@@ -1393,12 +1543,6 @@ extension UntetheredWatchManager {
                 return WatchTreatmentMarker(id: entry.id ?? "\(date.timeIntervalSince1970)", date: date, kind: .carbs)
             }
         state.treatmentMarkers = boluses + carbs
-        if let lastLoop = data.lastLoopDate {
-            // the phone's own rounding, so the ring turns as it does there
-            let minutes = Int((Date().timeIntervalSince(lastLoop) - 30) / 60) + 1
-            state.lastLoopTime = minutes > 1440 ? "--" : "\(minutes) min"
-        }
-        state.lastWatchStateUpdate = Date().timeIntervalSince1970
         state.showSyncingAnimation = false
         let activeOverrideID = activeOverride(at: Date())?.id
         state.overridePresets = grant.overridePresets
@@ -1409,14 +1553,7 @@ extension UntetheredWatchManager {
         }
         state.maxBolus = grant.maxBolus
         state.maxCarbs = grant.maxCarbs
-        ComplicationStore.update(
-            from: state,
-            isMmol: units != .mgdL,
-            lowMgDL: NSDecimalNumber(decimal: grant.lowGlucose).doubleValue,
-            highMgDL: NSDecimalNumber(decimal: grant.highGlucose).doubleValue,
-            colorScheme: grant.glucoseColorScheme,
-            targetMgDL: NSDecimalNumber(decimal: target).doubleValue
-        )
+        updateComplication()
     }
 }
 
@@ -1453,4 +1590,130 @@ final class SensorPairingKeepAlive: NSObject, WKExtendedRuntimeSessionDelegate {
         let text = error.map { "\(reason.rawValue): \($0.localizedDescription)" } ?? "\(reason.rawValue)"
         DispatchQueue.main.async { self.onEnd(text) }
     }
+}
+
+/// Extended Untethered Mode: a workout session (WKBackgroundModes workout-processing) keeps Trio running for the whole
+/// untethered session, where watchOS otherwise suspends it between sensor bursts and now and then misses one (2026-10-23
+/// 11:50 and 12:05, the connect standing). Its builder collects the heart rate alone, for the minimal screen, and the
+/// workout is discarded at the end: nothing is saved to Health or counts for the activity rings. Starting needs
+/// permission to share workouts, asked once with Trio in front; after a relaunch the running workout is taken back.
+final class UntetheredWorkoutKeepAlive: NSObject, HKWorkoutSessionDelegate, HKLiveWorkoutBuilderDelegate {
+    private static let heartRate = HKQuantityType(.heartRate)
+    private static let beatsPerMinute = HKUnit.count().unitDivided(by: .minute())
+
+    private let healthStore = HKHealthStore()
+    private var session: HKWorkoutSession?
+    private var builder: HKLiveWorkoutBuilder?
+    private let onChange: (_ isRunning: Bool, _ note: String) -> Void
+    private let onHeartRate: (Double) -> Void
+
+    init(onChange: @escaping (_ isRunning: Bool, _ note: String) -> Void, onHeartRate: @escaping (Double) -> Void) {
+        self.onChange = onChange
+        self.onHeartRate = onHeartRate
+        super.init()
+    }
+
+    func start() {
+        healthStore.recoverActiveWorkoutSession { recovered, _ in
+            DispatchQueue.main.async {
+                guard self.session == nil else { return }
+                if let recovered, recovered.state == .running {
+                    self.run(recovered)
+                    self.onChange(true, "taken back after a relaunch")
+                } else {
+                    recovered?.end()
+                    self.startNew()
+                }
+            }
+        }
+    }
+
+    func stop() {
+        guard let session else { return }
+        session.end()
+    }
+
+    private func startNew() {
+        guard HKHealthStore.isHealthDataAvailable() else { return onChange(false, "Health unavailable") }
+        healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [Self.heartRate]) { _, error in
+            DispatchQueue.main.async {
+                guard self.session == nil else { return }
+                guard self.healthStore.authorizationStatus(for: .workoutType()) == .sharingAuthorized else {
+                    return self.onChange(false, "no permission to use workouts" + (error.map { ": \($0.localizedDescription)" } ?? ""))
+                }
+                let configuration = HKWorkoutConfiguration()
+                configuration.activityType = .other
+                configuration.locationType = .indoor
+                do {
+                    let session = try HKWorkoutSession(healthStore: self.healthStore, configuration: configuration)
+                    self.run(session)
+                    let start = Date()
+                    session.startActivity(with: start)
+                    session.associatedWorkoutBuilder().beginCollection(withStart: start) { _, _ in }
+                } catch {
+                    self.onChange(false, "could not start: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func run(_ session: HKWorkoutSession) {
+        session.delegate = self
+        self.session = session
+        let builder = session.associatedWorkoutBuilder()
+        if builder.dataSource == nil {
+            let source = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: session.workoutConfiguration)
+            // the heart rate only: no energy or distance for the activity rings
+            for type in source.typesToCollect where type != Self.heartRate {
+                source.disableCollection(for: type)
+            }
+            source.enableCollection(for: Self.heartRate, predicate: nil)
+            builder.dataSource = source
+        }
+        builder.delegate = self
+        self.builder = builder
+    }
+
+    private func ended(_ session: HKWorkoutSession, _ note: String) {
+        let builder = session.associatedWorkoutBuilder()
+        builder.endCollection(withEnd: Date()) { _, _ in builder.discardWorkout() }
+        DispatchQueue.main.async {
+            guard self.session === session else { return }
+            self.session = nil
+            self.builder = nil
+            self.onChange(false, note)
+        }
+    }
+
+    func workoutSession(
+        _ workoutSession: HKWorkoutSession,
+        didChangeTo toState: HKWorkoutSessionState,
+        from _: HKWorkoutSessionState,
+        date _: Date
+    ) {
+        switch toState {
+        case .running:
+            DispatchQueue.main.async { self.onChange(true, "running") }
+        case .stopped:
+            // stopped by the system: ended, so nothing is left waiting to be saved
+            workoutSession.end()
+        case .ended:
+            ended(workoutSession, "ended")
+        default:
+            break
+        }
+    }
+
+    func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+        ended(workoutSession, "failed: \(error.localizedDescription)")
+    }
+
+    func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
+        guard collectedTypes.contains(Self.heartRate),
+              let bpm = workoutBuilder.statistics(for: Self.heartRate)?.mostRecentQuantity()?.doubleValue(for: Self.beatsPerMinute)
+        else { return }
+        DispatchQueue.main.async { self.onHeartRate(bpm) }
+    }
+
+    func workoutBuilderDidCollectEvent(_: HKLiveWorkoutBuilder) {}
 }
