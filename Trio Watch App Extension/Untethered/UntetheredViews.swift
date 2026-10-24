@@ -50,7 +50,6 @@ struct UntetheredStatusView: View {
                     if manager.isActive { tiles }
                     if manager.isActive || unsynced > 0 { historyButton }
                     if manager.isActive, let mode = data.grant?.dosingMode { loopModePicker(mode) }
-                    if manager.isActive { phoneTile }
                     alerts(now: context.date)
                     actions
                     // the log, always: also before a start and after a hand-back
@@ -172,15 +171,6 @@ struct UntetheredStatusView: View {
                 value: UntetheredWatchManager.batteryPercent.map { "\($0) %" }
             )
         }
-    }
-
-    private var phoneTile: some View {
-        tile(
-            "Phone",
-            systemImage: isPhoneReachable ? "iphone" : "iphone.slash",
-            tint: isPhoneReachable ? .green : .secondary,
-            value: isPhoneReachable ? String(localized: "Nearby") : String(localized: "Away")
-        )
     }
 
     /// The watch's own history, on its own screen: as a page it would trap the pager in its list and shift the pages
