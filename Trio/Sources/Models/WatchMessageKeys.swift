@@ -6,6 +6,9 @@ enum WatchMessageKeys {
     static let chartCarbs = "chartCarbs"
     /// Boluses of the last 24 hours: `["date": seconds since 1970, "smb": Bool]`, for the watch chart's markers.
     static let chartBoluses = "chartBoluses"
+    /// IOB and COB at each loop of the last 24 hours: `["date": seconds since 1970, "iob": U, "cob": g]`, for the
+    /// watch chart's scrub line, as the phone's chart shows them.
+    static let chartIobCob = "chartIobCob"
     static let requestWatchUpdate = "requestWatchUpdate"
     static let watchState = "watchState"
     static let acknowledged = "acknowledged"
