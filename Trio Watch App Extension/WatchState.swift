@@ -34,6 +34,21 @@ import WatchConnectivity
     var tempTargetPresets: [TempTargetPresetWatch] = []
     var snoozeUntilDate: Date = .distantPast
 
+    // Devices page (PeripheralsView): pump and sensor lifetime from the phone; nil where the hardware reports none
+    var pumpName: String?
+    var pumpReservoir: Decimal?
+    var pumpBatteryPercent: Int?
+    var pumpExpiresAt: Date?
+    var pumpActivatedAt: Date?
+    var pumpStatusMessage: String?
+    var cgmName: String?
+    var cgmSensorExpiresAt: Date?
+    var cgmProgressPercent: Double?
+    var cgmProgressState: String?
+    var cgmStatusMessage: String?
+    /// The phone has sent device data at least once: before that the page shows it's loading.
+    var hasReceivedPeripheralData = false
+
     /// treatments inputs
     /// used to store carbs for combined meal-bolus-treatments
     var carbsAmount: Int = 0
@@ -706,6 +721,23 @@ import WatchConnectivity
             forecastConeMin = forecastPayload[WatchMessageKeys.forecastConeMin] as? [Double] ?? []
             forecastConeMax = forecastPayload[WatchMessageKeys.forecastConeMax] as? [Double] ?? []
             forecastLines = forecastPayload[WatchMessageKeys.forecastLines] as? [String: [Double]] ?? [:]
+        }
+
+        // each payload carries the whole set: a field it leaves out is gone (a removed pod, a sensor without expiry)
+        if let devices = message[WatchMessageKeys.peripheralData] as? [String: Any] {
+            func date(_ key: String) -> Date? { (devices[key] as? TimeInterval).map { Date(timeIntervalSince1970: $0) } }
+            pumpName = devices[WatchMessageKeys.pumpName] as? String
+            pumpReservoir = (devices[WatchMessageKeys.pumpReservoir] as? NSNumber)?.decimalValue
+            pumpBatteryPercent = (devices[WatchMessageKeys.pumpBatteryPercent] as? NSNumber)?.intValue
+            pumpExpiresAt = date(WatchMessageKeys.pumpExpiresAt)
+            pumpActivatedAt = date(WatchMessageKeys.pumpActivatedAt)
+            pumpStatusMessage = devices[WatchMessageKeys.pumpStatusMessage] as? String
+            cgmName = devices[WatchMessageKeys.cgmName] as? String
+            cgmSensorExpiresAt = date(WatchMessageKeys.cgmSensorExpiresAt)
+            cgmProgressPercent = (devices[WatchMessageKeys.cgmProgressPercent] as? NSNumber)?.doubleValue
+            cgmProgressState = devices[WatchMessageKeys.cgmProgressState] as? String
+            cgmStatusMessage = devices[WatchMessageKeys.cgmStatusMessage] as? String
+            hasReceivedPeripheralData = true
         }
 
         if let mode = message[WatchMessageKeys.untetheredModeWatch] as? Bool, mode != untetheredMode {

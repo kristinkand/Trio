@@ -2,6 +2,8 @@ import Combine
 import CoreData
 import Foundation
 import G7SensorKit
+import LoopKit
+import LoopKitUI
 import Swinject
 import UIKit
 import WatchConnectivity
@@ -602,7 +604,49 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
 
         dictionary[WatchMessageKeys.forecastData] = forecastData
         dictionary.merge(watchG7Details()) { _, new in new }
+        dictionary[WatchMessageKeys.peripheralData] = peripheralDetails()
         return dictionary
+    }
+
+    /// The watch's Devices page: pump and sensor lifetime, as the phone's home header shows them (after
+    /// EJM0/Trio's `gatherPeripherals`, Elias Maurer). A field the hardware can't report is left out, and the
+    /// watch draws nothing for it: patch pumps have no battery, several CGMs report no expiry.
+    private func peripheralDetails() -> [String: Any] {
+        var details: [String: Any] = [:]
+        let pumpName = apsManager.pumpName.value
+        if !pumpName.isEmpty { details[WatchMessageKeys.pumpName] = pumpName }
+        if let expiresAt = apsManager.pumpExpiresAtDate.value {
+            details[WatchMessageKeys.pumpExpiresAt] = expiresAt.timeIntervalSince1970
+        }
+        if let activatedAt = apsManager.pumpActivatedAtDate.value {
+            details[WatchMessageKeys.pumpActivatedAt] = activatedAt.timeIntervalSince1970
+        }
+        if let message = apsManager.pumpManager?.pumpStatusHighlight?.localizedMessage {
+            details[WatchMessageKeys.pumpStatusMessage] = message
+        }
+        // the home header's file; Omnipod's "50+ U" marker (0xDEAD_BEEF) passes through and the watch shows it so
+        if apsManager.pumpManager != nil,
+           let reservoir = fileStorage.retrieve(OpenAPS.Monitor.reservoir, as: Decimal.self)
+        {
+            details[WatchMessageKeys.pumpReservoir] = reservoir
+        }
+
+        let cgmManager = fetchGlucoseManager?.cgmManager
+        if let name = cgmManager?.localizedTitle { details[WatchMessageKeys.cgmName] = name }
+        if let expiresAt = Home.StateModel.resolveSensorExpiresAt(
+            manager: cgmManager,
+            glucoseSource: fetchGlucoseManager?.glucoseSource
+        ) {
+            details[WatchMessageKeys.cgmSensorExpiresAt] = expiresAt.timeIntervalSince1970
+        }
+        if let progress = fetchGlucoseManager?.cgmProgressHighlight.value {
+            details[WatchMessageKeys.cgmProgressPercent] = progress.percentComplete
+            details[WatchMessageKeys.cgmProgressState] = progress.progressState.rawValue
+        }
+        if let message = fetchGlucoseManager?.cgmDisplayState.value?.localizedMessage {
+            details[WatchMessageKeys.cgmStatusMessage] = message
+        }
+        return details
     }
 
     /// What the watch needs to read the G7 itself while the phone is away:
