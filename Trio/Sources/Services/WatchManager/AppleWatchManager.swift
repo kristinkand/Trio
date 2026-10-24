@@ -488,7 +488,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     }
 
     /// Carb entries (without fat and protein equivalents) and boluses of the last 24 hours, for the watch chart.
-    private func chartTreatments() async -> (carbs: [TimeInterval], boluses: [[String: Any]]) {
+    private func chartTreatments() async -> (carbs: [TimeInterval], boluses: [[String: Any]], iobCob: [[String: Double]]) {
         let context = CoreDataStack.shared.newTaskContext()
         context.name = "watchChartTreatments"
         let since = Date.oneDayAgo
@@ -502,7 +502,18 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 guard let date = event.timestamp, let bolus = event.bolus else { return nil }
                 return ["date": date.timeIntervalSince1970, "smb": bolus.isSMB]
             }
-            return (carbs, boluses)
+            // the loops' IOB and COB, as the phone's chart shows them under its scrub line
+            let determinationRequest = NSFetchRequest<OrefDetermination>(entityName: "OrefDetermination")
+            determinationRequest.predicate = NSPredicate.determinationsForCobIobCharts(since: since)
+            let iobCob: [[String: Double]] = ((try? context.fetch(determinationRequest)) ?? []).compactMap { determination in
+                guard let date = determination.deliverAt else { return nil }
+                return [
+                    "date": date.timeIntervalSince1970,
+                    "iob": determination.iob?.doubleValue ?? 0,
+                    "cob": Double(determination.cob)
+                ]
+            }
+            return (carbs, boluses, iobCob)
         }
     }
 
@@ -737,6 +748,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         let treatments = await chartTreatments()
         message[WatchMessageKeys.chartCarbs] = treatments.carbs
         message[WatchMessageKeys.chartBoluses] = treatments.boluses
+        message[WatchMessageKeys.chartIobCob] = treatments.iobCob
 
         // if session is reachable, it means watch App is in the foreground -> send watchState as message
         // if session is not reachable, it means it's in background -> send watchState as userInfo
