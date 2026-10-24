@@ -960,7 +960,13 @@ struct UntetheredGlanceView: View {
     }
 
     private var chart: some View {
-        GlucoseChartView(state: state, glucoseValues: state.glucoseValues)
+        // the glance only shows the chart: no scrubbing there (this fork's chart takes the crown by bindings)
+        GlucoseChartView(
+            state: state,
+            glucoseValues: state.glucoseValues,
+            isScrubbing: .constant(false),
+            scrubSteps: .constant(0)
+        )
             .allowsHitTesting(false)
     }
 
