@@ -404,17 +404,26 @@ struct GlucoseChartView: View {
     private var scrubHeader: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(scrubDate, style: .time)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let reading = scrubReading {
-                    Text(formattedGlucose(reading.glucose))
-                        .foregroundStyle(reading.color)
-                } else {
-                    Text("–").foregroundStyle(.secondary)
+                Label {
+                    Text(scrubDate, style: .time)
+                } icon: {
+                    Image(systemName: "clock")
                 }
+                .foregroundStyle(.secondary)
+                Spacer()
+                Label {
+                    if let reading = scrubReading {
+                        Text(formattedGlucose(reading.glucose))
+                    } else {
+                        Text("–")
+                    }
+                } icon: {
+                    Image(systemName: "drop.fill")
+                }
+                .foregroundStyle(scrubReading?.color ?? .secondary)
             }
             .font(.system(.headline, design: .rounded))
+            .labelStyle(CompactLabelStyle())
             // IOB and COB at that time, as on the phone's chart
             if let point = scrubIobCob {
                 HStack {
