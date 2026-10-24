@@ -1,5 +1,6 @@
 import SwiftUI
 import WatchConnectivity
+import WatchKit
 
 extension Color {
     /// Untethered watch mode, as on the phone.
@@ -395,7 +396,7 @@ struct UntetheredStatusView: View {
 }
 
 /// Glucose, meals and insulin of the last hours, from the watch's own records. Glucose and carbs can be
-/// deleted; the deletion reaches the phone with the rest of the history.
+/// deleted, and a meter's BG added while untethered; both reach the phone with the rest of the history.
 struct UntetheredHistoryView: View {
     let manager: UntetheredWatchManager
     /// Picked in the bottom bar.
@@ -449,10 +450,18 @@ struct UntetheredHistoryView: View {
     @ViewBuilder private var glucoseRows: some View {
         let units = manager.data.grant?.units ?? .mgdL
         let readings = manager.data.glucose.filter { $0.dateString >= since }.sorted { $0.dateString > $1.dateString }
+        if manager.isActive {
+            NavigationLink { ManualGlucoseEntryView(manager: manager) } label: {
+                Label("Add BG", systemImage: "plus.circle.fill")
+                    .foregroundStyle(.green)
+            }
+        }
         if readings.isEmpty { Text("No glucose").foregroundStyle(.secondary) }
         ForEach(readings, id: \.id) { reading in
-            let value = reading.glucose ?? reading.sgv ?? 0
-            row(reading.dateString, Text(units == .mgdL ? "\(value)" : Decimal(value).formattedAsMmolL))
+            let value = reading.glucose ?? reading.sgv ?? reading.mbg ?? 0
+            let shown = Text(units == .mgdL ? "\(value)" : Decimal(value).formattedAsMmolL)
+            // a manual BG is marked, as it isn't a sensor reading
+            row(reading.dateString, reading.mbg != nil ? Text(Image(systemName: "drop.circle")) + Text(" ") + shown : shown)
                 .swipeActions {
                     Button("Delete", role: .destructive) { manager.deleteGlucose(id: reading.id) }
                 }
@@ -752,5 +761,101 @@ private struct PillFlow: Layout {
             x += size.width + spacing
         }
         return rows
+    }
+}
+
+/// A meter's blood glucose, picked with the crown (or − / +) in the phone's units and saved as a manual reading:
+/// the loop takes it into account from the next sensor reading on, and the phone files it as a manual entry.
+struct ManualGlucoseEntryView: View {
+    let manager: UntetheredWatchManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var value: Double = 0
+    @State private var confirmDifference = false
+
+    private var isMmol: Bool { (manager.data.grant?.units ?? .mgdL) == .mmolL }
+    /// A meter's range: 40–400 mg/dL (2.2–22.2 mmol/L).
+    private var range: ClosedRange<Double> { isMmol ? 2.2 ... 22.2 : 40 ... 400 }
+    private var step: Double { isMmol ? 0.1 : 1 }
+    /// As the phone's `asMgdL`.
+    private var mgdl: Int { isMmol ? Int((value / 0.0555).rounded()) : Int(value.rounded()) }
+    private var shown: String { isMmol ? String(format: "%.1f", value) : "\(Int(value.rounded()))" }
+
+    /// The sensor's newest reading, when it's recent enough to compare with.
+    private var sensorReading: Int? {
+        guard let newest = manager.sensorGlucose.max(by: { $0.dateString < $1.dateString }),
+              Date().timeIntervalSince(newest.dateString) < 15 * 60
+        else { return nil }
+        return newest.glucose ?? newest.sgv
+    }
+
+    /// Asked before saving a BG far from the sensor (40 mg/dL or 30 %): a typo here doses insulin.
+    private var isFarFromSensor: Bool {
+        guard let sensor = sensorReading, sensor > 0 else { return false }
+        let difference = abs(mgdl - sensor)
+        return difference >= 40 || Double(difference) / Double(sensor) >= 0.3
+    }
+
+    private func display(_ mgdl: Int) -> String {
+        isMmol ? Decimal(mgdl).formattedAsMmolL : "\(mgdl)"
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack {
+                Button { value = max(range.lowerBound, value - step) } label: { Image(systemName: "minus") }
+                    .buttonStyle(.bordered)
+                    .frame(width: 40)
+                Text(shown)
+                    .font(.system(size: 40, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.6)
+                    .frame(maxWidth: .infinity)
+                    .focusable(true)
+                    .digitalCrownRotation(
+                        $value,
+                        from: range.lowerBound,
+                        through: range.upperBound,
+                        by: step,
+                        sensitivity: .medium,
+                        isContinuous: false,
+                        isHapticFeedbackEnabled: true
+                    )
+                Button { value = min(range.upperBound, value + step) } label: { Image(systemName: "plus") }
+                    .buttonStyle(.bordered)
+                    .frame(width: 40)
+            }
+            Text(isMmol ? "mmol/L" : "mg/dL")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if let sensor = sensorReading {
+                Text("Sensor: \(display(sensor))")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Button {
+                if isFarFromSensor { confirmDifference = true } else { save() }
+            } label: {
+                Text("Save")
+                    .frame(maxWidth: .infinity)
+            }
+            .tint(.green)
+        }
+        .navigationTitle("Add BG")
+        .onAppear {
+            let start = sensorReading ?? 100
+            value = min(max(isMmol ? (Double(start) * 0.0555 * 10).rounded() / 10 : Double(start), range.lowerBound), range.upperBound)
+        }
+        .confirmationDialog("Save this BG?", isPresented: $confirmDifference) {
+            Button("Save \(shown)") { save() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(shown) is far from the sensor's \(display(sensorReading ?? 0)). The loop will use it.")
+        }
+    }
+
+    private func save() {
+        manager.addManualGlucose(mgdl: mgdl)
+        WKInterfaceDevice.current().play(.success)
+        dismiss()
     }
 }
