@@ -60,6 +60,21 @@ enum WatchMessageKeys {
     static let snoozeDuration = "snoozeDuration"
     static let snoozeUntilDate = "snoozeUntilDate"
 
+    // Devices page: pump and CGM lifetime (from EJM0/Trio's PeripheralsView, Elias Maurer)
+    /// Sub-dictionary wrapping every device field, mirroring `forecastData`.
+    static let peripheralData = "peripheralData"
+    static let pumpName = "pumpName"
+    static let pumpReservoir = "pumpReservoir"
+    static let pumpBatteryPercent = "pumpBatteryPercent"
+    static let pumpExpiresAt = "pumpExpiresAt"
+    static let pumpActivatedAt = "pumpActivatedAt"
+    static let pumpStatusMessage = "pumpStatusMessage"
+    static let cgmName = "cgmName"
+    static let cgmSensorExpiresAt = "cgmSensorExpiresAt"
+    static let cgmProgressPercent = "cgmProgressPercent"
+    static let cgmProgressState = "cgmProgressState"
+    static let cgmStatusMessage = "cgmStatusMessage"
+
     // Watch reads the G7 itself (display and alerts only)
     /// The G7 the phone reads directly ("DXCMxx"); empty when it reads none.
     static let g7DirectSensorName = "g7DirectSensorName"

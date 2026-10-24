@@ -5,9 +5,11 @@ import WatchKit
 struct TrioMainWatchView: View {
     @State private var state = WatchState.shared
 
-    /// Pages in order: bubble, chart, the watch's own G7 reading, alarm snooze.
-    private let watchSensorPage = 2
+    /// Pages in order: bubble, chart, devices (pump and sensor lifetime), alarm snooze, and last the watch's own G7
+    /// reader (its switch and log).
+    private let devicesPage = 2
     private let snoozePage = 3
+    private let watchSensorPage = 4
 
     // misc
     @State private var currentPage: Int = 0
@@ -108,13 +110,17 @@ struct TrioMainWatchView: View {
                 )
                 .tag(1)
 
-                // Page 3: the watch reading the G7 itself
-                WatchG7View()
-                    .tag(watchSensorPage)
+                // Page 3: pump and sensor lifetime (EJM0/Trio's Devices page, Elias Maurer)
+                PeripheralsView(state: state, isWatchStateDated: isWatchStateDated || isSessionUnreachable)
+                    .tag(devicesPage)
 
                 // Page 4: alarm snooze (nightscout/Trio#1576, t1dude)
                 AlarmSnoozeView(state: state)
                     .tag(snoozePage)
+
+                // Last: the watch reading the G7 itself, its switch and log
+                WatchG7View()
+                    .tag(watchSensorPage)
             }
             .onAppear {
                 /// Hard reset variables when main view appears
@@ -124,7 +130,7 @@ struct TrioMainWatchView: View {
             }
             .background(trioBackgroundColor)
             .tabViewStyle(.verticalPage)
-            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: Double(snoozePage), by: 1)
+            .digitalCrownRotation($currentPage.doubleBinding(), from: 0, through: Double(watchSensorPage), by: 1)
             .modifier(ChartScrubEnd(isScrubbing: $isScrubbingChart, scrubSteps: $chartScrubSteps, currentPage: currentPage))
             .onChange(of: state.trend) { _, newTrend in
                 withAnimation {
