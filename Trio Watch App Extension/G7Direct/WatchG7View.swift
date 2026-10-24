@@ -88,9 +88,11 @@ struct WatchG7View: View {
     }
 }
 
-/// Everything for testing: what the watch knows, the log, and the reset.
+/// Everything for testing: the share button, what the watch knows, the reset, and the log (folded away).
 struct WatchG7DetailsView: View {
     @State private var showResetConfirmation = false
+    /// the log is long: folded away by default, so the details and the reset are in reach without scrolling
+    @State private var showLog = false
 
     private var reader: WatchG7Reader { WatchG7Reader.shared }
 
@@ -136,16 +138,6 @@ struct WatchG7DetailsView: View {
                 }
                 .font(.caption2)
 
-                if !reader.logLines.isEmpty {
-                    Divider()
-                    ForEach(Array(reader.logLines.suffix(60).reversed().enumerated()), id: \.offset) { _, line in
-                        Text(line)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
                 Divider()
                 Button(role: .destructive) {
                     showResetConfirmation = true
@@ -154,6 +146,30 @@ struct WatchG7DetailsView: View {
                         .font(.footnote)
                 }
                 .disabled(!reader.hasWatchKey)
+
+                if !reader.logLines.isEmpty {
+                    Divider()
+                    Button {
+                        withAnimation { showLog.toggle() }
+                    } label: {
+                        Label {
+                            showLog
+                                ? Text("Hide log", comment: "Button: fold away the watch sensor log")
+                                : Text("Show log", comment: "Button: unfold the watch sensor log")
+                        } icon: {
+                            Image(systemName: showLog ? "chevron.up" : "chevron.down")
+                        }
+                        .font(.footnote)
+                    }
+                    if showLog {
+                        ForEach(Array(reader.logLines.suffix(60).reversed().enumerated()), id: \.offset) { _, line in
+                            Text(line)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
             }
             .padding(.horizontal, 4)
         }
