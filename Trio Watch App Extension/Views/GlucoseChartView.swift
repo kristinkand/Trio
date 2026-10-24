@@ -386,21 +386,40 @@ struct GlucoseChartView: View {
     /// Time and glucose at the scrub line.
     private var scrubHeader: some View {
         HStack {
-            Text(scrubDate, style: .time)
-                .foregroundStyle(.secondary)
-            Spacer()
-            if let reading = scrubReading {
-                Text(formattedGlucose(reading.glucose))
-                    .foregroundStyle(reading.color)
-            } else {
-                Text("–").foregroundStyle(.secondary)
+            Label {
+                Text(scrubDate, style: .time)
+            } icon: {
+                Image(systemName: "clock")
             }
+            .foregroundStyle(.secondary)
+            Spacer()
+            Label {
+                if let reading = scrubReading {
+                    Text(formattedGlucose(reading.glucose))
+                } else {
+                    Text("–")
+                }
+            } icon: {
+                Image(systemName: "drop.fill")
+            }
+            .foregroundStyle(scrubReading?.color ?? .secondary)
         }
         .font(.system(.headline, design: .rounded))
+        .labelStyle(CompactLabelStyle())
         .monospacedDigit()
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
         .background(Capsule().fill(Color.black.opacity(0.6)))
+    }
+
+    /// A small symbol close before its value.
+    private struct CompactLabelStyle: LabelStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            HStack(spacing: 3) {
+                configuration.icon.font(.system(size: 10))
+                configuration.title
+            }
+        }
     }
 
     private func formattedGlucose(_ glucose: Double) -> String {
