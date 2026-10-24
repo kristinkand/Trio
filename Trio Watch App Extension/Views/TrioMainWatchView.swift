@@ -6,18 +6,19 @@ struct TrioMainWatchView: View {
     @State private var state = WatchState.shared
     @State private var untethered = UntetheredWatchManager.shared
 
-    // Pages in order: bubble, chart, devices (pump and sensor lifetime), alarm snooze, then untethered mode's status
-    // page, where it starts from the wrist and its history opens, and while it loops, the watch's own loop status;
-    // last, the watch's own G7 reader (its switch and log).
+    // Pages in order: bubble, chart, devices (pump and sensor lifetime), alarm snooze, untethered mode's status page
+    // (start, hand back, history, the log), the watch's own G7 reader (its switch), and last, while it loops, the
+    // watch's own loop status.
     private let devicesPage = 2
     private let snoozePage = 3
     /// Untethered mode off on the phone: no status page, but a session still running keeps it.
     private var showsUntethered: Bool { state.untetheredMode || untethered.isActive }
     private var statusPage: Int { snoozePage + 1 }
     /// The watch's own loop status, while it loops.
-    private var loopPage: Int? { untethered.isActive ? statusPage + 1 : nil }
-    private var watchSensorPage: Int { (showsUntethered ? loopPage ?? statusPage : snoozePage) + 1 }
-    private var lastPage: Int { watchSensorPage }
+    private var watchSensorPage: Int { (showsUntethered ? statusPage : snoozePage) + 1 }
+    /// Last, while it loops.
+    private var loopPage: Int? { untethered.isActive ? watchSensorPage + 1 : nil }
+    private var lastPage: Int { loopPage ?? watchSensorPage }
 
     /// While the watch runs the pod and the sensor, the Devices page shows them as the watch sees them.
     private var ownDevices: WatchOwnDevices? {
@@ -149,17 +150,18 @@ struct TrioMainWatchView: View {
                 if showsUntethered {
                     UntetheredStatusView(manager: untethered).tag(statusPage)
                 }
+                // the watch reading the G7 itself, its switch and log
+                WatchG7View()
+                    .tag(watchSensorPage)
+
+                // Last, while it loops: the watch's own loop status
                 if let loopPage {
                     UntetheredLoopStatusView(manager: untethered).tag(loopPage)
                 }
-
-                // Last: the watch reading the G7 itself, its switch and log
-                WatchG7View()
-                    .tag(watchSensorPage)
             }
             .onChange(of: untethered.isActive) { _, isActive in
-                // from the loop page as the session ends to the status page; the G7 page stays itself (`lastPage`)
-                if isActive || currentPage == statusPage + 1 { currentPage = statusPage }
+                // to the status page as a session starts, and from the loop page to it as the session ends
+                if isActive || currentPage == watchSensorPage + 1 { currentPage = statusPage }
             }
             // the pairing note is on the status page
             .onChange(of: untethered.isPairingSensor) { _, isPairing in

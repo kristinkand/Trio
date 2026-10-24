@@ -12,6 +12,8 @@ extension Color {
 struct UntetheredStatusView: View {
     let manager: UntetheredWatchManager
     @State private var confirmEnd = false
+    /// The watch's log (the G7 reader's details), always at hand here.
+    @State private var showLog = false
     @State private var confirmStartWithoutPhone = false
     @State private var phoneUnreachable = false
     @State private var confirmStop = false
@@ -51,9 +53,17 @@ struct UntetheredStatusView: View {
                     if manager.isActive { phoneTile }
                     alerts(now: context.date)
                     actions
+                    // the log, always: also before a start and after a hand-back
+                    Button { showLog = true } label: {
+                        Label("Log", systemImage: "doc.text")
+                            .font(.footnote)
+                    }
                 }
                 .padding(.horizontal, 4)
             }
+        }
+        .sheet(isPresented: $showLog) {
+            WatchG7DetailsView()
         }
         .confirmationDialog("Hand the pump back to the phone?", isPresented: $confirmEnd) {
             Button("Hand Back") { manager.end() }
