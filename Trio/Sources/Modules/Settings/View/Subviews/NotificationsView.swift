@@ -133,7 +133,7 @@ extension NotificationsView {
                     }
                 }
             Text(
-                "Lets urgent Trio alarms (like urgent-low glucose or not looping) sound even when your phone is muted or in Do Not Disturb."
+                "Lets urgent Trio alarms (like urgent-low glucose or not looping) sound even when your phone is muted or in Do Not Disturb. Needs a build signed with Apple's Critical Alerts entitlement; without it, these alarms come as normal notifications."
             )
             .font(.caption)
             .foregroundStyle(.secondary)
