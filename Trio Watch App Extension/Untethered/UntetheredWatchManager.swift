@@ -65,8 +65,13 @@ import WatchKit
     var isPairingSensor = false
     @ObservationIgnored var pairingKeepAlive: SensorPairingKeepAlive?
 
-    /// Records travel in batches small enough for an interactive message.
+    /// Records travel in batches small enough for an interactive message; bigger ones without the sensor to fit in.
     private static let recordsPerMessage = 40
+    private static let recordsPerMessageFree = 100
+    /// Batches on their way at once without the sensor; the phone's answers bring the next ones.
+    private static let batchesPerBurstFree = 2
+    /// A hand-back's or emergency stop's stream keeps ignoring the sensor while the phone's answers carry it on.
+    @ObservationIgnored private var streamIgnoresSensor = false
     /// While the watch holds the sensor link, a backlog goes one batch at a time, each checked against the reading
     /// window; the next waits until the phone answered for the last, or this long at most.
     private static let batchesPerBurst = 1
@@ -1126,8 +1131,10 @@ import WatchKit
         streamTimer = nil
         // before activation nothing can go, not even queued: what left `unsent` now would never be sent
         guard WCSession.isSupported(), WCSession.default.activationState == .activated else { return }
-        let paced = holdsSensorLink && !ignoringSensor
-        if paced, let burst {
+        if ignoringSensor { streamIgnoresSensor = true }
+        let paced = holdsSensorLink && !streamIgnoresSensor
+        let reachable = WCSession.default.isReachable
+        if reachable, let burst {
             let overdue = burst.startedAt.addingTimeInterval(Self.burstTimeout)
             // the phone's last answer continues the stream; a burst it never answered for stops holding it
             guard Date() >= overdue else {
@@ -1137,27 +1144,39 @@ import WatchKit
         }
         burst = nil
         let unsent = store.data.unsent
-        guard !unsent.isEmpty else { return }
+        guard !unsent.isEmpty else {
+            streamIgnoresSensor = false
+            return
+        }
+        let size = paced ? Self.recordsPerMessage : Self.recordsPerMessageFree
         let pending = store.data.pending.sorted { $0.key < $1.key }
         var batches: [(epoch: Int, records: [UntetheredRecord])] = []
         for (epoch, records) in pending {
             let batch = records.values.filter { unsent.contains($0.id) }.sorted { $0.date < $1.date }
-            for start in stride(from: 0, to: batch.count, by: Self.recordsPerMessage) {
-                batches.append((epoch, Array(batch[start ..< min(start + Self.recordsPerMessage, batch.count)])))
+            for start in stride(from: 0, to: batch.count, by: size) {
+                batches.append((epoch, Array(batch[start ..< min(start + size, batch.count)])))
             }
         }
+        guard !batches.isEmpty else { return }
         var sending = batches
-        if paced, !batches.isEmpty {
-            // the next loop or the phone's return tries again
-            guard WCSession.default.isReachable else { return }
-            if let clear = sensorWindowEnd(now: Date()) {
+        var queueing: Bool? = false
+        if reachable {
+            // with the phone in reach, always a few batches at a time, each burst once the phone answered for the
+            // last: all at once (500 entries after a 4 h session) jammed WatchConnectivity, the phone answered none in
+            // time, and every batch went again. With the sensor link, one at a time and clear of the next reading.
+            if paced, let clear = sensorWindowEnd(now: Date()) {
                 scheduleStream(at: clear)
                 return
             }
-            sending = Array(batches.prefix(Self.batchesPerBurst))
+            sending = Array(batches.prefix(paced ? Self.batchesPerBurst : Self.batchesPerBurstFree))
             burstCount += 1
             burst = (burstCount, Date(), sending.count, false)
             scheduleStream(at: Date().addingTimeInterval(Self.burstTimeout))
+        } else {
+            // the next loop or the phone's return tries again
+            guard !paced else { return }
+            // without the sensor: queued, WatchConnectivity delivers in the background
+            queueing = nil
         }
         let burstID = burst?.id
         for batch in sending {
@@ -1173,9 +1192,9 @@ import WatchKit
             send(
                 .records(batch.records),
                 epoch: batch.epoch,
-                queueing: paced ? false : nil,
-                onReply: paced ? { settle(true) } : nil,
-                onFailure: paced ? { settle(false) } : nil
+                queueing: queueing,
+                onReply: burstID != nil ? { settle(true) } : nil,
+                onFailure: burstID != nil ? { settle(false) } : nil
             )
         }
         // what is no longer pending was confirmed meanwhile and needs no sending

@@ -85,10 +85,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 guard let self = self else { return }
                 // Skip if no watch is paired or app not installed
                 guard let session = self.session, Self.watchNeedsState(session) else { return }
-                Task {
-                    let state = await self.setupWatchState()
-                    await self.sendDataToWatch(state)
-                }
+                self.pushWatchState()
             }
             .store(in: &subscriptions)
 
@@ -96,10 +93,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             .receive(on: DispatchQueue.global(qos: .background))
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                Task {
-                    let state = await self.setupWatchState()
-                    await self.sendDataToWatch(state)
-                }
+                self.pushWatchState()
             }
             .store(in: &subscriptions)
 
@@ -111,10 +105,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             guard let self = self else { return }
             // Skip if no watch is paired or app not installed
             guard let session = self.session, Self.watchNeedsState(session) else { return }
-            Task {
-                let state = await self.setupWatchState()
-                await self.sendDataToWatch(state)
-            }
+            self.pushWatchState()
         }.store(in: &subscriptions)
 
         // Due to the Batch insert this only is used for observing Deletion of Glucose entries
@@ -122,10 +113,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             guard let self = self else { return }
             // Skip if no watch is paired or app not installed
             guard let session = self.session, Self.watchNeedsState(session) else { return }
-            Task {
-                let state = await self.setupWatchState()
-                await self.sendDataToWatch(state)
-            }
+            self.pushWatchState()
         }.store(in: &subscriptions)
 
         coreDataPublisher?.filteredByEntityName("PumpEventStored").sink { [weak self] _ in
@@ -139,20 +127,14 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             guard let self = self else { return }
             // Skip if no watch is paired or app not installed
             guard let session = self.session, Self.watchNeedsState(session) else { return }
-            Task {
-                let state = await self.setupWatchState()
-                await self.sendDataToWatch(state)
-            }
+            self.pushWatchState()
         }.store(in: &subscriptions)
 
         coreDataPublisher?.filteredByEntityName("TempTargetStored").sink { [weak self] _ in
             guard let self = self else { return }
             // Skip if no watch is paired or app not installed
             guard let session = self.session, Self.watchNeedsState(session) else { return }
-            Task {
-                let state = await self.setupWatchState()
-                await self.sendDataToWatch(state)
-            }
+            self.pushWatchState()
         }.store(in: &subscriptions)
     }
 
@@ -690,6 +672,49 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         return details
     }
 
+    // MARK: - One update at a time
+
+    /// The update on its way, whether something changed meanwhile, and when the last one went.
+    @MainActor private var pushTask: Task<Void, Never>?
+    @MainActor private var pushAgain = false
+    @MainActor private var lastPushAt = Date.distantPast
+    /// Each update is a full state, tens of kilobytes. A burst of changes (a loop, a pod read, the watch's history
+    /// coming in) now sends one, the newest, instead of one each: on 24 October 73 went in 4 minutes while the
+    /// watch was starting, and the watch's own messages timed out behind them.
+    private static let pushGap: TimeInterval = 3
+
+    /// Sends the current state soon: at once after a quiet moment, otherwise once the burst is over.
+    func pushWatchState() {
+        Task { @MainActor [weak self] in self?.schedulePush() }
+    }
+
+    @MainActor private func schedulePush() {
+        guard pushTask == nil else {
+            pushAgain = true
+            return
+        }
+        pushTask = Task { @MainActor [weak self] in
+            while let self {
+                self.pushAgain = false
+                let notBefore = max(
+                    self.lastPushAt.addingTimeInterval(Self.pushGap),
+                    UntetheredPhoneManager.historyBusyUntil
+                )
+                let wait = notBefore.timeIntervalSinceNow
+                if wait > 0 { try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000)) }
+                // still taking in the watch's history: wait for it to settle
+                if UntetheredPhoneManager.historyBusyUntil > Date() { continue }
+                let state = await self.setupWatchState()
+                await self.sendDataToWatch(state)
+                self.lastPushAt = Date()
+                guard self.pushAgain else {
+                    self.pushTask = nil
+                    return
+                }
+            }
+        }
+    }
+
     /// Sends the state of type WatchState to the connected Watch
     /// - Parameter state: Current WatchState containing glucose data to be sent
     @MainActor func sendDataToWatch(_ state: WatchState) async {
@@ -811,10 +836,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         Task { @MainActor [untethered] in untethered?.reachabilityChanged() }
 
         // Try to send initial data after activation
-        Task {
-            let state = await self.setupWatchState()
-            await self.sendDataToWatch(state)
-        }
+        self.pushWatchState()
     }
 
     /// Untethered mode's interactive messages from the watch; every path must call `replyHandler`,
@@ -857,10 +879,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 debug(.watchManager, "📱 Watch requested watch state data update.")
                 // Skip if no watch is paired or app not installed
                 guard let session = self.session, Self.watchNeedsState(session) else { return }
-                Task {
-                    let state = await self.setupWatchState()
-                    await self.sendDataToWatch(state)
-                }
+                self.pushWatchState()
                 return
             }
 
@@ -1013,10 +1032,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
 
         if session.isReachable {
             // Try to send data when connection is established
-            Task {
-                let state = await self.setupWatchState()
-                await self.sendDataToWatch(state)
-            }
+            self.pushWatchState()
         } else {
             // Try to reconnect after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
@@ -1288,10 +1304,7 @@ extension BaseWatchManager: SettingsObserver, PumpSettingsObserver {
     func pumpSettingsDidChange(_: PumpSettings) {
         // Skip if no watch is paired or app not installed
         guard let session = self.session, Self.watchNeedsState(session) else { return }
-        Task {
-            let state = await self.setupWatchState()
-            await self.sendDataToWatch(state)
-        }
+        self.pushWatchState()
     }
 
     // to update the rest
@@ -1304,20 +1317,14 @@ extension BaseWatchManager: SettingsObserver, PumpSettingsObserver {
         // Skip if no watch is paired or app not installed
         guard let session = self.session, Self.watchNeedsState(session) else { return }
 
-        Task {
-            let state = await self.setupWatchState()
-            await self.sendDataToWatch(state)
-        }
+        self.pushWatchState()
     }
 }
 
 extension BaseWatchManager: SnoozeObserver {
     @MainActor func snoozeDidChange(_: Date) {
         guard let session = self.session, session.isPaired, session.isReachable, session.isWatchAppInstalled else { return }
-        Task {
-            let state = await self.setupWatchState()
-            await self.sendDataToWatch(state)
-        }
+        self.pushWatchState()
     }
 }
 
