@@ -91,6 +91,10 @@ import WatchConnectivity
     }
     /// Carbs and boluses of the last 24 hours from the phone, times only.
     var phoneTreatmentMarkers: [WatchTreatmentMarker] = []
+    /// IOB and COB at each of the phone's loops in the last 24 hours, for the chart's scrub line.
+    var phoneIobCob: [WatchIobCobPoint] = []
+    /// The same from the watch's own loops while it runs untethered (kept in memory, a day at most).
+    var ownIobCob: [WatchIobCobPoint] = []
 
     // Acknowlegement handling
     var showCommsAnimation: Bool = false
@@ -656,6 +660,13 @@ import WatchConnectivity
                 return WatchTreatmentMarker(id: "bolus-\(time)", date: Date(timeIntervalSince1970: time), kind: smb ? .smb : .bolus)
             } + carbs.map { time in
                 WatchTreatmentMarker(id: "carbs-\(time)", date: Date(timeIntervalSince1970: time), kind: .carbs)
+            }
+        }
+
+        if let points = message[WatchMessageKeys.chartIobCob] as? [[String: Double]] {
+            phoneIobCob = points.compactMap { point in
+                guard let time = point["date"] else { return nil }
+                return WatchIobCobPoint(date: Date(timeIntervalSince1970: time), iob: point["iob"] ?? 0, cob: point["cob"] ?? 0)
             }
         }
 
