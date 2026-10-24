@@ -22,6 +22,9 @@ import WatchKit
         didSet { watchGatePodCommands(on: cgmManager) }
     }
     @ObservationIgnored var isLooping = false
+    /// The phone's standing grant as a fallback try started from it: a start seeds from it and drops it, and a try that
+    /// never reached the pod dosed nothing, so the next try starts from it again.
+    @ObservationIgnored var fallbackGrantCopy: (grant: UntetheredGrant, issuedAt: Date)?
     /// watchOS ended the running loop's background time: it starts no further pod command.
     @ObservationIgnored var loopHoldExpired = false
     /// A treatment came in while a loop ran; its determination follows.
@@ -127,7 +130,11 @@ import WatchKit
     /// The watch's display-only G7 reader uses the same display slot on the sensor: from the grant to the
     /// hand-back the sensor belongs to this mode.
     private func updateReaderStandAside() {
-        let aside = !data.session.isIdle
+        // A start without the phone leaves the sensor to the reader until the pod is reached: until then nothing else
+        // reads it, and the reader's readings wake the app for the next try. On 24 October (tester, 16:35 to 16:54) the
+        // reader paused as the fallback began, the pod didn't answer in the first seconds, and for 19 minutes nothing
+        // read the sensor or woke the app, until the start ran out silently.
+        let aside = !data.session.isIdle && !(data.session.phase == .starting && data.session.startedWithoutPhone)
         if Thread.isMainThread {
             WatchG7Reader.shared.standAside(aside)
         } else {
@@ -387,6 +394,7 @@ import WatchKit
     ) {
         let wasActive = isActive
         let wasIdle = store.data.session.phase == .idle
+        let wasFallbackStart = isFallbackSession && store.data.session.phase == .starting
         let effects = store.update { data -> [UntetheredSession.Effect] in
             let effects = data.session.watch(event, now: Date())
             change?(&data)
@@ -437,6 +445,14 @@ import WatchKit
         }
         // the phone may have confirmed the last records while the hand-back was still open: nothing else says so
         if wasActive, !isActive { finishSyncIfDone(epoch: epoch) }
+        // the fallback says it took over only once it has the pod, and says so when a try found none
+        if wasFallbackStart {
+            if isActive {
+                fallbackTookOver()
+            } else if store.data.session.phase == .idle {
+                fallbackTryFailed()
+            }
+        }
         // the session's start dropped the copy, and the phone sends the next only when something changed
         if store.data.session.phase == .idle { requestStandingGrantIfMissing() }
         // after the devices are in place, so the Devices page shows them too
@@ -1422,6 +1438,11 @@ extension UntetheredWatchManager {
     static let fallbackHandbackRepeat: TimeInterval = 5 * 60
     private static let fallbackEpochKey = "untethered.fallbackEpoch"
     private static let fallbackTriedForKey = "untethered.fallbackTriedFor"
+    private static let fallbackTriesKey = "untethered.fallbackTries"
+    /// Tries per outage, one at a reading of the reader at most: about half an hour.
+    static let fallbackTries = 6
+    /// How long each try (and each reading during one) holds the app awake for the pod.
+    static let fallbackTakeoverHold: TimeInterval = 25
 
     /// The running session is one the fallback started.
     var isFallbackSession: Bool {
@@ -1430,6 +1451,11 @@ extension UntetheredWatchManager {
 
     /// After each of the reader's readings: the phone gone, the watch reading, a copy to start from.
     func checkFallback(readerReadings: [Date], now: Date = Date()) {
+        // a try under way: each reading of the reader holds the app awake a while, so the takeover can reach the pod
+        if isFallbackSession, data.session.phase == .starting {
+            holdForFallbackTakeover()
+            return
+        }
         let state = WatchState.shared
         guard state.fallbackLoop, state.untetheredMode, state.allowUntetheredStartWithoutPhone,
               data.session.phase == .idle, !isBusy, !WCSession.default.isReachable,
@@ -1443,14 +1469,20 @@ extension UntetheredWatchManager {
         guard now.timeIntervalSince(lastHeard) > Self.fallbackPhoneSilence,
               readerReadings.filter({ $0 > phoneNewest.addingTimeInterval(60) }).count >= 2
         else { return }
-        // once per outage: the next try needs a newer reading from the phone first
+        // A few tries per outage, one per reading of the reader at most: the pod may not answer within the seconds
+        // a background wake gives (24 October, tester: none in the first, and no second). The next outage needs a
+        // newer reading from the phone first.
         let triedFor = UserDefaults.standard.object(forKey: Self.fallbackTriedForKey) as? Date
-        guard triedFor != phoneNewest else { return }
+        let earlierTries = triedFor == phoneNewest ? UserDefaults.standard.integer(forKey: Self.fallbackTriesKey) : 0
+        guard earlierTries < Self.fallbackTries else { return }
+        let attempt = earlierTries + 1
         UserDefaults.standard.set(phoneNewest, forKey: Self.fallbackTriedForKey)
+        UserDefaults.standard.set(attempt, forKey: Self.fallbackTriesKey)
         let minutes = Int(now.timeIntervalSince(lastHeard) / 60)
+        if let grant = data.standingGrant, let issuedAt = data.standingGrantIssuedAt { fallbackGrantCopy = (grant, issuedAt) }
         Task {
             await WatchLogger.shared.log(
-                "⌚️ Untethered: fallback — no word from the phone for \(minutes) min, the watch reads the sensor: starting without the phone",
+                "⌚️ Untethered: fallback — no word from the phone for \(minutes) min, the watch reads the sensor: starting without the phone (try \(attempt) of \(Self.fallbackTries))",
                 force: true
             )
         }
@@ -1460,18 +1492,66 @@ extension UntetheredWatchManager {
             return
         }
         UserDefaults.standard.set(data.session.epoch, forKey: Self.fallbackEpochKey)
+        holdForFallbackTakeover()
+        guard attempt == 1 else { return }
+        // not "took over" yet: that comes when the pod answered (`fallbackTookOver`)
+        notify(
+            id: Self.notificationPrefix + "fallback",
+            title: String(localized: "iPhone Out of Reach"),
+            body: String(
+                localized: "The iPhone has been silent for \(minutes) minutes. The watch is trying to take over the pump and tells you when it has."
+            )
+        )
+    }
+
+    /// Awake for a while, so the takeover's pod reads can run: in the background the app is suspended within seconds.
+    private func holdForFallbackTakeover() {
+        _ = Self.holdProcess(reason: "Untethered fallback: reaching the pod", upTo: Self.fallbackTakeoverHold)
+    }
+
+    private func fallbackTookOver() {
+        fallbackGrantCopy = nil
+        Task { await WatchLogger.shared.log("⌚️ Untethered: fallback — the watch has the pod", force: true) }
+        let minutes = (WatchG7Reader.shared.phoneGlucoseDate).map { Int(Date().timeIntervalSince($0) / 60) }
+        let body = minutes.map {
+            String(
+                localized: "The iPhone has been silent for \($0) minutes and is out of reach. The watch runs the pump until it's back, then hands it back by itself."
+            )
+        } ?? String(localized: "The watch runs the pump until the iPhone is back, then hands it back by itself.")
         // watchOS starts Extended Untethered Mode's workout only with Trio in front
         let opensForWorkout = WatchState.shared.untetheredWorkout && WKApplication.shared().applicationState != .active
         notify(
             id: Self.notificationPrefix + "fallback",
             title: String(localized: "Watch Took Over"),
-            body: opensForWorkout
-                ? String(
-                    localized: "The iPhone has been silent for \(minutes) minutes and is out of reach. The watch runs the pump until it's back, then hands it back by itself. Open Trio to start the workout that keeps it awake."
-                )
-                : String(
-                    localized: "The iPhone has been silent for \(minutes) minutes and is out of reach. The watch runs the pump until it's back, then hands it back by itself."
-                )
+            body: opensForWorkout ? body + " " + String(localized: "Open Trio to start the workout that keeps it awake.") : body
+        )
+    }
+
+    /// A try's time ran out without the pod: the next reading tries again, the last one says so.
+    private func fallbackTryFailed() {
+        let attempt = UserDefaults.standard.integer(forKey: Self.fallbackTriesKey)
+        Task {
+            await WatchLogger.shared.log(
+                "⌚️ Untethered: fallback — try \(attempt) of \(Self.fallbackTries) didn't reach the pod",
+                force: true
+            )
+        }
+        // The try reached no pod and dosed nothing: the next starts from the same grant, unless the phone sent a newer
+        // one meanwhile; after the last, Start Without Phone on the watch can still use it.
+        if data.standingGrant == nil, let copy = fallbackGrantCopy {
+            store.update {
+                $0.standingGrant = copy.grant
+                $0.standingGrantIssuedAt = copy.issuedAt
+            }
+            refresh()
+        }
+        guard attempt >= Self.fallbackTries else { return }
+        notify(
+            id: Self.notificationPrefix + "fallback",
+            title: String(localized: "Watch Couldn't Take Over"),
+            body: String(
+                localized: "The watch couldn't reach the pod, and nothing is looping: the pod finishes the iPhone's last temp basal, then runs its scheduled basal. Bring the iPhone back, or open Trio on the watch near the pod and tap Start Without Phone."
+            )
         )
     }
 
