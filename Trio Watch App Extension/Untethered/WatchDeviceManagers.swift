@@ -45,6 +45,18 @@ func watchPumpExpiresAt(_ pump: PumpManager?) -> Date? {
     (pump as? OmniPumpManager)?.state.podState?.expiresAt
 }
 
+/// When the pod was activated; nil for a pump without one.
+func watchPumpActivatedAt(_ pump: PumpManager?) -> Date? {
+    (pump as? OmniPumpManager)?.state.podState?.activatedAt
+}
+
+/// When the sensor's session ends, as the phone's home header counts it (into the grace period once expired).
+func watchCGMExpiresAt(_ manager: CGMManager?) -> Date? {
+    guard let g7 = manager as? G7CGMManager else { return nil }
+    if let expires = g7.sensorExpiresAt, expires > Date() { return expires }
+    return g7.sensorEndsAt ?? g7.sensorExpiresAt
+}
+
 /// Deactivates and forgets the pod, as the phone's deactivate screen does; false for a pump this can't do.
 func watchDeactivatePod(_ pump: PumpManager, completion: @escaping (Error?) -> Void) -> Bool {
     guard let omni = pump as? OmniPumpManager else { return false }
