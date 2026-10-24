@@ -30,6 +30,12 @@ public enum G7AuthenticatorError: Error {
     /// belongs to a different sensor, or a stored key has gone stale.
     case challengeMismatch
 
+    /// A stored-key reconnect the sensor did not answer as authenticated and
+    /// bonded (e.g. `05 01 02` after the bond was forgotten), and bonding again
+    /// with the saved key failed: the key is dropped and the next connection
+    /// pairs with the code (LoopKit/G7SensorKit#98, #80).
+    case storedKeyNotBonded(authStatus: UInt8, bondStatus: UInt8)
+
     /// Neither a stored key nor a pairing code was available.
     case noCredentials
 
@@ -71,6 +77,11 @@ extension G7AuthenticatorError: CustomStringConvertible {
             return LocalizedString(
                 "This sensor does not match the pairing code entered.",
                 comment: "Error description when a G7 sensor's challenge response does not match the pairing code"
+            )
+        case .storedKeyNotBonded:
+            return LocalizedString(
+                "The sensor no longer recognizes this device. Pair it again with its code.",
+                comment: "Error description when a G7 sensor no longer honors the saved key and no pairing code is available"
             )
         case .noCredentials:
             return LocalizedString(
@@ -246,16 +257,20 @@ final class G7Authenticator {
             // A reconnect that got this far without being authenticated has a
             // key the sensor no longer honours. Re-pairing is the only fix,
             // and the caller decides whether it can do that unattended.
-            throw G7AuthenticatorError.unexpectedResponse(
-                step: "reconnect",
-                response: Data([0x05, status.authStatus, status.bondStatus])
-            )
+            throw G7AuthenticatorError.storedKeyNotBonded(authStatus: status.authStatus, bondStatus: status.bondStatus)
         }
 
         report("Running the certificate exchange (auth=\(status.authStatus) bond=\(status.bondStatus))")
-        try exchangeCertificates(peripheral, authentication: authentication)
-        try answerKeyChallenge(peripheral, authentication: authentication)
-        try finalizeAndBond(peripheral, authentication: authentication)
+        do {
+            try exchangeCertificates(peripheral, authentication: authentication)
+            try answerKeyChallenge(peripheral, authentication: authentication)
+            try finalizeAndBond(peripheral, authentication: authentication)
+        } catch where !didExchangeKeys {
+            // Authenticated but not bonded on a reconnect: the certificate phase bonds again with the saved key. If
+            // that fails, the key goes and the next connection pairs with the code (Pete Schwamb, LoopKit/G7SensorKit#80).
+            report("Bonding again with the saved key failed: \(error)")
+            throw G7AuthenticatorError.storedKeyNotBonded(authStatus: status.authStatus, bondStatus: status.bondStatus)
+        }
 
         let authenticity = evaluateAuthenticity()
         report("Sensor authenticity: \(authenticity.rawValue)")
