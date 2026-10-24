@@ -6,6 +6,8 @@ struct WatchG7View: View {
     @State private var showDetails = false
 
     private var reader: WatchG7Reader { WatchG7Reader.shared }
+    /// As TrioMainWatchView: the untethered page shows while the mode is on on the phone or a session runs.
+    private var showsUntetheredPage: Bool { WatchState.shared.untetheredMode || UntetheredWatchManager.shared.isActive }
 
     var body: some View {
         ScrollView {
@@ -28,11 +30,14 @@ struct WatchG7View: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
 
-                    Button {
-                        showDetails = true
-                    } label: {
-                        Text("Log", comment: "Button: open the watch sensor details and log")
-                            .font(.footnote)
+                    // the untethered page has the log, always; here only without it
+                    if !showsUntetheredPage {
+                        Button {
+                            showDetails = true
+                        } label: {
+                            Text("Log", comment: "Button: open the watch sensor details and log")
+                                .font(.footnote)
+                        }
                     }
                 } else if reader.isEnabled {
                     latestReading
@@ -43,11 +48,14 @@ struct WatchG7View: View {
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
 
-                    Button {
-                        showDetails = true
-                    } label: {
-                        Text("Log", comment: "Button: open the watch sensor details and log")
-                            .font(.footnote)
+                    // the untethered page has the log, always; here only without it
+                    if !showsUntetheredPage {
+                        Button {
+                            showDetails = true
+                        } label: {
+                            Text("Log", comment: "Button: open the watch sensor details and log")
+                                .font(.footnote)
+                        }
                     }
                 } else {
                     Text("Reads your G7 when the iPhone is away. No dosing.", comment: "One-line explanation under the watch sensor toggle")
