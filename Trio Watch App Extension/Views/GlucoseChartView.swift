@@ -3,6 +3,13 @@ import Foundation
 import SwiftUI
 import WatchKit
 
+/// IOB and COB at one loop, for the scrub line (as the phone's chart shows them).
+struct WatchIobCobPoint {
+    let date: Date
+    let iob: Double
+    let cob: Double
+}
+
 struct WatchTreatmentMarker: Identifiable {
     enum Kind { case bolus, smb, carbs }
     let id: String
@@ -134,6 +141,16 @@ struct GlucoseChartView: View {
     private var scrubReading: (date: Date, glucose: Double, color: Color)? {
         let marker = scrubDate
         guard let nearest = glucoseValues.min(by: {
+            abs($0.date.timeIntervalSince(marker)) < abs($1.date.timeIntervalSince(marker))
+        }) else { return nil }
+        return abs(nearest.date.timeIntervalSince(marker)) <= 150 ? nearest : nil
+    }
+
+    /// IOB and COB of the loop nearest the scrub line, within 2.5 minutes either way, as the phone's chart finds them.
+    private var scrubIobCob: WatchIobCobPoint? {
+        let marker = scrubDate
+        let points = state.phoneIobCob + state.ownIobCob
+        guard let nearest = points.min(by: {
             abs($0.date.timeIntervalSince(marker)) < abs($1.date.timeIntervalSince(marker))
         }) else { return nil }
         return abs(nearest.date.timeIntervalSince(marker)) <= 150 ? nearest : nil
@@ -385,22 +402,54 @@ struct GlucoseChartView: View {
 
     /// Time and glucose at the scrub line.
     private var scrubHeader: some View {
-        HStack {
-            Text(scrubDate, style: .time)
-                .foregroundStyle(.secondary)
-            Spacer()
-            if let reading = scrubReading {
-                Text(formattedGlucose(reading.glucose))
-                    .foregroundStyle(reading.color)
-            } else {
-                Text("–").foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            HStack {
+                Text(scrubDate, style: .time)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let reading = scrubReading {
+                    Text(formattedGlucose(reading.glucose))
+                        .foregroundStyle(reading.color)
+                } else {
+                    Text("–").foregroundStyle(.secondary)
+                }
+            }
+            .font(.system(.headline, design: .rounded))
+            // IOB and COB at that time, as on the phone's chart
+            if let point = scrubIobCob {
+                HStack {
+                    Label {
+                        Text(String(format: "%.2f U", point.iob))
+                    } icon: {
+                        Image(systemName: "syringe.fill")
+                    }
+                    .foregroundStyle(Color.insulin)
+                    Spacer()
+                    Label {
+                        Text("\(Int(point.cob.rounded())) g")
+                    } icon: {
+                        Image(systemName: "fork.knife")
+                    }
+                    .foregroundStyle(Color.orange)
+                }
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .labelStyle(CompactLabelStyle())
             }
         }
-        .font(.system(.headline, design: .rounded))
         .monospacedDigit()
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
-        .background(Capsule().fill(Color.black.opacity(0.6)))
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.6)))
+    }
+
+    /// Icon and value close together, so both fit beside each other on a small watch.
+    private struct CompactLabelStyle: LabelStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            HStack(spacing: 3) {
+                configuration.icon.font(.system(size: 10))
+                configuration.title
+            }
+        }
     }
 
     private func formattedGlucose(_ glucose: Double) -> String {
