@@ -341,9 +341,6 @@ struct GlucoseChartView: View {
                 .overlay(alignment: .top) {
                     if isScrubbing { scrubHeader }
                 }
-
-                timeInRangeBar
-                    .padding(.top, 3)
             }
         }
         .padding(.horizontal, 6)
@@ -380,68 +377,6 @@ struct GlucoseChartView: View {
                 crownFocused = false
             }
         }
-    }
-
-    /// Below, in range and above the low and high lines over the last 24 hours, in percent of the readings.
-    private var timeInRange: (low: Double, inRange: Double, high: Double)? {
-        guard let low = lowLine, let high = highLine else { return nil }
-        let dayAgo = Date().addingTimeInterval(-24 * 3600)
-        let values = glucoseValues.filter { $0.date >= dayAgo }.map(\.glucose)
-        guard !values.isEmpty else { return nil }
-        let count = Double(values.count)
-        let below = Double(values.filter { $0 < low }.count) / count * 100
-        let above = Double(values.filter { $0 > high }.count) / count * 100
-        return (below, 100 - below - above, above)
-    }
-
-    /// The time-in-range bar: low red, in range green, high yellow, with the percentages under it.
-    @ViewBuilder private var timeInRangeBar: some View {
-        if let tir = timeInRange {
-            VStack(spacing: 1) {
-                Text("Last 24 h", comment: "Watch chart: span of the time-in-range bar")
-                    .font(.system(size: 11, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                GeometryReader { geometry in
-                    HStack(spacing: 1) {
-                        ForEach(
-                            [
-                                RangeShare(id: "low", share: tir.low, color: .loopRed),
-                                RangeShare(id: "inRange", share: tir.inRange, color: .loopGreen),
-                                RangeShare(id: "high", share: tir.high, color: .loopYellow)
-                            ].filter { $0.share > 0 }
-                        ) { part in
-                            Rectangle()
-                                .fill(part.color)
-                                .frame(width: max(2, (geometry.size.width - 2) * part.share / 100))
-                        }
-                    }
-                    .clipShape(Capsule())
-                }
-                .frame(height: 5)
-                HStack {
-                    Text(percent(tir.low)).foregroundStyle(Color.loopRed)
-                    Spacer()
-                    Text("\(percent(tir.inRange)) in range").foregroundStyle(Color.loopGreen)
-                    Spacer()
-                    Text(percent(tir.high)).foregroundStyle(Color.loopYellow)
-                }
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .monospacedDigit()
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Last 24 hours: \(percent(tir.inRange)) in range, \(percent(tir.low)) low, \(percent(tir.high)) high")
-        }
-    }
-
-    private struct RangeShare: Identifiable {
-        let id: String
-        let share: Double
-        let color: Color
-    }
-
-    private func percent(_ value: Double) -> String {
-        "\(Int(value.rounded())) %"
     }
 
     /// Time and glucose at the scrub line.
