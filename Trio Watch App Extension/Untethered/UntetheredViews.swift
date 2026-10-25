@@ -789,7 +789,7 @@ private struct PillFlow: Layout {
 }
 
 /// Extended Untethered Mode's screen: raising the wrist returns to Trio while its workout runs, so it shows this, dark
-/// and calm, after Loop's Sport Mode glance. The phone arranges it (`WatchGlanceLayout`): a row above, the middle, a row
+/// and calm, after the glance of Jeremy Barnum's Sport Mode for Loop (LoopKit/Loop#2545). The phone arranges it (`WatchGlanceLayout`): a row above, the middle, a row
 /// below. A tap opens the full app.
 struct UntetheredGlanceView: View {
     let state: WatchState
