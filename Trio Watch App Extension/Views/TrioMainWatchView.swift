@@ -5,6 +5,8 @@ import WatchKit
 struct TrioMainWatchView: View {
     /// Extended Untethered Mode shows its minimal screen on each wrist raise until tapped.
     @State private var showsFullApp = false
+    /// Since when Trio is inactive (wrist turned, a notification); 20 s of it bring the minimal screen back.
+    @State private var glanceInactiveSince: Date?
     @Environment(\.scenePhase) private var glanceScenePhase
     @State private var state = WatchState.shared
     @State private var untethered = UntetheredWatchManager.shared
@@ -105,7 +107,17 @@ struct TrioMainWatchView: View {
             }
         }
         .onChange(of: glanceScenePhase) { _, phase in
-            if phase != .active { showsFullApp = false }
+            // back to the minimal screen once the app has been away for a while, not at every brief inactive moment
+            // (a turned wrist, a notification): the way to the hand-back button must not close behind you
+            if phase == .background { showsFullApp = false }
+            if phase == .active { glanceInactiveSince = nil }
+            if phase == .inactive {
+                let since = Date()
+                glanceInactiveSince = since
+                DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
+                    if glanceInactiveSince == since { showsFullApp = false }
+                }
+            }
         }
     }
 
