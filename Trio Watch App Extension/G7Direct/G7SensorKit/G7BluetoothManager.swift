@@ -147,6 +147,8 @@ protocol G7AcquisitionArm: AnyObject {
     func becameActive()
     /// Trio: the app is not in front; nothing else to do.
     func noteBackground()
+    /// Trio: the sensor comes back from untethered mode's own central.
+    func takeOver()
 }
 
 class G7BluetoothManager: NSObject {
@@ -289,6 +291,14 @@ class G7BluetoothManager: NSObject {
             guard self.delegate != nil, self.centralManager.state == .poweredOn,
                   (self.activePeripheral?.state ?? .disconnected) != .connected else { return }
             self.acquisitionArm?.recheck()
+        }
+    }
+
+    /// Trio: the sensor comes back from untethered mode: a fresh request of our own (`G7WatchAcquisition.takeOver`).
+    func takeOverAcquisition() {
+        managerQueue.async {
+            guard self.delegate != nil else { return }
+            self.acquisitionArm?.takeOver()
         }
     }
 

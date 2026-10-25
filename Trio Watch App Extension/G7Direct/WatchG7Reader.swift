@@ -278,6 +278,10 @@ import WatchKit
     private static let noReadingsID = "trio.watchG7.noReadings"
     /// Three readings missed on the sensor's 5-minute grid.
     private static let noReadingsAfter: TimeInterval = 16 * 60
+    /// After untethered mode: the first reading of our own is due within 5 minutes.
+    private static let noReadingsAfterHandBack: TimeInterval = 6.5 * 60
+    /// When untethered mode gave the sensor back, until the first reading of our own.
+    @ObservationIgnored private var handBackAt: Date?
 
     /// Booked after every reading, the watch's own or the phone's: it sounds even when nothing wakes the app any
     /// more, which is how a failing background link showed until now (2026-10-18: the third page silent for hours).
@@ -293,12 +297,23 @@ import WatchKit
             return
         }
         let newest = [latest?.date, phoneGlucoseDate].compactMap { $0 }.max() ?? Date()
-        let delay = newest.addingTimeInterval(Self.noReadingsAfter).timeIntervalSinceNow
+        var delay = newest.addingTimeInterval(Self.noReadingsAfter).timeIntervalSinceNow
         let content = UNMutableNotificationContent()
         content.title = String(localized: "No Glucose on the Watch")
         content.body = String(
             localized: "Neither the sensor nor the iPhone has sent a reading for 15 minutes. Open Trio on the watch."
         )
+        // After untethered mode the watch's own reading may not come back by itself (25 October, 06:33 to 06:45, the
+        // iPhone at home): said after one missed reading instead of three.
+        if let handBackAt, (latest?.date ?? .distantPast) < handBackAt {
+            let soon = handBackAt.addingTimeInterval(Self.noReadingsAfterHandBack).timeIntervalSinceNow
+            if soon < delay {
+                delay = soon
+                content.body = String(
+                    localized: "The watch hasn't read the sensor since untethered mode ended. Open Trio on the watch: it reconnects there."
+                )
+            }
+        }
         content.sound = .default
         center.add(UNNotificationRequest(
             identifier: Self.noReadingsID,
@@ -359,7 +374,16 @@ import WatchKit
                 appendLog("Untethered mode over: reading again")
             }
             isReconnecting = true
-            startSessionIfPossible()
+            // the reminder below counts from here until the first reading of our own
+            handBackAt = Date()
+            if isEnabled, sensorName != nil, let session {
+                session.update(credentials: credentials)
+                session.resumeAfterUntethered()
+                syncForeground()
+            } else {
+                startSessionIfPossible()
+            }
+            bookNoReadingsAlert()
         }
     }
 
@@ -853,6 +877,7 @@ import WatchKit
                 trendRate: message.trend
             )
             self.merge([reading])
+            self.handBackAt = nil
             UntetheredWatchManager.shared.checkFallback(readerReadings: self.history.map(\.date))
             ComplicationStore.add(reading)
             self.bookNoReadingsAlert()

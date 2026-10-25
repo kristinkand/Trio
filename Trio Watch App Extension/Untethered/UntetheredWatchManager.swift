@@ -676,6 +676,8 @@ import WatchKit
     private func stopCGM() {
         sensorPairingDone()
         guard let cgm = cgmManager else { return }
+        // in the log next to the reader's takeover, to see which of the two centrals went first
+        Task { await WatchLogger.shared.log("⌚️ Untethered: letting go of the sensor", force: true) }
         saveCGMState()
         cgm.cgmManagerDelegate = nil
         // an adopted manager only lets go of the sensor: the phone owns its lifecycle and records

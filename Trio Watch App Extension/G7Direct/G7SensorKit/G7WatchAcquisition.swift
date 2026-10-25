@@ -84,6 +84,8 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     /// The last reading's sensor timestamp, for the 3-miss test. Seeded at launch from the
     /// manager's persisted `latestReadingTimestamp`.
     private var lastReadingAt: Date?
+    /// Trio: a link came up since the reader took the sensor back from untethered mode (`takeOver`).
+    private var linkedSinceTakeOver = true
 
     init(manager: G7BluetoothManager) {
         self.manager = manager
@@ -158,7 +160,54 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
     /// nothing lodged and nothing scheduled to notice. A pass in progress already owns acquisition.
     func recheck() {
         guard !bootstrapPass else { return }
+        // Trio: a request that stood through a whole burst without a link is lost, not waiting: after the hand-backs of
+        // 24 October (20:08) and 25 October (06:33) the reader's request stood for 83 and 12 minutes with no link and
+        // nothing renewed it, as `scan` keeps a standing request. A fresh one at the next wake.
+        if lodged, !holdPending, let at = lodgedAt,
+           Date().timeIntervalSince(at) > G7WatchAcquisition.period + 90,
+           let id = manager.activePeripheralIdentifier
+        {
+            freshLodge(id, why: String(format: "lodged %.0f s ago without a link", Date().timeIntervalSince(at)))
+            return
+        }
         scan()
+    }
+
+    /// Trio: the reader takes the sensor back after untethered mode, whose own central (G7SensorKit's framework) read
+    /// it. After both hand-backs above the reader lodged its connect and no link came, in front (20:08) and behind
+    /// (06:33): the other central's cancel and release, which run on its own queue and may come seconds later, seem
+    /// to take the reader's request with them. So: a fresh request now, and once more after 40 s if no link came by
+    /// then, when untethered mode's acquisition (holding its process up to 35 s) is surely gone.
+    func takeOver() {
+        dispatchPrecondition(condition: .onQueue(queue))
+        guard central.state == .poweredOn else { return }
+        guard let id = manager.activePeripheralIdentifier,
+              central.retrievePeripherals(withIdentifiers: [id]).first != nil
+        else {
+            // no handle from untethered mode: the stock way, a search
+            scan()
+            return
+        }
+        // the session's silence is no reason to scan: the reader knows its sensor
+        lastBootstrapAt = Date()
+        linkedSinceTakeOver = false
+        freshLodge(id, why: "taking the sensor back from untethered mode")
+        let release = holdProcess(reason: "G7 takeover check", upTo: 42)
+        queue.asyncAfter(deadline: .now() + 40) { [weak self] in
+            defer { release() }
+            guard let self, !self.linkedSinceTakeOver, !self.holdPending, !self.bootstrapPass else { return }
+            self.freshLodge(id, why: "no link 40 s after taking the sensor back")
+        }
+    }
+
+    /// Trio: cancels whatever stands for the sensor in this process and asks afresh, after the cancel has gone through.
+    private func freshLodge(_ id: UUID, why: String) {
+        guard let p = central.retrievePeripherals(withIdentifiers: [id]).first, p.state != .connected else { return }
+        adopt(p)
+        watchLog("\(why): sensor \(p.state.rawValue), lodged=\(lodged) — cancelling and connecting afresh")
+        if p.state != .disconnected { central.cancelPeripheralConnection(p) }
+        lodged = false; lodgedAt = nil
+        lodgeFresh(id, after: 2, why: why)
     }
 
     func found(_ peripheral: CBPeripheral) {
@@ -174,6 +223,7 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
         let waited = lodgedAt.map { Date().timeIntervalSince($0) }
         lodged = false; lodgedAt = nil
         linkUpAt = Date()
+        linkedSinceTakeOver = true
         if bootstrapPass { endBootstrapPass(reason: "connected") }
         watchLog(String(format: "link up %@ %@ · pid %d", peripheral.name ?? "unnamed",
                         waited.map { String(format: "%.0f s after the lodge", $0) } ?? "(restored launch)",
