@@ -114,6 +114,14 @@ final class WatchG7Session: G7BluetoothManagerDelegate {
         bluetoothManager.scanForPeripheral()
     }
 
+    /// After untethered mode: resumes, then a fresh request once the other central has let go (`takeOverAcquisition`).
+    func resumeAfterUntethered() {
+        lockedIsActive.value = true
+        bluetoothManager.setActivePeripheralIdentifier(lockedCredentials.value.peripheralIdentifier)
+        // not `scanForPeripheral`: its connect would only be cancelled again a moment later
+        bluetoothManager.takeOverAcquisition()
+    }
+
     /// Lets go of the sensor and stops asking for it. The central stays alive,
     /// so a later `resume()` does not create a second one.
     func pause() {
