@@ -109,15 +109,16 @@ struct GlucoseChartView: View {
         }
     }
 
+    /// The forecast's part of the window. Without forecast points it took 2 h, which in the 1 h window put the window's
+    /// start an hour ahead of now: "No glucose readings" until a long press changed the window (25 October, second
+    /// user). Now nothing without points, and never more than 40 % of the window, so the readings always show.
     private var futureOffset: TimeInterval {
         guard state.showForecast else { return 0 }
         let now = Date()
-        if state.isForecastCone {
-            return forecastConePoints.last?.date.timeIntervalSince(now) ?? (2 * 3600)
-        } else {
-            let maxLineDate = forecastLinePoints.map(\.date).max()
-            return maxLineDate?.timeIntervalSince(now) ?? (2 * 3600)
-        }
+        let forecastEnd = state.isForecastCone ? forecastConePoints.last?.date : forecastLinePoints.map(\.date).max()
+        guard let forecastEnd else { return 0 }
+        let window = Double(timeWindow.rawValue) * 3600
+        return min(max(0, forecastEnd.timeIntervalSince(now)), window * 0.4)
     }
 
     private var pastOffset: TimeInterval {
