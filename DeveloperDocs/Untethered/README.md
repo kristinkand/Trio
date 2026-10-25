@@ -124,4 +124,6 @@ The first two run with the algorithm package: `swift test --package-path Algorit
 
 ## Credits
 
-Designed and written by Elias Maurer ([EJM0/Trio, `feat/direct-to-watch`](https://github.com/EJM0/Trio/tree/feat/direct-to-watch)), building on the hand-over design in [LoopKit/Loop#2545](https://github.com/LoopKit/Loop/pull/2545).
+- **Jeremy Barnum** mapped out the idea this mode is built on: his Sport Mode for Loop lets the Apple Watch run the loop on its own, with the pump and the G7 handed over from the phone and back ([LoopKit/Loop#2545](https://github.com/LoopKit/Loop/pull/2545)), and his G7SensorKit on the watch reads the sensor there ([LoopKit/G7SensorKit#80](https://github.com/LoopKit/G7SensorKit/pull/80)). Untethered mode follows his hand-over design, the watch's own G7 reader copies his watch acquisition, and Extended Untethered Mode's minimal screen follows his Sport Mode glance.
+- **Elias Maurer** designed and wrote untethered mode for Trio ([EJM0/Trio, `feat/direct-to-watch`](https://github.com/EJM0/Trio/tree/feat/direct-to-watch)), Extended Untethered Mode included.
+- **Pete Schwamb** reviewed the G7 work on the watch and contributed its fixes ([LoopKit/G7SensorKit#80](https://github.com/LoopKit/G7SensorKit/pull/80) and G7SensorKit's next-dev).
