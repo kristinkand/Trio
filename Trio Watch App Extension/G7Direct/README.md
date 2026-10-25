@@ -42,3 +42,9 @@ support changes, copy the same files again from the newer commit and check
 reader, to the Trio app group; `Trio Watch Complication` draws them in the wide slot over the target range,
 colored by the phone's glucose color scheme. The watch app and the complication need the Trio App Group on
 their identifiers.
+
+## Credits
+
+- **Jeremy Barnum**: G7SensorKit on the watch ([LoopKit/G7SensorKit#80](https://github.com/LoopKit/G7SensorKit/pull/80)), from which `G7SensorKit/` here is copied, the watch acquisition design and the faster P-256 maths included, and Sport Mode for Loop ([LoopKit/Loop#2545](https://github.com/LoopKit/Loop/pull/2545)), the watch running the loop on its own.
+- **Pete Schwamb**: the fixes from his review of that pull request (a refused rebond drops the key; no start delay).
+- **Deniz Cengiz**: the direct G7 connection in Trio's G7SensorKit.
