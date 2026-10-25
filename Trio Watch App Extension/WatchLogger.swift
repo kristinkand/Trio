@@ -126,8 +126,13 @@ actor WatchLogger {
     func flushPersistedLogs(queued: Bool = false) async {
         let logDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             .appendingPathComponent("logs", isDirectory: true)
-        let logFile = logDir.appendingPathComponent("watch_log.txt")
+        // Yesterday's file first: what was kept back before midnight moves there at the first line after it and was
+        // never sent (25 October: the watch log from 21:31 to midnight, an untethered night with the phone away).
+        await flushPersistedLog(at: logDir.appendingPathComponent("watch_log_prev.txt"), queued: queued)
+        await flushPersistedLog(at: logDir.appendingPathComponent("watch_log.txt"), queued: queued)
+    }
 
+    private func flushPersistedLog(at logFile: URL, queued: Bool) async {
         guard let data = try? Data(contentsOf: logFile),
               let logString = String(data: data, encoding: .utf8),
               !logString.isEmpty
