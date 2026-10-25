@@ -8,6 +8,7 @@
 //  to this arm; elsewhere there is no arm and the stock steps run.
 //
 //  Copyright © 2026 LoopKit Authors. All rights reserved.
+//  Trio: the acquisition design is Jeremy Barnum's, from his G7SensorKit on the watch (LoopKit/G7SensorKit#80).
 //
 
 import CoreBluetooth

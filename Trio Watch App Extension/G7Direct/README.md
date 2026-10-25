@@ -44,3 +44,9 @@ the G7 to the watch and loops there. It links the real G7SensorKit framework and
 uses the same watch display slot on the sensor, so while a session runs (from the
 grant to the hand-back) this reader stands aside (`WatchG7Reader.standAside`) and
 resumes afterwards, pairing again by itself if the sensor took the other key.
+
+## Credits
+
+- **Jeremy Barnum**: G7SensorKit on the watch ([LoopKit/G7SensorKit#80](https://github.com/LoopKit/G7SensorKit/pull/80)), from which `G7SensorKit/` here is copied, the watch acquisition design and the faster P-256 maths included, and Sport Mode for Loop ([LoopKit/Loop#2545](https://github.com/LoopKit/Loop/pull/2545)), the watch running the loop on its own, which untethered mode builds on.
+- **Pete Schwamb**: the fixes from his review of that pull request (a refused rebond drops the key; no start delay).
+- **Deniz Cengiz**: the direct G7 connection in Trio's G7SensorKit.
