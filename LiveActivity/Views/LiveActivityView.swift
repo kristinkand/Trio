@@ -270,7 +270,9 @@ struct LiveActivityCompactLeadingView: View {
     var glucoseColor: Color
 
     var body: some View {
-        LiveActivityBGAndTrendView(context: context, size: .compact, glucoseColor: glucoseColor).padding(.leading, 4)
+        LiveActivityBGAndTrendView(context: context, size: .compact, glucoseColor: glucoseColor)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
     }
 }
 
@@ -280,6 +282,8 @@ struct LiveActivityCompactTrailingView: View {
 
     var body: some View {
         LiveActivityGlucoseDeltaLabelView(context: context, glucoseColor: glucoseColor).padding(.trailing, 4)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
     }
 }
 
