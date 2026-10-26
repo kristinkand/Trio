@@ -330,9 +330,18 @@ protocol MealTimeReminderService: AnyObject {
         let bolusText = Formatter.decimalFormatterWithTwoFractionDigits
             .string(from: bolusAmount as NSDecimalNumber) ?? "\(bolusAmount)"
 
-        return String(
-            localized: "Time to eat! You bolused \(bolusText) U for \(carbsText) g of carbs."
-        )
+        switch (bolusAmount > 0, carbs > 0) {
+        case (true, true):
+            return String(
+                localized: "Time to eat! You bolused \(bolusText) U for \(carbsText) g of carbs."
+            )
+        case (true, false):
+            return String(localized: "Time to eat! You bolused \(bolusText) U.")
+        case (false, true):
+            return String(localized: "Time to eat! You logged \(carbsText) g of carbs.")
+        case (false, false):
+            return String(localized: "Time to eat!")
+        }
     }
 }
 
