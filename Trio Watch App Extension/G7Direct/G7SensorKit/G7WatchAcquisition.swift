@@ -391,12 +391,17 @@ public final class G7WatchAcquisition: G7AcquisitionArm {
         let gate = DispatchSemaphore(value: 0)
         let once = NSLock(); var done = false
         let end: (Bool) -> Void = { s in once.lock(); let first = !done; done = true; once.unlock(); if first { onEnd(s) } }
+        // granted before the caller goes on: asked for on another queue, a hold could come too late for a wake
+        // that is ending (Trio, 26 October 19:55: a hold that never ran, the app suspended for 4.5 minutes)
+        let begun = DispatchSemaphore(value: 0)
         DispatchQueue.global(qos: .userInitiated).async {
             ProcessInfo.processInfo.performExpiringActivity(withReason: reason) { expired in
+                begun.signal()
                 if expired { end(true); gate.signal(); return }
                 _ = gate.wait(timeout: .now() + wait); end(false)
             }
         }
+        _ = begun.wait(timeout: .now() + 0.5)
         return { gate.signal() }
     }
 

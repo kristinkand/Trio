@@ -962,8 +962,13 @@ extension UntetheredWatchManager: CGMManagerDelegate {
             ended = true
             return true
         }
+        // Granted before the caller goes on: asked for on another queue, a hold could come too late for a wake that
+        // is ending (26 October, 19:55:13, tester: the fallback start's hold never ran, the app was suspended in the
+        // middle of the start and relaunched 4.5 minutes later, with nobody looping in between).
+        let begun = DispatchSemaphore(value: 0)
         DispatchQueue.global(qos: .userInitiated).async {
             ProcessInfo.processInfo.performExpiringActivity(withReason: reason) { expired in
+                begun.signal()
                 guard expired else {
                     if gate.wait(timeout: .now() + wait) == .timedOut, end() {
                         logHold(reason, after: Date().timeIntervalSince(started), how: "held to its \(Int(wait)) s limit")
@@ -986,6 +991,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
                 }
             }
         }
+        _ = begun.wait(timeout: .now() + 0.5)
         return {
             let first = end()
             gate.signal()
@@ -1167,8 +1173,11 @@ extension UntetheredWatchManager: CGMManagerDelegate {
               let newest = data.glucose.map(\.dateString).max(), now.timeIntervalSince(newest) < 11 * 60,
               // and only when loops had readings to run on and still didn't get through: a gap made of missed
               // readings ended with a reading that arrived a moment before its loop, and was taken for a pod
-              // stall (2026-10-22 11:10: no reading at 11:00 and 11:05, the pod fine, the pump handed back)
-              data.glucose.filter({ $0.dateString > lastLoop.addingTimeInterval(60) }).count >= 2
+              // stall (2026-10-22 11:10: no reading at 11:00 and 11:05, the pod fine, the pump handed back).
+              // Arrivals, not reading times: on 26 October at 16:03 (tester) the sensor came back after 17 minutes
+              // with three readings at once, which counted as three loops that failed, and the pump was handed
+              // back with the pod answering in a second. The batch arriving now hasn't had its loop yet.
+              readingArrivals.filter({ $0 > lastLoop.addingTimeInterval(60) && now.timeIntervalSince($0) > 60 }).count >= 2
         else { return }
         let minutes = Int(now.timeIntervalSince(lastLoop) / 60)
         // with the phone nearby it takes the pump back; until its revoke arrives the watch keeps trying and alerting
@@ -1329,6 +1338,8 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         scheduleSessionRefresh()
         publishToWatchState()
         checkPodLink()
+        readingArrivals.append(Date())
+        if readingArrivals.count > 24 { readingArrivals.removeFirst(readingArrivals.count - 24) }
         runLoop(.newGlucose)
     }
 

@@ -61,6 +61,9 @@ import WatchKit
     @ObservationIgnored var handbackRequestedAt: Date?
     /// How many Pod Not Reachable notices this stall has brought; from the second on the watch vibrates harder.
     @ObservationIgnored var podLinkNoticeCount = 0
+    /// When readings arrived during the session, one entry per batch: the pod stall check counts batches that had
+    /// their loop, not reading times, as a backfill brings several old readings at once.
+    @ObservationIgnored var readingArrivals: [Date] = []
     /// A sensor pairing is due: Trio has to be in front for its Bluetooth pairing request.
     var isPairingSensor = false
     @ObservationIgnored var pairingKeepAlive: SensorPairingKeepAlive?
@@ -1538,13 +1541,15 @@ extension UntetheredWatchManager {
                 force: true
             )
         }
+        // held before the start, not after: the wake that brought the reading may be ending already
+        let releaseHold = holdForFallbackTakeover()
         startWithoutPhone()
         guard data.session.phase == .starting else {
             Task { await WatchLogger.shared.log("⌚️ Untethered: fallback start didn't begin", force: true) }
+            releaseHold()
             return
         }
         UserDefaults.standard.set(data.session.epoch, forKey: Self.fallbackEpochKey)
-        holdForFallbackTakeover()
         guard attempt == 1 else { return }
         // not "took over" yet: that comes when the pod answered (`fallbackTookOver`)
         notify(
@@ -1557,8 +1562,8 @@ extension UntetheredWatchManager {
     }
 
     /// Awake for a while, so the takeover's pod reads can run: in the background the app is suspended within seconds.
-    private func holdForFallbackTakeover() {
-        _ = Self.holdProcess(reason: "Untethered fallback: reaching the pod", upTo: Self.fallbackTakeoverHold)
+    @discardableResult private func holdForFallbackTakeover() -> () -> Void {
+        Self.holdProcess(reason: "Untethered fallback: reaching the pod", upTo: Self.fallbackTakeoverHold)
     }
 
     private func fallbackTookOver() {
