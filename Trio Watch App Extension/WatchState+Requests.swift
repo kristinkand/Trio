@@ -19,6 +19,11 @@ extension WatchState {
             Task {
                 await WatchLogger.shared.log("⌚️ Bolus request aborted: session unreachable")
             }
+            // said, not left to an empty waiting screen: the bolus was not sent
+            handleAcknowledgment(
+                success: false,
+                message: String(localized: "iPhone not reachable. The bolus was not sent.", comment: "Watch bolus, phone unreachable")
+            )
             return
         }
 
@@ -58,6 +63,13 @@ extension WatchState {
         guard let session = session, session.isReachable else {
             Task {
                 await WatchLogger.shared.log("⌚️ Carbs request aborted: session unreachable")
+            }
+            // with a bolus following, its own answer says so
+            if acknowledge {
+                handleAcknowledgment(
+                    success: false,
+                    message: String(localized: "iPhone not reachable. The carbs were not logged.", comment: "Watch carbs, phone unreachable")
+                )
             }
             return
         }
