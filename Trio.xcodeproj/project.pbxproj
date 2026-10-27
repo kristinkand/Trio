@@ -1195,6 +1195,7 @@
 		BEFF8624F9C614B466DF20B6 /* TempTargetCalculations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49239B422EEA27AD00469145 /* TempTargetCalculations.swift */; };
 		C59BB00A1EAD1BA9C3229ECF /* ForecastGenerator+Forecasts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD30B9CD2E062AA300DA677C /* ForecastGenerator+Forecasts.swift */; };
 		C61BF93A63804BE071D04789 /* UntetheredTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B34245E04814390E7536BC5D /* UntetheredTests.swift */; };
+		E1CE51203B075418C45B20C3 /* UntetheredProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 858CC9F6032DBF6F4F7F7262 /* UntetheredProtocolTests.swift */; };
 		336BF83AC46756579D7DDFFA /* UntetheredPumpHistoryParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C9D3742188075FAB6535FDF /* UntetheredPumpHistoryParityTests.swift */; };
 		DD5FE13409741BDD93B7EFCC /* UntetheredParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28235655C8A6621A69BAAB68 /* UntetheredParityTests.swift */; };
 		C8B418741996FD85E05FBD86 /* String+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38E98A3625F5509500C0CED0 /* String+Extensions.swift */; };
@@ -2489,6 +2490,7 @@
 		7C393F93D669F4F89FA5ADCA /* UntetheredAlgorithm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredAlgorithm.swift; sourceTree = "<group>"; };
 		7A1E00D1C0FFEE0000000001 /* UntetheredPhoneState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredPhoneState.swift; sourceTree = "<group>"; };
 		B34245E04814390E7536BC5D /* UntetheredTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredTests.swift; sourceTree = "<group>"; };
+		858CC9F6032DBF6F4F7F7262 /* UntetheredProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredProtocolTests.swift; sourceTree = "<group>"; };
 		6C9D3742188075FAB6535FDF /* UntetheredPumpHistoryParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredPumpHistoryParityTests.swift; sourceTree = "<group>"; };
 		28235655C8A6621A69BAAB68 /* UntetheredParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredParityTests.swift; sourceTree = "<group>"; };
 		D5ED52A29E0C748FDC7625AA /* UntetheredMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredMessage.swift; sourceTree = "<group>"; };
@@ -3915,6 +3917,7 @@
 			isa = PBXGroup;
 			children = (
 				B34245E04814390E7536BC5D /* UntetheredTests.swift */,
+				858CC9F6032DBF6F4F7F7262 /* UntetheredProtocolTests.swift */,
 				28235655C8A6621A69BAAB68 /* UntetheredParityTests.swift */,
 				3B1C5C3C2D68E269004E9273 /* json */,
 				FAB1E00000000000000000A0 /* Parity */,
@@ -6817,6 +6820,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C61BF93A63804BE071D04789 /* UntetheredTests.swift in Sources */,
+				E1CE51203B075418C45B20C3 /* UntetheredProtocolTests.swift in Sources */,
 				DD5FE13409741BDD93B7EFCC /* UntetheredParityTests.swift in Sources */,
 				3B5CD2C92D4AECD500CE213C /* ProfileCarbsTests.swift in Sources */,
 				3BEDC9932EEB27B600AC6492 /* IobConsecutiveEventsTests.swift in Sources */,
