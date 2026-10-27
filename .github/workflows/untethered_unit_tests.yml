@@ -1,0 +1,88 @@
+name: Untethered unit tests
+
+# The algorithm package's tests (swift test), including the untethered ones, for this fork's own branches.
+# nightscout/Trio's "Automated unit tests" runs only in nightscout's repository, so this one runs here:
+# by itself after every push that changes the algorithm, untethered mode or its tests, and by hand from
+# Actions › Untethered unit tests › Run workflow (on a branch that has this file). The app build is untouched.
+
+on:
+  push:
+    branches:
+      - feature/untethered-fallback
+      - feature/untethered-pr-plus
+    paths:
+      - 'Trio/Sources/**'
+      - 'TrioTests/OpenAPSSwiftTests/**'
+      - 'AlgorithmPackage/**'
+      - '.github/workflows/untethered_unit_tests.yml'
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: 'Only tests whose name contains this (e.g. Untethered); empty runs them all'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  algorithm-package:
+    name: Algorithm package (swift test)
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Restore cache
+        id: spm-cache-restore
+        uses: actions/cache/restore@v5
+        with:
+          path: AlgorithmPackage/.build
+          key: ${{ runner.os }}-spm-algorithm-${{ hashFiles('AlgorithmPackage/Package.swift', 'AlgorithmPackage/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-algorithm-
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Run tests
+        env:
+          FILTER: ${{ github.event.inputs.filter }}
+        run: |
+          if [ -n "$FILTER" ]; then
+            time swift test --package-path AlgorithmPackage --filter "$FILTER"
+          else
+            time swift test --package-path AlgorithmPackage
+          fi
+
+      - name: Save cache
+        if: always() && steps.spm-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: AlgorithmPackage/.build
+          key: ${{ runner.os }}-spm-algorithm-${{ hashFiles('AlgorithmPackage/Package.swift', 'AlgorithmPackage/Package.resolved') }}
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "::notice title=Unit tests::✅ all tests passed"
+            echo "✅ All tests passed on \`${{ github.ref_name }}\` (${GITHUB_SHA::9})." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "::error title=Unit tests::❌ tests failed or didn't build"
+            {
+              echo "## ❌ Tests failed or didn't build on \`${{ github.ref_name }}\` (${GITHUB_SHA::9})"
+              echo ""
+              echo "Open the **Run tests** step and look for lines with \`error:\` (it didn't build) or"
+              echo "\`✘ Test\` / \`failed\` (a test failed). The test's name says what it checks."
+            } >> $GITHUB_STEP_SUMMARY
+          fi
