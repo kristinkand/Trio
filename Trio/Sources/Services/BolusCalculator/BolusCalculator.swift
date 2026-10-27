@@ -7,57 +7,57 @@ enum BolusCalculator {
     static func calculate(_ input: CalculationInput, roundBolus: (Decimal) -> Decimal) -> CalculationResult {
         // insulin needed for the current blood glucose
         let targetDifference = input.currentBG - input.target
-        debug(.default, "Target difference: \(targetDifference)")
+        debug(.bolus, "Target difference: \(targetDifference)")
 
         let targetDifferenceInsulin = targetDifference / input.isf
-        debug(.default, "Target difference insulin: \(targetDifferenceInsulin)")
+        debug(.bolus, "Target difference insulin: \(targetDifferenceInsulin)")
 
         // more or less insulin because of bg trend in the last 15 minutes
         let fifteenMinutesInsulin = input.deltaBG / input.isf
-        debug(.default, "15min insulin: \(fifteenMinutesInsulin)")
+        debug(.bolus, "15min insulin: \(fifteenMinutesInsulin)")
 
         // determine whole COB for which we want to dose insulin for and then determine insulin for wholeCOB
         // we need to take backdated carbs into account - so we are using a freshly created (simulated) COB if carbs are backdated, otherwise it will default to the mostRecentDeterminations' COB value (as before)
         let wholeCob = min(Decimal(input.cob) + input.carbs, input.maxCOB)
         let wholeCobInsulin = wholeCob / input.carbRatio
-        debug(.default, "Whole COB: \(wholeCob), COB insulin: \(wholeCobInsulin)")
+        debug(.bolus, "Whole COB: \(wholeCob), COB insulin: \(wholeCobInsulin)")
 
         // determine how much the calculator reduces/ increases the bolus because of IOB
         let iobInsulinReduction = (-1) * input.iob
-        debug(.default, "IOB reduction: \(iobInsulinReduction)")
+        debug(.bolus, "IOB reduction: \(iobInsulinReduction)")
 
         // adding everything together
         // add a calc for the case that no fifteenMinInsulin is available
         let wholeCalc: Decimal
         if input.deltaBG != 0 {
             wholeCalc = (targetDifferenceInsulin + iobInsulinReduction + wholeCobInsulin + fifteenMinutesInsulin)
-            debug(.default, "Whole calc (with delta): \(wholeCalc)")
+            debug(.bolus, "Whole calc (with delta): \(wholeCalc)")
         } else {
             // add (rare) case that no glucose value is available -> maybe display warning?
             // if no bg is available, ?? sets its value to 0
             if input.currentBG == 0 {
                 wholeCalc = (iobInsulinReduction + wholeCobInsulin)
-                debug(.default, "Whole calc (no BG): \(wholeCalc)")
+                debug(.bolus, "Whole calc (no BG): \(wholeCalc)")
             } else {
                 wholeCalc = (targetDifferenceInsulin + iobInsulinReduction + wholeCobInsulin)
-                debug(.default, "Whole calc (no delta): \(wholeCalc)")
+                debug(.bolus, "Whole calc (no delta): \(wholeCalc)")
             }
         }
 
         // apply custom factor at the end of the calculations
         // apply custom factor if reduced bolus toggle in bolus calc config settings is on and the box for reduced bolus is checked (in RootView)
         var factoredInsulin = wholeCalc
-        debug(.default, "Initial factored insulin: \(factoredInsulin)")
+        debug(.bolus, "Initial factored insulin: \(factoredInsulin)")
 
         // Apply Recommended Bolus Percentage (input.fraction) and if selected apply Reduced Bolus Percentage (input.fattyMealFactor)
         // If factoredInsulin is negative, though, don't apply either
         if factoredInsulin > 0 {
             factoredInsulin *= input.fraction
-            debug(.default, "After fraction (\(input.fraction)): \(factoredInsulin)")
+            debug(.bolus, "After fraction (\(input.fraction)): \(factoredInsulin)")
 
             if input.useFattyMealCorrectionFactor {
                 factoredInsulin *= input.fattyMealFactor
-                debug(.default, "After reduced bolus factor (\(input.fattyMealFactor)): \(factoredInsulin)")
+                debug(.bolus, "After reduced bolus factor (\(input.fattyMealFactor)): \(factoredInsulin)")
             }
         }
 
@@ -66,34 +66,34 @@ enum BolusCalculator {
         if input.useSuperBolus {
             superBolusInsulin = input.sweetMealFactor * input.basal
             factoredInsulin += superBolusInsulin
-            debug(.default, "After super bolus (\(superBolusInsulin)): \(factoredInsulin)")
+            debug(.bolus, "After super bolus (\(superBolusInsulin)): \(factoredInsulin)")
         }
 
         // the final result for recommended insulin amount
         var insulinCalculated: Decimal
         let isLoopStale = Date().timeIntervalSince(input.lastLoopDate) > 15 * 60
-        debug(.default, "Loop stale: \(isLoopStale), currentBG: \(input.currentBG), minPredBG: \(input.minPredBG)")
+        debug(.bolus, "Loop stale: \(isLoopStale), currentBG: \(input.currentBG), minPredBG: \(input.minPredBG)")
 
         // don't recommend insulin when current glucose or minPredBG is < 54 or last sucessful loop was over 15 minutes ago
         if input.currentBG < 54 || input.minPredBG < 54 || isLoopStale {
             insulinCalculated = 0
-            debug(.default, "Insulin set to 0 due to safety check - BG < 54 or stale loop")
+            debug(.bolus, "Insulin set to 0 due to safety check - BG < 54 or stale loop")
         } else {
             // no negative insulinCalculated
             insulinCalculated = max(factoredInsulin, 0)
-            debug(.default, "After max(0): \(insulinCalculated)")
+            debug(.bolus, "After max(0): \(insulinCalculated)")
 
             // don't exceed maxBolus
             insulinCalculated = min(insulinCalculated, input.maxBolus)
-            debug(.default, "After maxBolus (\(input.maxBolus)): \(insulinCalculated)")
+            debug(.bolus, "After maxBolus (\(input.maxBolus)): \(insulinCalculated)")
 
             // don't exceed maxIOB
             insulinCalculated = min(insulinCalculated, input.maxIOB - input.iob)
-            debug(.default, "After maxIOB check (\(input.maxIOB) - \(input.iob)): \(insulinCalculated)")
+            debug(.bolus, "After maxIOB check (\(input.maxIOB) - \(input.iob)): \(insulinCalculated)")
 
             // round calculated recommendation to allowed bolus increment
             insulinCalculated = roundBolus(insulinCalculated)
-            debug(.default, "Final rounded insulin: \(insulinCalculated)")
+            debug(.bolus, "Final rounded insulin: \(insulinCalculated)")
         }
 
         return CalculationResult(
@@ -118,7 +118,7 @@ enum BolusCalculator {
     ) -> Decimal {
         for (index, entry) in entries.enumerated() {
             guard let entryTime = TherapySettingsUtil.parseTime(entry.start) else {
-                debug(.default, "Invalid entry start time: \(entry.start)")
+                debug(.bolus, "Invalid entry start time: \(entry.start)")
                 continue
             }
 

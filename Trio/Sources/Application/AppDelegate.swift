@@ -33,9 +33,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, ObservableObject, UNUserNoti
     func applicationShouldRequestHealthAuthorization(_: UIApplication) {
         HKHealthStore().handleAuthorizationForExtension { success, error in
             if let error {
-                warning(.service, "Health permission for the watch app: \(error.localizedDescription)")
+                warning(.watch, "Health permission for the watch app: \(error.localizedDescription)")
             } else {
-                debug(.service, "Health permission for the watch app handled: \(success)")
+                debug(.watch, "Health permission for the watch app handled: \(success)")
             }
         }
     }
@@ -49,7 +49,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, ObservableObject, UNUserNoti
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
-        debug(.remoteControl, "Received notification")
+        debug(.remote, "Received remote notification")
 
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: userInfo)
@@ -60,15 +60,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, ObservableObject, UNUserNoti
                     try await TrioRemoteControl.shared.handleRemoteNotification(encryptedData: encryptedMessage.encryptedData)
                     completionHandler(.newData)
                 } catch {
-                    debug(
-                        .default,
-                        "\(DebuggingIdentifiers.failed) failed to handle remote notification with error: \(error)"
-                    )
+                    warning(.remote, "Handling remote notification failed", error: error)
                     completionHandler(.failed)
                 }
             }
         } catch {
-            debug(.remoteControl, "Error decoding push message shell: \(error)")
+            warning(.remote, "Decoding remote notification failed", error: error)
             completionHandler(.failed)
         }
     }
@@ -84,10 +81,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, ObservableObject, UNUserNoti
             do {
                 try await TrioRemoteControl.shared.handleAPNSChanges(deviceToken: token)
             } catch {
-                debug(
-                    .remoteControl,
-                    "\(DebuggingIdentifiers.failed) failed to register for remote notifications: \(error)"
-                )
+                warning(.remote, "Updating the push token failed", error: error)
             }
         }
     }
@@ -96,6 +90,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, ObservableObject, UNUserNoti
         _: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
-        debug(.remoteControl, "Failed to register for remote notifications: \(error)")
+        warning(.remote, "Registering for remote notifications failed", error: error)
     }
 }

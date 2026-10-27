@@ -252,7 +252,7 @@ import WatchKit
                 }
             }
             debug(
-                .watchManager,
+                .watch,
                 "Untethered: phone stored \(stored.count) history record(s); \(recordFlights.count)/\(Self.batchesInFlightLimit) batches remain in flight"
             )
             finishSyncIfDone(epoch: envelope.epoch)
@@ -1197,7 +1197,7 @@ import WatchKit
             }
             if !expiredFlightIDs.isEmpty {
                 let expiredIDs = Set(expiredFlightIDs.flatMap { recordFlights[$0]?.ids ?? [] })
-                debug(.watchManager, "Untethered: no storage confirmation for \(expiredIDs.count) history record(s) in 30 s; retrying")
+                debug(.watch, "Untethered: no storage confirmation for \(expiredIDs.count) history record(s) in 30 s; retrying")
                 for id in expiredFlightIDs { recordFlights[id] = nil }
                 resend(Array(expiredIDs))
             }
@@ -1240,7 +1240,7 @@ import WatchKit
             let flightID = UUID()
             recordFlights[flightID] = (Set(ids), now)
             debug(
-                .watchManager,
+                .watch,
                 "Untethered: sending \(ids.count) history record(s); \(recordFlights.count)/\(Self.batchesInFlightLimit) batches in flight"
             )
             send(

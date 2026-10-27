@@ -21,10 +21,11 @@ extension Adjustments.StateModel {
 
             guard viewContext.hasChanges else { return }
             try viewContext.save()
+            info(.treatments, "Override preset \"\(overrideToEnact.name ?? "Custom")\" started")
 
             updateLatestOverrideConfiguration()
         } catch {
-            debugPrint("\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to enact Override Preset")
+            warning(.treatments, "Starting override preset failed", error: error)
         }
     }
 
@@ -75,10 +76,7 @@ extension Adjustments.StateModel {
                 }
             }
         } catch {
-            debug(
-                .default,
-                "\(DebuggingIdentifiers.failed) Failed to disable active overrides: \(error)"
-            )
+            warning(.treatments, "Stopping active overrides failed", error: error)
         }
     }
 
@@ -116,6 +114,7 @@ extension Adjustments.StateModel {
 
             // Then save and activate a new custom Override
             try await overrideStorage.storeOverride(override: override)
+            info(.treatments, "Custom override started at \(Int(overridePercentage))% insulin")
 
             // Reset State variables
             await resetStateVariables()
@@ -123,10 +122,7 @@ extension Adjustments.StateModel {
             // Update View
             updateLatestOverrideConfiguration()
         } catch {
-            debug(
-                .default,
-                "\(DebuggingIdentifiers.failed) Failed to save custom override: \(error)"
-            )
+            warning(.treatments, "Starting custom override failed", error: error)
         }
     }
 
@@ -166,10 +162,7 @@ extension Adjustments.StateModel {
             setupOverridePresetsArray()
             try await nightscoutManager.uploadProfiles()
         } catch {
-            debug(
-                .default,
-                "\(DebuggingIdentifiers.failed) Failed to save override preset: \(error)"
-            )
+            warning(.treatments, "Saving override preset failed", error: error)
         }
     }
 
@@ -182,10 +175,7 @@ extension Adjustments.StateModel {
                 let ids = try await overrideStorage.fetchForOverridePresets()
                 await updateOverridePresetsArray(with: ids)
             } catch {
-                debug(
-                    .default,
-                    "\(DebuggingIdentifiers.failed) Failed to setup override presets: \(error)"
-                )
+                warning(.treatments, "Loading override presets failed", error: error)
             }
         }
     }
@@ -198,9 +188,7 @@ extension Adjustments.StateModel {
             }
             overridePresets = overrideObjects
         } catch {
-            debugPrint(
-                "\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to extract Overrides: \(error)"
-            )
+            warning(.treatments, "Loading override preset objects failed", error: error)
         }
     }
 
@@ -211,10 +199,7 @@ extension Adjustments.StateModel {
             setupOverridePresetsArray()
             try await nightscoutManager.uploadProfiles()
         } catch {
-            debug(
-                .default,
-                "\(DebuggingIdentifiers.failed) Failed to delete override preset: \(error)"
-            )
+            warning(.treatments, "Deleting override preset failed", error: error)
         }
     }
 
@@ -237,10 +222,7 @@ extension Adjustments.StateModel {
 
                 try await apsManager.determineBasalSync()
             } catch {
-                debug(
-                    .default,
-                    "\(DebuggingIdentifiers.failed) Failed to update override configuration: \(error)"
-                )
+                warning(.treatments, "Updating override state failed", error: error)
             }
         }
     }
@@ -256,7 +238,7 @@ extension Adjustments.StateModel {
                 await resetStateVariables()
             }
         } catch {
-            debugPrint("\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to update latest Override configuration")
+            warning(.treatments, "Loading latest override failed", error: error)
         }
     }
 
@@ -274,9 +256,7 @@ extension Adjustments.StateModel {
                 activeOverrideName = overrideToEdit.name ?? String(localized: "Custom Override")
             }
         } catch {
-            debugPrint(
-                "\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to set active Override: \(error)"
-            )
+            warning(.treatments, "Loading active override failed", error: error)
         }
     }
 
@@ -298,9 +278,7 @@ extension Adjustments.StateModel {
                 activeOverrideName = overrideToEdit.name ?? String(localized: "Custom Override")
             }
         } catch {
-            debugPrint(
-                "\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to cancel previous Override: \(error)"
-            )
+            warning(.treatments, "Stopping previous override failed", error: error)
         }
     }
 

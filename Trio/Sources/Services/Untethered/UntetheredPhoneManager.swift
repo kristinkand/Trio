@@ -277,7 +277,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         standingGrantSettingsChanged = false
         standingGrantFingerprint = fingerprint
         standingGrantSentAt = now
-        debug(.watchManager, "Untethered: standing grant sent")
+        debug(.watch, "Untethered: standing grant sent")
     }
 
     /// The start reads the pump before it offers it: the toggle shows a spinner meanwhile.
@@ -347,13 +347,13 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         guard control.isControlReady else {
             control.releaseControl()
-            debug(.watchManager, "Untethered: take-back refused, no pod link after \(Int(Self.takeBackLinkLimit)) s")
+            debug(.watch, "Untethered: take-back refused, no pod link after \(Int(Self.takeBackLinkLimit)) s")
             setError(String(
                 localized: "Couldn't reach the pod. The watch keeps running; bring the phone close to the pod and try again."
             ))
             return
         }
-        debug(.watchManager, "Untethered: take-back, pod link up — telling the watch to stop")
+        debug(.watch, "Untethered: take-back, pod link up — telling the watch to stop")
         await apply(.forceTakeBack)
     }
 
@@ -378,7 +378,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     /// `payload` holds an `UntetheredEnvelope`. Every path calls `replyHandler` when there is one.
     func receive(_ payload: [String: Any], replyHandler: (([String: Any]) -> Void)?) {
         guard let envelope = try? UntetheredEnvelope.decode(payload) else {
-            warning(.watchManager, "Untethered: unreadable message from the watch")
+            warning(.watch, "Untethered: unreadable message from the watch")
             replyHandler?([:])
             return
         }
@@ -431,12 +431,12 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 replyHandler?([:])
                 // the watch asks again when its request seemed lost: one already on its way here is not refused
                 if self.isCheckingDevices || self.state.session.phase == .preparing || self.state.session.phase == .starting {
-                    debug(.watchManager, "Untethered: the watch asked again for the start already under way")
+                    debug(.watch, "Untethered: the watch asked again for the start already under way")
                     return
                 }
                 // a watch app watchOS hasn't updated yet (or an older phone): no hand-over between two builds
                 if let reason = UntetheredVersion.mismatch(watch: envelope.appVersion) {
-                    warning(.watchManager, "Untethered: start refused, \(reason)")
+                    warning(.watch, "Untethered: start refused, \(reason)")
                     self.send(.startRefused(reason: reason), epoch: envelope.epoch)
                     return
                 }
@@ -446,7 +446,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             case let .handbackRequested(minutes):
                 replyHandler?([:])
                 guard self.state.session.phase == .active, envelope.epoch == self.state.session.epoch else { return }
-                warning(.watchManager, "Untethered: the watch hasn't reached the pod for \(minutes) min and asks the phone to take it back")
+                warning(.watch, "Untethered: the watch hasn't reached the pod for \(minutes) min and asks the phone to take it back")
                 // as Take Back the Pump Now: the phone reaches for the pod first, and leaves the watch dosing if it can't.
                 // The pod may still be busy with the watch's last command: a few more tries, a little apart, rather
                 // than waiting for the watch's next request (24 October: refused at 13:55:56, taken back by hand 14:07).
@@ -455,7 +455,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                     guard self.state.session.phase == .active, envelope.epoch == self.state.session.epoch,
                           attempt < Self.handbackRequestTries
                     else { break }
-                    debug(.watchManager, "Untethered: the pod was busy, trying again in \(Int(Self.handbackRequestRetryDelay)) s (\(attempt) of \(Self.handbackRequestTries))")
+                    debug(.watch, "Untethered: the pod was busy, trying again in \(Int(Self.handbackRequestRetryDelay)) s (\(attempt) of \(Self.handbackRequestTries))")
                     self.setError(String(localized: "The pod is still busy with the watch. The phone tries again in a moment; keep it near the pod."))
                     try? await Task.sleep(nanoseconds: UInt64(Self.handbackRequestRetryDelay * 1_000_000_000))
                     guard self.state.session.phase == .active, envelope.epoch == self.state.session.epoch else { break }
@@ -558,7 +558,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     }
 
     @MainActor private func setError(_ message: String?) {
-        if let message { warning(.watchManager, "Untethered: \(message)") }
+        if let message { warning(.watch, "Untethered: \(message)") }
         UntetheredGate.update { $0.lastError = message }
         publish()
     }
@@ -604,7 +604,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         lastHandledForeignSessionAt = foreignAt
         // a phone that still holds the pod lets go of it, so the watch reaches it
         if !control.isControlReleased { control.releaseControl() }
-        debug(.watchManager, "Untethered: pod reports a foreign controller session; querying watch ownership")
+        debug(.watch, "Untethered: pod reports a foreign controller session; querying watch ownership")
         let previous = state.podReading
         let currentPod = (apsManager.pumpManager as? OmniPumpManager)?.state.podState?.activatedAt
         let startStatus = previous.flatMap { reading in
@@ -625,7 +625,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             guard let self, self.state.session.phase == .starting, self.state.session.epoch == epoch,
                   let lease = self.state.session.leaseExpiresAt, Date() < lease.addingTimeInterval(-30)
             else { return }
-            debug(.watchManager, "Untethered: sending the commit again")
+            debug(.watch, "Untethered: sending the commit again")
             self.send(message, epoch: epoch)
         }
     }
@@ -639,7 +639,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             // the tick ends the start with "the watch did not answer"
             return
         }
-        debug(.watchManager, "Untethered: the start didn't reach the watch (\(why)), trying again")
+        debug(.watch, "Untethered: the start didn't reach the watch (\(why)), trying again")
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.prepareRetryDelay) { [weak self] in
             guard let self, self.state.session.phase == .preparing, self.state.session.epoch == epoch else { return }
             self.send(message, epoch: epoch)
@@ -679,7 +679,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         var failed = false
         let errorHandler: (Error) -> Void = { [weak self] error in
-            warning(.watchManager, "Untethered: sending failed: \(error.localizedDescription)")
+            warning(.watch, "Untethered: sending failed: \(error.localizedDescription)")
             if case .commit = message, !failed {
                 failed = true
                 DispatchQueue.main.async { self?.retryCommit(message, epoch: epoch) }
@@ -899,8 +899,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         {
             transfer.cancel()
         }
-        debug(.watchManager, "Untethered: pump released to the watch")
-        if let tempBasal { debug(.watchManager, "Untethered: temp basal \(tempBasal.unitsPerHour) U/h handed to the watch") }
+        debug(.watch, "Untethered: pump released to the watch")
+        if let tempBasal { debug(.watch, "Untethered: temp basal \(tempBasal.unitsPerHour) U/h handed to the watch") }
         return UntetheredHandover(pumpConfiguration: configuration, tempBasal: tempBasal)
     }
 
@@ -934,7 +934,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         pumpReturnAnswered = false
         let control = apsManager.pumpManager as? ExclusiveDeviceControl
         control?.takeControl()
-        debug(.watchManager, "Untethered: reading the pump back")
+        debug(.watch, "Untethered: reading the pump back")
         // the reconnect keeps running with the phone in a pocket, rather than waiting for the next wake
         var backgroundTask = UIBackgroundTaskIdentifier.invalid
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Untethered pump return") {
@@ -946,7 +946,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             try? await Task.sleep(nanoseconds: Self.pumpEscalateAfter)
             guard !Task.isCancelled, let control, !control.isControlReady else { return }
             let outcome = control.escalateTakeControl() ?? "nothing to escalate"
-            debug(.watchManager, "Untethered: no pump link after 12 s, escalating: \(outcome)")
+            debug(.watch, "Untethered: no pump link after 12 s, escalating: \(outcome)")
         }
         defer { escalation.cancel() }
         let started = Date()
@@ -956,7 +956,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             odometer.refreshDeliveredUnits { continuation.resume(returning: $0) }
         }) {
             attempts += 1
-            debug(.watchManager, "Untethered: the pump did not answer yet (attempt \(attempts)), retrying")
+            debug(.watch, "Untethered: the pump did not answer yet (attempt \(attempts)), retrying")
             // dosing stays held until the pump is read; after a minute the banner says why
             if !bannerShown, Date().timeIntervalSince(started) >= 60 {
                 bannerShown = true
@@ -971,7 +971,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         if !state.podEndedOnWatch {
             pumpReturnAnswered = true
             debug(
-                .watchManager,
+                .watch,
                 "Untethered: pump answered after \(Int(Date().timeIntervalSince(started))) s, \(attempts + 1) read(s); \(control?.connectionDiagnostics() ?? "")"
             )
         }
@@ -979,16 +979,16 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         if !state.podEndedOnWatch, let tempBasal = state.session.returnedTempBasal,
            let error = await apsManager.pumpManager?.resumeTempBasal(tempBasal)
         {
-            warning(.watchManager, "Untethered: the watch's temp basal could not be set again: \(error.localizedDescription)")
+            warning(.watch, "Untethered: the watch's temp basal could not be set again: \(error.localizedDescription)")
         }
         // a high temp the watch left running ends here, now the phone has the pod; the schedule runs until its loop
         var endedHighTemp: (temp: UntetheredTempBasal, at: Date)?
         if !state.podEndedOnWatch, let high = state.session.returnedHighTemp, high.endsAt > Date() {
             if let error = await apsManager.pumpManager?.cancelTempBasal() {
-                warning(.watchManager, "Untethered: the watch's high temp could not be cancelled: \(error.localizedDescription)")
+                warning(.watch, "Untethered: the watch's high temp could not be cancelled: \(error.localizedDescription)")
             } else {
                 endedHighTemp = (high, Date())
-                debug(.watchManager, "Untethered: the watch's high temp \(high.unitsPerHour) U/h cancelled")
+                debug(.watch, "Untethered: the watch's high temp \(high.unitsPerHour) U/h cancelled")
             }
         }
         if state.podEndedOnWatch {
@@ -999,7 +999,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 $0.pumpReturnPending = false
             }
             publish()
-            debug(.watchManager, "Untethered: the watch ended the pod; the phone is ready for a new one")
+            debug(.watch, "Untethered: the watch ended the pod; the phone is ready for a new one")
             return
         }
         // after a hand-back the watch's last records are on their way; judge the pump once they're in
@@ -1019,7 +1019,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         UntetheredGate.update { $0.pumpReturnPending = false }
         publish()
-        debug(.watchManager, "Untethered: pump is back on the phone")
+        debug(.watch, "Untethered: pump is back on the phone")
         // the session's start dropped the watch's copy: a phone gone again right after leaves it none to start from
         scheduleStandingGrant(settingsChanged: true, immediately: true)
         // each reading loops once, as on the watch: one the watch's last loop dosed on waits for the next
@@ -1052,7 +1052,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             return true
         }
         UntetheredGate.update { state in state.watchPendingDoses[state.session.epoch]?.remove(identifier) }
-        if !ended { warning(.watchManager, "Untethered: no record of the watch's cancelled high temp to end") }
+        if !ended { warning(.watch, "Untethered: no record of the watch's cancelled high temp to end") }
     }
 
     /// Insulin the pump delivered that no record explains is booked now, as a bolus. Records claiming more than the
@@ -1102,7 +1102,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         guard point.delivered >= 0 else {
             UntetheredGate.update { $0.audit = nil; $0.auditFinding = nil }
             warning(
-                .watchManager,
+                .watch,
                 "Untethered: no audit, the pod's delivery counter went back by \(-point.delivered) U (a faulted or new pod)"
             )
             publish()
@@ -1121,7 +1121,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 bolusDeliveryRate: (apsManager.pumpManager as? PumpDeliveryOdometer)?.bolusDeliveryRate ?? 0
             )
             debug(
-                .watchManager,
+                .watch,
                 "Untethered: audit\(historyComplete ? "" : " (watch history incomplete)") — pump \(point.delivered) U, records \(expected) U"
             )
             let verdict = UntetheredAudit.verdict(delivered: point.delivered, expected: expected)
@@ -1144,11 +1144,11 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             case .explained:
                 finding = nil
             }
-            if let finding { warning(.watchManager, "Untethered: \(finding)") }
+            if let finding { warning(.watch, "Untethered: \(finding)") }
             UntetheredGate.update { $0.auditFinding = finding }
             publish()
         } catch {
-            warning(.watchManager, "Untethered: audit failed: \(error.localizedDescription)")
+            warning(.watch, "Untethered: audit failed: \(error.localizedDescription)")
         }
     }
 
@@ -1179,7 +1179,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             endUnits: current.units
         )
         debug(
-            .watchManager,
+            .watch,
             "Untethered: \(Int(current.at.timeIntervalSince(previous.at) / 60)) min between pod readings, checking"
         )
         await judge(point, historyComplete: true)
@@ -1260,7 +1260,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     @MainActor private func checkLinkedOverride() async {
         guard state.session.phase == .active, let linkedID = state.session.linkedOverrideID else { return }
         if await !isOverrideActive(id: linkedID) {
-            debug(.watchManager, "Untethered: the linked override is over, ending")
+            debug(.watch, "Untethered: the linked override is over, ending")
             await end()
         }
     }
@@ -1302,7 +1302,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         // relaunch) would store its carbs and doses a second time. Confirmed, so the watch lets go of it.
         let session = state.session
         guard state.applied[epoch] != nil || (epoch == session.epoch && !session.isIdle) else {
-            debug(.watchManager, "Untethered: \(records.count) record(s) of finished session \(epoch) ignored")
+            debug(.watch, "Untethered: \(records.count) record(s) of finished session \(epoch) ignored")
             return records.map(\.id)
         }
         var applied = state.applied[epoch] ?? [:]
@@ -1324,7 +1324,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             } catch {
                 // left out of the applied set, so the next sync asks for it again
                 for record in run {
-                    warning(.watchManager, "Untethered: could not store \(record.key): \(error.localizedDescription)")
+                    warning(.watch, "Untethered: could not store \(record.key): \(error.localizedDescription)")
                 }
             }
             index += run.count
@@ -1617,7 +1617,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         await freezeWatchDoses(epoch: epoch)
         UntetheredGate.update { $0.applied[epoch] = nil }
         publish()
-        debug(.watchManager, "Untethered: history of session \(epoch) complete")
+        debug(.watch, "Untethered: history of session \(epoch) complete")
         // a return audited before the history was complete is judged again; one still reading the pump does it itself
         if !state.pumpReturnPending, let point = state.audit, point.epoch == epoch {
             await judge(point, historyComplete: true)
@@ -1637,7 +1637,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 rows.forEach { $0.isMutable = false }
                 try? context.save()
             }
-            debug(.watchManager, "Untethered: \(identifiers.count) dose(s) the watch left running kept as it reported them")
+            debug(.watch, "Untethered: \(identifiers.count) dose(s) the watch left running kept as it reported them")
         }
         UntetheredGate.update { $0.watchPendingDoses[epoch] = nil }
     }

@@ -167,7 +167,7 @@ final class BaseAdjustmentManager: AdjustmentManager, Injectable, @unchecked Sen
         at date: Date
     ) async throws -> AdjustmentOutcome {
         let outcome = try await serializer.run { try await self.commitOverride(activating: preset, at: date) }
-        debug(.service, "Override activated from \(source.rawValue): \(outcome.logDescription)")
+        info(.treatments, "Override activated from \(source.rawValue): \(outcome.logDescription)")
         await applyOverrideSideEffects(source: source, waitForUpload: waitForUpload)
         return outcome
     }
@@ -176,7 +176,7 @@ final class BaseAdjustmentManager: AdjustmentManager, Injectable, @unchecked Sen
         -> AdjustmentOutcome
     {
         let outcome = try await serializer.run { try await self.commitOverride(activating: nil, at: date) }
-        debug(.service, "Override cancelled from \(source.rawValue): \(outcome.logDescription)")
+        info(.treatments, "Override cancelled from \(source.rawValue): \(outcome.logDescription)")
         await applyOverrideSideEffects(source: source, waitForUpload: waitForUpload)
         return outcome
     }
@@ -247,7 +247,7 @@ final class BaseAdjustmentManager: AdjustmentManager, Injectable, @unchecked Sen
         at date: Date
     ) async throws -> AdjustmentOutcome {
         let (outcome, orefTarget) = try await serializer.run { try await self.commitTempTarget(activating: preset, at: date) }
-        debug(.service, "Temp target activated from \(source.rawValue): \(outcome.logDescription)")
+        info(.treatments, "Temp target activated from \(source.rawValue): \(outcome.logDescription)")
         await applyTempTargetSideEffects(orefTarget: orefTarget, source: source, waitForUpload: waitForUpload)
         return outcome
     }
@@ -256,7 +256,7 @@ final class BaseAdjustmentManager: AdjustmentManager, Injectable, @unchecked Sen
         -> AdjustmentOutcome
     {
         let (outcome, orefTarget) = try await serializer.run { try await self.commitTempTarget(activating: nil, at: date) }
-        debug(.service, "Temp target cancelled from \(source.rawValue): \(outcome.logDescription)")
+        info(.treatments, "Temp target cancelled from \(source.rawValue): \(outcome.logDescription)")
         await applyTempTargetSideEffects(orefTarget: orefTarget, source: source, waitForUpload: waitForUpload)
         return outcome
     }
@@ -361,7 +361,7 @@ final class BaseAdjustmentManager: AdjustmentManager, Injectable, @unchecked Sen
             do {
                 try await apsManager.determineBasalSync()
             } catch {
-                debug(.service, "Determination after adjustment change failed: \(error)")
+                warning(.treatments, "Refreshing determination after adjustment change failed", error: error)
             }
         }
     }
