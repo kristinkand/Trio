@@ -365,13 +365,15 @@ import WatchKit
                 let handle = WatchG7SlotKey.peripheral
                 setPeripheralIdentifier(handle)
                 appendLog(
-                    handle == nil
+                    !isEnabled
+                        ? "Untethered mode over: the watch sensor is switched off, not reading"
+                        : handle == nil
                         ? "Untethered mode over: reading again, searching for the sensor"
                         : "Untethered mode over: reading again, connecting to the sensor it used"
                 )
                 session?.update(credentials: credentials)
             } else {
-                appendLog("Untethered mode over: reading again")
+                appendLog(isEnabled ? "Untethered mode over: reading again" : "Untethered mode over: the watch sensor is switched off, not reading")
             }
             isReconnecting = true
             // the reminder below counts from here until the first reading of our own

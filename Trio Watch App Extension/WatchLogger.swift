@@ -248,18 +248,205 @@ private extension WatchLogEntry.Level {
 
 // MARK: - Untethered mode's lines
 
-/// Untethered mode and the watch's own G7 reader still write plain lines (`log`), as before the structured log.
-/// They go into the same ring under `.untethered`, as `info`, and reach the phone with the rest. `force` no longer
-/// sends at once: the ring keeps every line across relaunches, and sending each one would take the radio from the
-/// sensor's link.
+/// Untethered mode and the watch's own G7 reader write plain lines (`log`). They go to the phone as before the
+/// structured log, as text (`UntetheredLineLog`), which the phone files under Watch/Legacy: on 27 October the
+/// structured log's file transfers brought one line in a hundred of theirs, and none of the lines that would have
+/// said why the watch didn't start by itself.
 extension WatchLogger {
-    func log(_ message: String, force _: Bool = false) async {
-        info(.untethered, message)
+    func log(
+        _ message: String,
+        force: Bool = false,
+        function: String = #function,
+        file: String = #fileID,
+        line: Int = #line
+    ) async {
+        await UntetheredLineLog.shared.log(message, force: force, function: function, file: file, line: line)
     }
 
-    /// Sends what is kept now, as on leaving the screen. `queued` is kept for the existing callers: the structured
-    /// log always goes as queued file transfers.
-    func flushPersistedLogs(queued _: Bool = false) async {
+    /// Sends what was kept back while the phone was away; `queued` hands it to WatchConnectivity's queue even with the
+    /// phone in reach. The structured log goes with it.
+    func flushPersistedLogs(queued: Bool = false) async {
+        await UntetheredLineLog.shared.flushPersistedLogs(queued: queued)
         didEnterBackground()
+    }
+}
+
+/// The watch log as it was sent before the structured log: kept in memory, sent every 3 minutes or 100 lines, and kept
+/// in a file while the phone is away, sent once it is back.
+actor UntetheredLineLog {
+    static let shared = UntetheredLineLog()
+
+    private var logs: [String] = []
+    private let maxEntries = 500
+    private let flushInterval: TimeInterval = 3 * 60
+    private let flushSizeThreshold = 100
+    private var lastFlush = Date()
+
+    private let session = WCSession.default
+    private var timerTask: Task<Void, Never>?
+
+    private init() {
+        Task {
+            await startFlushTimer()
+        }
+    }
+
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+        return formatter
+    }
+
+    private func startFlushTimer() async {
+        timerTask = Task {
+            while true {
+                try? await Task.sleep(nanoseconds: UInt64(flushInterval * 1_000_000_000))
+                await flushIfNeeded(force: false)
+            }
+        }
+    }
+
+    func log(
+        _ message: String,
+        force: Bool = false,
+        function: String = #function,
+        file: String = #fileID,
+        line: Int = #line
+    ) async {
+        let shortFile = (file as NSString).lastPathComponent
+        let timestamp = dateFormatter.string(from: Date())
+        let entry = "[\(timestamp)] [\(shortFile):\(line)] \(function) → \(message)"
+
+        logs.append(entry)
+        if logs.count > maxEntries {
+            logs.removeFirst(logs.count - maxEntries)
+        }
+
+        print(entry)
+        await flushIfNeeded(force: force)
+    }
+
+    func flushIfNeeded(force: Bool = false) async {
+        let now = Date()
+        let shouldFlush = force || now.timeIntervalSince(lastFlush) >= flushInterval || logs.count >= flushSizeThreshold
+
+        if shouldFlush {
+            await flushToPhone()
+        }
+    }
+
+    private func flushToPhone() async {
+        guard !logs.isEmpty else {
+            return
+        }
+
+        let payload: [String: Any] = ["watchLogs": logs.joined(separator: "\n")]
+
+        if session.activationState != .activated {
+            session.activate()
+        }
+
+        if session.isReachable {
+            // the buffer is empty by the time a send fails: what failed is kept, not the empty buffer
+            let sent = logs
+            session.sendMessage(payload, replyHandler: nil) { _ in
+                Task {
+                    await self.persistLogsLocally(sent)
+                }
+            }
+        } else {
+            await persistLogsLocally()
+        }
+
+        lastFlush = Date()
+        logs.removeAll()
+    }
+
+    func persistLogsLocally(_ entries: [String]? = nil) async {
+        let logDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("logs", isDirectory: true)
+
+        try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
+
+        let logFile = logDir.appendingPathComponent("watch_log.txt")
+        let previousLogFile = logDir.appendingPathComponent("watch_log_prev.txt")
+        let startOfDay = Calendar.current.startOfDay(for: Date())
+
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: logFile.path),
+           let creationDate = attributes[.creationDate] as? Date,
+           creationDate < startOfDay
+        {
+            try? FileManager.default.removeItem(at: previousLogFile)
+            try? FileManager.default.moveItem(at: logFile, to: previousLogFile)
+            FileManager.default.createFile(atPath: logFile.path, contents: nil, attributes: [.creationDate: startOfDay])
+        }
+
+        let fullLog = (entries ?? logs).joined(separator: "\n") + "\n"
+        if let data = fullLog.data(using: .utf8) {
+            if let handle = try? FileHandle(forWritingTo: logFile) {
+                try? handle.seekToEnd()
+                handle.write(data)
+                try? handle.close()
+            } else {
+                try? data.write(to: logFile)
+            }
+        }
+    }
+
+    /// `queued` hands the log to WatchConnectivity even with the phone reachable: a log kept back while the
+    /// phone was away can be too large for an interactive message.
+    func flushPersistedLogs(queued: Bool = false) async {
+        let logDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("logs", isDirectory: true)
+        // Yesterday's file first: what was kept back before midnight moves there at the first line after it and was
+        // never sent (25 October: the watch log from 21:31 to midnight, an untethered night with the phone away).
+        await flushPersistedLog(at: logDir.appendingPathComponent("watch_log_prev.txt"), queued: queued)
+        await flushPersistedLog(at: logDir.appendingPathComponent("watch_log.txt"), queued: queued)
+    }
+
+    private func flushPersistedLog(at logFile: URL, queued: Bool) async {
+        guard let data = try? Data(contentsOf: logFile),
+              let logString = String(data: data, encoding: .utf8),
+              !logString.isEmpty
+        else { return }
+
+        if session.activationState != .activated {
+            session.activate()
+        }
+
+        // hours kept back while the phone was away are far over what one transfer takes ("payload too large"): in
+        // parts, each of which the phone appends
+        for part in Self.parts(of: logString) {
+            let payload: [String: Any] = ["watchLogs": part]
+            if session.isReachable, !queued {
+                session.sendMessage(payload, replyHandler: nil) { _ in
+                    Task {
+                        await self.persistLogsLocally(part.split(separator: "\n").map(String.init))
+                    }
+                }
+            } else {
+                _ = session.transferUserInfo(payload)
+            }
+        }
+        try? FileManager.default.removeItem(at: logFile)
+    }
+
+    /// WatchConnectivity refuses a payload a little over 64 KB; whole lines, at most `maxBytes` each part.
+    static func parts(of log: String, maxBytes: Int = 48000) -> [String] {
+        var parts: [String] = []
+        var current = ""
+        var size = 0
+        for line in log.split(separator: "\n") {
+            let lineSize = line.utf8.count + 1
+            if size > 0, size + lineSize > maxBytes {
+                parts.append(current)
+                current = ""
+                size = 0
+            }
+            current += line + "\n"
+            size += lineSize
+        }
+        if !current.isEmpty { parts.append(current) }
+        return parts
     }
 }
