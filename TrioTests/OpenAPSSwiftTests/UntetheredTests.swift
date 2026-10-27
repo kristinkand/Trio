@@ -95,11 +95,15 @@ import Testing
         #expect(Array(layout.slots[3...]) == [nil, .iobCob, .continuation])
         layout.place(.iobCob, at: 1)
         #expect(Array(layout.slots[1...]) == [.iobCob, .continuation, nil, nil, nil])
-        #expect(!layout.place(.chart, at: 2))
-        #expect(!layout.place(.loop, at: 0))
+        // mutating calls outside #expect: the macro hands its subject over as an immutable value
+        let placedChart = layout.place(.chart, at: 2)
+        let placedLoop = layout.place(.loop, at: 0)
+        #expect(!placedChart)
+        #expect(!placedLoop)
         layout.remove(.iobCob)
         #expect(layout.slots[1] == nil && layout.slots[2] == nil)
-        #expect(layout.placeInFirstFreeSlot(.basalIobCob) && layout.slots[3] == .basalIobCob)
+        let placedFree = layout.placeInFirstFreeSlot(.basalIobCob)
+        #expect(placedFree && layout.slots[3] == .basalIobCob)
 
         let saved = WatchGlanceLayout(strings: ["loop", "continuation", "iob", "iob", "chart", "nonsense"])
         #expect(saved.slots == [nil, nil, .iob, nil, nil, nil])
