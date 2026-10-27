@@ -13,7 +13,7 @@ extension Home.StateModel {
             try glucoseController.performFetch()
             updateGlucoseFromController()
         } catch {
-            debug(.default, "\(DebuggingIdentifiers.failed) Failed to perform glucose fetch: \(error)")
+            warning(.ui, "Fetching glucose for home screen failed", error: error)
         }
 
         previousDayGlucoseControllerDelegate.onContentChange = { [weak self] in
@@ -26,7 +26,7 @@ extension Home.StateModel {
             try previousDayGlucoseController.performFetch()
             updatePreviousDayGlucoseFromController()
         } catch {
-            debug(.default, "\(DebuggingIdentifiers.failed) Failed to perform previous day glucose fetch: \(error)")
+            debug(.storage, "\(DebuggingIdentifiers.failed) Failed to perform previous day glucose fetch: \(error)")
         }
     }
 
@@ -60,7 +60,7 @@ extension Home.StateModel {
             try previousDayGlucoseController.performFetch()
             updatePreviousDayGlucoseFromController()
         } catch {
-            debug(.default, "\(DebuggingIdentifiers.failed) Failed to reanchor previous day glucose fetch: \(error)")
+            debug(.storage, "\(DebuggingIdentifiers.failed) Failed to reanchor previous day glucose fetch: \(error)")
         }
     }
 
@@ -129,7 +129,7 @@ extension Home.StateModel {
                 self.extendedStatsPanel = (range: range, stats: stats)
                 self.extendedStatsPanelRefreshedAt = Date()
             } catch {
-                debug(.default, "\(DebuggingIdentifiers.failed) Failed to compute home stats panel: \(error)")
+                warning(.ui, "Computing home stats panel failed", error: error)
             }
         }
     }

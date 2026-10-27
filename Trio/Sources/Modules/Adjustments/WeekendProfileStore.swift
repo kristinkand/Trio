@@ -165,11 +165,11 @@ enum WeekendProfileStore {
     /// on and immediately off) so the history doesn't fill up with noise.
     static func recordCompletedRun(name: String, start: Date, end: Date) {
         guard end > start else {
-            debug(.service, "Profile run not recorded, end \(end) is not after start \(start)")
+            debug(.treatments, "Profile run not recorded, end \(end) is not after start \(start)")
             return
         }
         runHistory.append(Run(name: name, startDate: start, endDate: end))
-        debug(.service, "Profile run recorded in History: \(start) - \(end), \(runHistory.count) runs stored")
+        debug(.treatments, "Profile run recorded in History: \(start) - \(end), \(runHistory.count) runs stored")
     }
 
     /// User-editable label. Defaults to "Profile"; shown in the section header, the Save
@@ -300,7 +300,7 @@ extension WeekendProfileStore {
     /// paths leave Weekend Profile in the identical state.
     static func activate(nightscoutManager: NightscoutManager) {
         guard !isActive else {
-            debug(.service, "Profile remote start ignored, already running: \(logDescription)")
+            debug(.treatments, "Profile remote start ignored, already running: \(logDescription)")
             return
         }
         // A remote start has no end of its own. Without this it would reuse whatever end was
@@ -311,7 +311,7 @@ extension WeekendProfileStore {
         isActive = true
         let start = Date()
         activeStartDate = start
-        debug(.service, "Profile started (remote): \(logDescription)")
+        debug(.treatments, "Profile started (remote): \(logDescription)")
         Task {
             let event = NightscoutExercise(
                 duration: indefiniteDurationMinutes,
@@ -332,18 +332,18 @@ extension WeekendProfileStore {
     /// .stopWeekendProfile()` for the same guard.
     static func deactivate(nightscoutManager: NightscoutManager, reason: String = "remote") {
         guard isActive else {
-            debug(.service, "Profile stop (\(reason)) ignored, not running: \(logDescription)")
+            debug(.treatments, "Profile stop (\(reason)) ignored, not running: \(logDescription)")
             return
         }
         isActive = false
         let end = Date()
         let runName = name
         guard let start = activeStartDate else {
-            debug(.service, "Profile stopped (\(reason)) but its start time was missing -- nothing to record or correct")
+            debug(.treatments, "Profile stopped (\(reason)) but its start time was missing -- nothing to record or correct")
             return
         }
         activeStartDate = nil
-        debug(.service, "Profile stopped (\(reason)): ran \(start) - \(end)")
+        debug(.treatments, "Profile stopped (\(reason)): ran \(start) - \(end)")
         recordCompletedRun(name: runName, start: start, end: end)
 
         let elapsedMinutes = max(1, Int(end.timeIntervalSince(start) / 60))

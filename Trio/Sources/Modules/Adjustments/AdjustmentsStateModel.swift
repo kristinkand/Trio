@@ -146,9 +146,7 @@ extension Adjustments {
                     setupOverridePresetsArray()
                     try await nightscoutManager.uploadProfiles()
                 } catch {
-                    debugPrint(
-                        "\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to save Override Presets order or upload profiles"
-                    )
+                    warning(.treatments, "Saving override preset order or uploading profiles failed", error: error)
                 }
             }
         }
@@ -164,7 +162,7 @@ extension Adjustments {
                 try viewContext.save()
                 setupTempTargetPresetsArray()
             } catch {
-                debugPrint("\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to save Temp Target Presets order")
+                warning(.treatments, "Saving temp target preset order failed", error: error)
             }
         }
     }
@@ -260,7 +258,7 @@ extension Adjustments.StateModel: SettingsObserver, PreferencesObserver {
         let start = Date()
         WeekendProfileStore.activeStartDate = start
         let nightscoutDuration = WeekendProfileStore.nightscoutStartDurationMinutes(start: start)
-        debug(.service, "Profile started (in app): \(WeekendProfileStore.logDescription)")
+        debug(.storage, "Profile started (in app): \(WeekendProfileStore.logDescription)")
         Task {
             let event = NightscoutExercise(
                 duration: nightscoutDuration,
@@ -284,11 +282,11 @@ extension Adjustments.StateModel: SettingsObserver, PreferencesObserver {
         guard let start = WeekendProfileStore.activeStartDate else {
             // Nothing to close out -- e.g. Weekend Profile was already active before this version's
             // start-tracking existed. Nothing was recorded to correct on Nightscout either.
-            debug(.service, "Profile stopped (in app) but its start time was missing -- nothing to record or correct")
+            debug(.storage, "Profile stopped (in app) but its start time was missing -- nothing to record or correct")
             return
         }
         WeekendProfileStore.activeStartDate = nil
-        debug(.service, "Profile stopped (in app): ran \(start) - \(end)")
+        debug(.storage, "Profile stopped (in app): ran \(start) - \(end)")
         WeekendProfileStore.recordCompletedRun(name: name, start: start, end: end)
 
         let elapsedMinutes = max(1, Int(end.timeIntervalSince(start) / 60))

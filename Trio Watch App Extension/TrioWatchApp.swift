@@ -12,6 +12,7 @@ import WatchKit
         // restores a running untethered session and its devices
         _ = UntetheredWatchManager.shared
         WatchNotificationHandler.shared.configure()
+        WatchLogger.shared.info(.lifecycle, "App launched")
     }
 
     var body: some Scene {
@@ -25,13 +26,12 @@ import WatchKit
                 WatchG7Reader.shared.appLeavingScreen()
             }
             if newScenePhase == .background {
+                WatchLogger.shared.info(.lifecycle, "App moved to background")
                 // with the watch's own sensor link the log waits for the phone and a moment clear of the reading,
-                // rather than queue up while the phone is away and go over with the rest when it returns
+                // rather than go over while the sensor's link needs the radio
                 let untethered = UntetheredWatchManager.shared
-                if !untethered.holdsSensorLink {
-                    Task { await WatchLogger.shared.flushPersistedLogs() }
-                } else if untethered.mayStreamToPhone {
-                    Task { await WatchLogger.shared.flushPersistedLogs(queued: true) }
+                if !untethered.holdsSensorLink || untethered.mayStreamToPhone {
+                    WatchLogger.shared.didEnterBackground()
                 }
             } else if newScenePhase == .active {
                 // in front first, so the recheck holds in the app; a sensor pairing that is due keeps Trio in front

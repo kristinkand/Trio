@@ -168,7 +168,7 @@ struct WeekendProfileSection: View {
     private func stopProfile() {
         isActive = false
         guard WeekendProfileStore.isActive else {
-            debug(.service, "Profile switch turned off, but it was not running: \(WeekendProfileStore.logDescription)")
+            debug(.treatments, "Profile switch turned off, but it was not running: \(WeekendProfileStore.logDescription)")
             return
         }
         WeekendProfileStore.isActive = false

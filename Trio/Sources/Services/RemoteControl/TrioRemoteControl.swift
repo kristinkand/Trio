@@ -68,10 +68,7 @@ class TrioRemoteControl: Injectable {
             return
         }
 
-        debug(
-            .remoteControl,
-            "Command successfully decrypted and authenticated. Time difference: \(Int(timeDifference)) seconds."
-        )
+        debug(.remote, "Command authenticated, sent \(Int(timeDifference)) s ago")
 
         guard UntetheredGate.state.session.isIdle else {
             await logError("Command rejected: the Apple Watch is running the loop (untethered).", payload: commandPayload)

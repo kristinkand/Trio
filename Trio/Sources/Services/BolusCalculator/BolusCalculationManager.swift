@@ -310,10 +310,6 @@ final class BaseBolusCalculationManager: BolusCalculationManager, Injectable {
                 lastLoopDate: lastLoopDate
             )
         } catch {
-            debug(
-                .default,
-                "\(DebuggingIdentifiers.failed) Error preparing calculation input: \(error)"
-            )
             // Return default values in case of error
             throw error
         }
@@ -355,11 +351,8 @@ final class BaseBolusCalculationManager: BolusCalculationManager, Injectable {
             )
             let result = await calculateInsulin(input: input)
             return result
-        } catch {
-            debug(
-                .default,
-                "\(DebuggingIdentifiers.failed) Error in bolus calculation: \(error)"
-            )
+        } catch let calculationError {
+            error(.bolus, "Bolus calculation failed, recommending 0 U", error: calculationError)
             // Return safe default values
             return CalculationResult(
                 insulinCalculated: 0,

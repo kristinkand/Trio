@@ -9,7 +9,7 @@ import UserNotifications
 extension Settings {
     final class StateModel: BaseStateModel<Provider> {
         @Injected() private var broadcaster: Broadcaster!
-        @Injected() private var fileManager: FileManager!
+        @Injected() var logExport: LogExport!
         @Injected() private var nightscoutManager: NightscoutManager!
         @Injected() var pluginManager: PluginManager!
         @Injected() var fetchCgmManager: FetchGlucoseManager!
@@ -49,27 +49,16 @@ extension Settings {
             serviceUIType = TidepoolService.self as? ServiceUI.Type
         }
 
-        func logItems() -> [URL] {
-            var items: [URL] = []
-
-            if fileManager.fileExists(atPath: SimpleLogReporter.logFile) {
-                items.append(URL(fileURLWithPath: SimpleLogReporter.logFile))
+        var logKinds: [LogExport.Kind] {
+            var kinds: [LogExport.Kind] = [.all]
+            // Read during the first render, before the resolver is set
+            if provider?.deviceManager?.pumpManager != nil {
+                kinds.append(.pump)
             }
-
-            if fileManager.fileExists(atPath: SimpleLogReporter.logFilePrev) {
-                items.append(URL(fileURLWithPath: SimpleLogReporter.logFilePrev))
+            if let fetchCgmManager, fetchCgmManager.cgmGlucoseSourceType == .plugin, fetchCgmManager.cgmManager != nil {
+                kinds.append(.cgm)
             }
-
-            // What the watch app logged (including its own G7 connection), as sent to the phone.
-            if fileManager.fileExists(atPath: SimpleLogReporter.watchLogFile) {
-                items.append(URL(fileURLWithPath: SimpleLogReporter.watchLogFile))
-            }
-
-            if fileManager.fileExists(atPath: SimpleLogReporter.watchLogFilePrev) {
-                items.append(URL(fileURLWithPath: SimpleLogReporter.watchLogFilePrev))
-            }
-
-            return items
+            return kinds
         }
 
         func hideSettingsModal() {
@@ -122,13 +111,13 @@ extension Settings.StateModel: SettingsObserver {
 
 extension Settings.StateModel: ServiceOnboardingDelegate {
     func serviceOnboarding(didCreateService service: Service) {
-        debug(.nightscout, "Service with identifier \(service.pluginIdentifier) created")
+        info(.settings, "Service \(service.pluginIdentifier) added")
         provider.tidepoolManager.addTidepoolService(service: service)
     }
 
     func serviceOnboarding(didOnboardService service: Service) {
         precondition(service.isOnboarded)
-        debug(.nightscout, "Service with identifier \(service.pluginIdentifier) onboarded")
+        debug(.settings, "Service \(service.pluginIdentifier) onboarded")
     }
 }
 
