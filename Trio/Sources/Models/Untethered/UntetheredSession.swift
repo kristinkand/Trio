@@ -169,7 +169,9 @@ struct UntetheredSession: Codable, Equatable {
             phase = .idle
             return [.takePump, .failed(reason)]
 
-        case (.starting, .received(.statusReport(holding: nil), _)):
+        // only as the answer to this session's own query: the queries are queued, and one from an earlier start can
+        // reach the watch mid-takeover, which then answers "not holding" with the current epoch
+        case (.starting, .received(.statusReport(holding: nil), _)) where statusQueried:
             phase = .idle
             return [.takePump, .failed(String(localized: "The watch did not take over the pump."))]
 
