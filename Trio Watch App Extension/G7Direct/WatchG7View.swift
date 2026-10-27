@@ -62,6 +62,19 @@ struct WatchG7View: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+
+                    // the watch starts by itself only once this reader has readings of its own
+                    if WatchState.shared.fallbackLoop, WatchState.shared.untetheredMode,
+                       WatchState.shared.allowUntetheredStartWithoutPhone
+                    {
+                        Text(
+                            "Off: the watch can't start by itself when the iPhone stops.",
+                            comment: "Watch sensor page: the reader is off while Start by Itself is on"
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(Color.loopYellow)
+                        .multilineTextAlignment(.center)
+                    }
                 }
             }
             .padding(.horizontal, 4)
