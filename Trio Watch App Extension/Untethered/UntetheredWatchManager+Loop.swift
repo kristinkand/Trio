@@ -1471,7 +1471,36 @@ extension UntetheredWatchManager {
         // two missed readings on the sensor's 5-minute grid
         if let newest = latest?.dateString, now.timeIntervalSince(newest) > Self.noReadingsAfter {
             let minutes = Int(now.timeIntervalSince(newest) / 60)
-            alarm("sensor", title: Self.noReadingsTitle, body: Self.noReadingsBody(minutes: minutes), every: 30 * 60)
+            // the sensor's own reason when it gives one: the watch reaches it, the sensor sends nothing usable
+            switch watchCGMSensorProblem(cgmManager, now: now) {
+            case .temporaryIssue:
+                alarm(
+                    "sensor",
+                    title: String(localized: "Sensor Issue"),
+                    body: String(
+                        localized: "The sensor reports a temporary issue and has sent no usable reading for \(minutes) minutes. The watch is in contact with it; readings come back when the sensor recovers."
+                    ),
+                    every: 30 * 60
+                )
+            case .failed:
+                alarm(
+                    "sensor",
+                    title: String(localized: "Sensor Failed"),
+                    body: String(
+                        localized: "The sensor reports that it has failed and sends no more glucose (no reading for \(minutes) minutes). Replace the sensor."
+                    ),
+                    every: 30 * 60
+                )
+            case .warmup:
+                alarm(
+                    "sensor",
+                    title: String(localized: "Sensor Warming Up"),
+                    body: String(localized: "The sensor is warming up and sends no glucose yet (no reading for \(minutes) minutes)."),
+                    every: 30 * 60
+                )
+            case nil:
+                alarm("sensor", title: Self.noReadingsTitle, body: Self.noReadingsBody(minutes: minutes), every: 30 * 60)
+            }
         }
         if !data.podEnded, let lastLoop = loopReference,
            now.timeIntervalSince(lastLoop) > Self.notLoopingAfter
