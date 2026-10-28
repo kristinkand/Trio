@@ -1406,7 +1406,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             }
         }
         if !glucose.isEmpty {
-            try await glucoseStorage.storeGlucose(glucose)
+            try await glucoseStorage.storeWatchGlucose(glucose)
             if let newest = glucose.map(\.dateString).max(), newest > lastWatchReadingAt ?? .distantPast {
                 lastWatchReadingAt = newest
             }
@@ -1454,7 +1454,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             }
             UntetheredGate.update { $0.watchPendingDoses[epoch]?.remove(syncIdentifier) }
         case let .glucose(glucose):
-            try await glucoseStorage.storeGlucose([glucose])
+            try await glucoseStorage.storeWatchGlucose([glucose])
             if glucose.dateString > lastWatchReadingAt ?? .distantPast { lastWatchReadingAt = glucose.dateString }
         case let .glucoseDeleted(date):
             let context = CoreDataStack.shared.newTaskContext()

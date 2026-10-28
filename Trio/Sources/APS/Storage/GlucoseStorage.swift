@@ -11,6 +11,7 @@ protocol GlucoseStorage {
     var updatePublisher: AnyPublisher<Void, Never> { get }
     func storeGlucose(_ glucose: [BloodGlucose]) async throws
     func backfillGlucose(_ glucose: [BloodGlucose]) async throws
+    func storeWatchGlucose(_ glucose: [BloodGlucose]) async throws
     func addManualGlucose(glucose: Int)
     func isGlucoseDataFresh(_ glucoseDate: Date?) -> Bool
     func syncDate() -> Date
@@ -78,8 +79,21 @@ final class BaseGlucoseStorage: GlucoseStorage, Injectable {
     ///  it isn't within 3.5 minutes of an existing glucose reading, which is simple but not perfect.
     ///  But since this is a corner case that really shouldn't happen often, it's good enough.
     func backfillGlucose(_ glucose: [BloodGlucose]) async throws {
+        try await backfill(glucose, name: "backfillGlucose", storeState: false)
+    }
+
+    /// Readings from untethered mode's watch, as it hands its history back or sends them during a session. They come
+    /// in like a backfill: a reading within 3.5 minutes of one Trio already has is left out, as is one the user
+    /// deleted. On 27 October a new sensor's warm-up readings stood between the old sensor's, 2 to 3 minutes apart,
+    /// after the sensor change; the phone's own backfill leaves those out, the watch's path only dropped readings
+    /// stamped the same second.
+    func storeWatchGlucose(_ glucose: [BloodGlucose]) async throws {
+        try await backfill(glucose, name: "storeWatchGlucose", storeState: true)
+    }
+
+    private func backfill(_ glucose: [BloodGlucose], name: String, storeState: Bool) async throws {
         let context = makeContext()
-        context.name = "backfillGlucose"
+        context.name = name
         let clamped = clampToMinimum(glucose)
 
         try await context.perform {
@@ -99,6 +113,12 @@ final class BaseGlucoseStorage: GlucoseStorage, Injectable {
                 context: context
             )
 
+            if filteredGlucose.count < clamped.count {
+                debug(
+                    .cgm,
+                    "\(name): \(clamped.count - filteredGlucose.count) of \(clamped.count) readings left out (deleted, or within 3.5 min of a stored reading)"
+                )
+            }
             guard !filteredGlucose.isEmpty else { return }
 
             do {
@@ -110,6 +130,8 @@ final class BaseGlucoseStorage: GlucoseStorage, Injectable {
                     file: #fileID
                 )
             }
+
+            if storeState { self.storeCGMState(filteredGlucose) }
         }
     }
 
