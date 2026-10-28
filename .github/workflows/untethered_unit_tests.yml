@@ -29,12 +29,25 @@ concurrency:
 jobs:
   algorithm-package:
     name: Algorithm package (swift test)
-    runs-on: macos-26
+    # the build's pool: the macos-26 queue left builds waiting (2026-10-21), and these tests too (2026-10-28: "The
+    # job was not acquired by Runner of type hosted even after multiple attempts")
+    runs-on: xcode-27
     timeout-minutes: 45
 
     steps:
       - name: Select Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+        # as the build: a released Xcode, never a beta or release candidate; else the runner's default
+        run: |
+          XCODE=""
+          for x in /Applications/Xcode_26.5.app /Applications/Xcode_26.2.app /Applications/Xcode_27.1.app /Applications/Xcode_27.0.app; do
+            [ -d "$x" ] || continue
+            real=$(cd "$x" && pwd -P)
+            if echo "$real" | grep -qiE 'beta|release_candidate|_rc'; then continue; fi
+            XCODE="$real"; break
+          done
+          if [ -n "$XCODE" ]; then sudo xcode-select --switch "$XCODE/Contents/Developer"; fi
+          echo "Selected: ${XCODE:-runner default}"
+          xcodebuild -version
 
       - name: Checkout code
         uses: actions/checkout@v5
