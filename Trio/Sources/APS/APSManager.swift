@@ -702,11 +702,15 @@ final class BaseAPSManager: APSManager, Injectable {
         } catch let bolusError {
             error(.bolus, "Bolus of \(roundedAmount) U failed", error: bolusError)
             lastError.send(APSError.pumpError(bolusError))
+            // with the iPhone's Bluetooth off the pump reads as "not connected": say why (28 October, flight mode)
+            let reason = bluetoothManager?.bluetoothState == .poweredOff
+                ? String(localized: "The iPhone's Bluetooth is off, so it couldn't reach the pump.")
+                : bolusError.localizedDescription
             issueAlertForCategory(
                 .bolusFailed,
                 title: String(localized: "Bolus failed"),
                 body: String(localized: "Check pump history before repeating.")
-                    + "\n\n\(bolusError.localizedDescription)"
+                    + "\n\n\(reason)"
             )
             if !isSMB {
                 let broadcaster = self.broadcaster
@@ -718,7 +722,7 @@ final class BaseAPSManager: APSManager, Injectable {
             }
             callback?(
                 false,
-                String(localized: "Error! Bolus failed with error: \(bolusError.localizedDescription)")
+                String(localized: "Error! Bolus failed with error: \(reason)")
             )
         }
     }
