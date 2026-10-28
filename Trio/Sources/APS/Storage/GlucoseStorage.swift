@@ -899,11 +899,17 @@ final class BaseGlucoseStorage: GlucoseStorage, Injectable {
                     deletedEntry.isManualGlucoseEntry = glucoseToDelete.isManual
                 }
 
+                // which reading, for a review: the log said only "Deleted glucose entry" (28 October, five in 7 s)
+                let deletedDate = glucoseToDelete.date
+                let deletedKind = glucoseToDelete.isManual ? "manual" : "sensor"
                 context.delete(glucoseToDelete)
 
                 guard context.hasChanges else { return }
                 try context.save()
-                debug(.storage, "Deleted glucose entry")
+                info(
+                    .storage,
+                    "Deleted glucose entry: \(deletedKind) reading of \(deletedDate.map { Formatter.deletedGlucoseTime.string(from: $0) } ?? "unknown time")"
+                )
             } catch {
                 warning(.storage, "Deleting glucose entry failed", error: error)
             }
@@ -954,4 +960,14 @@ enum GlucoseAlarm {
             return String(localized: "HIGHALERT!", comment: "HIGHALERT!")
         }
     }
+}
+
+private extension Formatter {
+    /// Local date and time to the second, for the log line of a deleted reading.
+    static let deletedGlucoseTime: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }()
 }
