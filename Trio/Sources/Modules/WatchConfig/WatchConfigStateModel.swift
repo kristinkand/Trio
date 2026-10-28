@@ -16,6 +16,7 @@ extension WatchConfig {
         @Published var watchGlanceLayout: WatchGlanceLayout = .standard
         @Published var watchGlanceEnabled = true
         @Published var untetheredModeWatch = true
+        @Published var nightscoutUploadWatch = false
 
         /// Garmin watch settings containing all watch-related configuration
         @Published var garminSettings = GarminWatchSettings()
@@ -38,6 +39,7 @@ extension WatchConfig {
             subscribeSetting(\.watchGlanceLayout, on: $watchGlanceLayout) { watchGlanceLayout = $0 }
             subscribeSetting(\.watchGlanceEnabled, on: $watchGlanceEnabled) { watchGlanceEnabled = $0 }
             subscribeSetting(\.untetheredModeWatch, on: $untetheredModeWatch) { untetheredModeWatch = $0 }
+            subscribeSetting(\.nightscoutUploadWatch, on: $nightscoutUploadWatch) { nightscoutUploadWatch = $0 }
 
             devices = garmin.devices
         }

@@ -28,6 +28,9 @@ struct UntetheredRecord: Codable, Equatable, Identifiable {
         case podEnded(Date)
         /// The pod as the watch last saw it, for the phone's home screen meanwhile.
         case pumpStatus(UntetheredPumpStatus)
+        /// The watch uploaded the loop of the determination delivered at this time to Nightscout itself, with the phone
+        /// out of reach: the phone doesn't upload that loop's status a second time.
+        case nightscoutUploaded(Date)
     }
 
     let key: String
@@ -53,6 +56,7 @@ struct UntetheredRecord: Codable, Equatable, Identifiable {
     static func determinationKey(_ date: Date) -> String { "det:\(Int(date.timeIntervalSince1970))" }
     static func tddKey(_ date: Date) -> String { "tdd:\(Int(date.timeIntervalSince1970))" }
     static func autosensKey(_ date: Date) -> String { "autosens:\(Int(date.timeIntervalSince1970))" }
+    static func nightscoutKey(_ date: Date) -> String { "ns:\(Int(date.timeIntervalSince1970))" }
     /// One key: only the newest loop matters.
     static let loopCompletedKey = "loop"
     static let podEndedKey = "podEnded"

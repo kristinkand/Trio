@@ -71,6 +71,9 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var watchGlanceEnabled: Bool = true
     /// Untethered watch mode offered at all: off, neither the phone nor the watch starts it.
     var untetheredModeWatch: Bool = true
+    /// While untethered with the phone out of reach, the watch uploads its readings and loops to Nightscout itself,
+    /// over Wi-Fi or its own cellular connection. Off until chosen.
+    var nightscoutUploadWatch: Bool = false
     var overrideFactor: Decimal = 0.8
     var fattyMeals: Bool = false
     var fattyMealFactor: Decimal = 0.7
@@ -364,6 +367,10 @@ extension TrioSettings: Decodable {
 
         if let untetheredModeWatch = try? container.decode(Bool.self, forKey: .untetheredModeWatch) {
             settings.untetheredModeWatch = untetheredModeWatch
+        }
+
+        if let nightscoutUploadWatch = try? container.decode(Bool.self, forKey: .nightscoutUploadWatch) {
+            settings.nightscoutUploadWatch = nightscoutUploadWatch
         }
 
         if let displayPresets = try? container.decode(Bool.self, forKey: .displayPresets) {
