@@ -31,7 +31,7 @@ import Testing
         let json = """
         {"reason": "\(reason)", "IOB": 1.25, "COB": 0, "bg": 120, "eventualBG": 110, "current_target": 100,
          "minGuardBG": 90, "minPredBG": 95, "threshold": 70, "reservoir": 87.5, "rate": 0.8, "duration": 30,
-         "deliverAt": "2026-10-27T08:13:20.000Z", "predBGs": {"iob": [120, 118, 116]}}
+         "deliverAt": "2026-10-27T08:13:20.000Z", "predBGs": {"IOB": [120, 118, 116]}}
         """
         return try JSONCoding.decoder.decode(Determination.self, from: Data(json.utf8))
     }
@@ -171,7 +171,8 @@ import Testing
         #expect(suggested["current_target"] as? Double == 5.6)
         #expect(suggested["minGuardBG"] as? Double == 5)
         #expect(suggested["bg"] as? Double == 120)
-        #expect((suggested["predBGs"] as? [String: Any])?["iob"] as? [Int] == [120, 118, 116])
+        // as Nightscout's forecast lines read them: IOB, ZT, COB, UAM
+        #expect((suggested["predBGs"] as? [String: Any])?["IOB"] as? [Int] == [120, 118, 116])
     }
 
     // MARK: - History
