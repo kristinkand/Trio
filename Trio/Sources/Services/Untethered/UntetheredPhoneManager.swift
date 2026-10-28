@@ -446,7 +446,12 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             case let .handbackRequested(minutes):
                 replyHandler?([:])
                 guard self.state.session.phase == .active, envelope.epoch == self.state.session.epoch else { return }
-                warning(.watch, "Untethered: the watch hasn't reached the pod for \(minutes) min and asks the phone to take it back")
+                // the fallback's hand-back, once the phone is back, comes the same way with no minutes: it's no stall
+                if minutes > 0 {
+                    warning(.watch, "Untethered: the watch hasn't reached the pod for \(minutes) min and asks the phone to take it back")
+                } else {
+                    info(.watch, "Untethered: the watch hands the pump back, the phone is in reach again")
+                }
                 // as Take Back the Pump Now: the phone reaches for the pod first, and leaves the watch dosing if it can't.
                 // The pod may still be busy with the watch's last command: a few more tries, a little apart, rather
                 // than waiting for the watch's next request (24 October: refused at 13:55:56, taken back by hand 14:07).
