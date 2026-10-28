@@ -33,6 +33,9 @@ import WatchKit
     /// The phone's standing grant as a fallback try started from it: a start seeds from it and drops it, and a try that
     /// never reached the pod dosed nothing, so the next try starts from it again.
     @ObservationIgnored var fallbackGrantCopy: (grant: UntetheredGrant, issuedAt: Date)?
+    /// When the copy a start without the phone runs on was issued: a newer one from the phone replaces it until the
+    /// start has the pod.
+    @ObservationIgnored var startCopyIssuedAt: Date?
     /// watchOS ended the running loop's background time: it starts no further pod command.
     @ObservationIgnored var loopHoldExpired = false
     /// A treatment came in while a loop ran; its determination follows.
@@ -265,6 +268,23 @@ import WatchKit
             // from another build: not for a session this watch app runs, and any older copy goes with it
             if UntetheredVersion.mismatch(phone: envelope.appVersion) != nil {
                 dropStandingGrant()
+                return
+            }
+            // A start without the phone that hasn't reached the pod yet takes the phone's newer copy: the phone may
+            // have dosed after the copy the start began from (28 October, 05:39:40: the phone's temp basal and SMB,
+            // the watch's takeover 34 s later from a copy of 05:13). Its first loop and the booking of what the pod
+            // delivered since the copy then count the phone's last doses.
+            if data.session.phase == .starting, data.session.startedWithoutPhone,
+               issuedAt > (startCopyIssuedAt ?? .distantPast)
+            {
+                startCopyIssuedAt = issuedAt
+                if fallbackGrantCopy != nil { fallbackGrantCopy = (grant, issuedAt) }
+                store.update {
+                    Self.seed(&$0, with: grant)
+                    $0.handover = nil
+                }
+                Task { await WatchLogger.shared.log("⌚️ Untethered: the start takes the phone's newer copy", force: true) }
+                refresh()
                 return
             }
             // a late copy from before a session would miss what the session dosed. Kept even before the watch has
@@ -854,6 +874,7 @@ import WatchKit
         else { return }
         setError(nil)
         Task { await WatchLogger.shared.log("⌚️ Untethered: starting without the phone", force: true) }
+        startCopyIssuedAt = data.standingGrantIssuedAt
         apply(.startWithoutPhone) {
             guard $0.session.phase == .starting else { return }
             Self.seed(&$0, with: grant)
