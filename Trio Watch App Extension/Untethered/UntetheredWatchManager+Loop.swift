@@ -80,6 +80,8 @@ extension UntetheredWatchManager {
             self.checkLinkedOverride()
             let now = Date()
             self.store.trim(now: now)
+            // the loop as the phone gets it, for the watch's own Nightscout upload
+            var forNightscout: (determination: Determination, enactedAt: Date?)?
             do {
                 // as `APSManager.determineBasal`: three readings in the last hour, the newest at most 12 minutes old
                 let lastHour = self.store.data.glucose.filter { $0.dateString >= now.addingTimeInterval(-60 * 60) }
@@ -118,6 +120,7 @@ extension UntetheredWatchManager {
                         UntetheredRecord(key: key, date: now, kind: .determination(determination, enactedAt: enactedAt)),
                         epoch: epoch
                     )
+                    forNightscout = (determination, enactedAt)
                 }
                 func looped() {
                     self.store.update {
@@ -172,10 +175,43 @@ extension UntetheredWatchManager {
                 if enacts { self.store.update { $0.lastLoopError = error.localizedDescription } }
                 Task { await WatchLogger.shared.log("⌚️ Untethered loop failed: \(error)", force: true) }
             }
+            if !self.loopHoldExpired, self.isActive {
+                await self.uploadToNightscout(forNightscout, grant: grant)
+            }
             self.refresh()
             self.streamRecords()
             self.publishToWatchState()
         }
+    }
+
+    /// With the phone out of reach, the readings and the loop's status go to Nightscout from the watch
+    /// (`WatchNightscoutUploader`); with the phone in reach it uploads what the watch streams to it, as before. A
+    /// status that went up is noted in the history, so the phone doesn't upload that loop again after the hand-back.
+    @MainActor func uploadToNightscout(_ loop: (determination: Determination, enactedAt: Date?)?, grant: UntetheredGrant) async {
+        guard !WCSession.default.isReachable, await WatchNightscoutUploader.shared.isConfigured else { return }
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+        let status = loop.flatMap { loop in
+            try? UntetheredNightscout.deviceStatus(
+                determination: loop.determination,
+                enactedAt: loop.enactedAt,
+                automates: grant.dosingMode.automation != .off,
+                units: grant.units,
+                bolusIncrement: grant.preferences.bolusIncrement,
+                dosingMode: grant.dosingMode.rawValue,
+                version: version
+            )
+        }
+        let outcome = await WatchNightscoutUploader.shared.upload(glucose: data.glucose, status: status)
+        if outcome.statusUploaded, let deliverAt = loop?.determination.deliverAt {
+            store.record(
+                UntetheredRecord(key: UntetheredRecord.nightscoutKey(deliverAt), date: Date(), kind: .nightscoutUploaded(deliverAt)),
+                epoch: data.session.epoch
+            )
+        }
+        guard outcome.entries > 0 || outcome.statusUploaded || outcome.failure != nil else { return }
+        let what = "\(outcome.entries) reading(s)" + (outcome.statusUploaded ? " and the loop's status" : "")
+        let line = outcome.failure.map { "⌚️ Nightscout: upload failed (\($0)) after \(what)" } ?? "⌚️ Nightscout: uploaded \(what)"
+        Task { await WatchLogger.shared.log(line, force: true) }
     }
 
     func loopInputs(pump: PumpManager, grant: UntetheredGrant, now: Date) -> UntetheredAlgorithm.Inputs {

@@ -95,6 +95,9 @@ enum WatchMessageKeys {
     static let allowUntetheredStartWithoutPhoneWatch = "allowUntetheredStartWithoutPhoneWatch"
     /// The watch starts untethered mode by itself when the phone is gone (Settings › Apple Watch).
     static let fallbackLoopWatch = "fallbackLoopWatch"
+    /// The Nightscout address and API secret hash for the untethered watch's own upload
+    /// (`UntetheredNightscoutCredentials.dictionary`); an empty dictionary when it doesn't upload.
+    static let nightscoutWatch = "nightscoutWatch"
     static let untetheredWorkoutWatch = "untetheredWorkoutWatch"
     static let watchGlanceLayout = "watchGlanceLayout"
     static let watchGlanceEnabled = "watchGlanceEnabled"

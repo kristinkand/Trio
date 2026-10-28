@@ -474,6 +474,9 @@
 		3EA9ED3B5EA2B06051098894 /* AlgorithmLoggingShim.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51097A648B5FA6D3210B0D14 /* AlgorithmLoggingShim.swift */; };
 		3F43916B772958743955D25E /* UntetheredWatchManager+Loop.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8535A7C77C96A85512D5319 /* UntetheredWatchManager+Loop.swift */; };
 		41C9F75540CA1FF3A6F9156E /* UntetheredRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C973E733E528B7A9E70D90 /* UntetheredRecord.swift */; };
+		7A1E00D1C0FFEE0000000012 /* UntetheredNightscout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1E00D1C0FFEE0000000011 /* UntetheredNightscout.swift */; };
+		7A1E00D1C0FFEE0000000013 /* UntetheredNightscout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1E00D1C0FFEE0000000011 /* UntetheredNightscout.swift */; };
+		7A1E00D1C0FFEE0000000015 /* WatchNightscoutUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1E00D1C0FFEE0000000014 /* WatchNightscoutUploader.swift */; };
 		42F683F3D0CE9C640828F588 /* CarbRatios.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A9260425F012D8009E3739 /* CarbRatios.swift */; };
 		4BF7D76441CF04B04134061D /* DetermineBasalGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD30B9C62E06257300DA677C /* DetermineBasalGenerator.swift */; };
 		4F6DEEA00A753C4322AA232D /* G7SensorKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3B4BA75E2D8DBD690069D5B8 /* G7SensorKit.framework */; };
@@ -1854,6 +1857,8 @@
 		CD6672C97F2AB74125F46DD5 /* LiveActivitySimpleWidgetConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivitySimpleWidgetConfiguration.swift; sourceTree = "<group>"; };
 		039044F1D8050D3841425B70 /* UntetheredWatchViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredWatchViews.swift; sourceTree = "<group>"; };
 		14C973E733E528B7A9E70D90 /* UntetheredRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredRecord.swift; sourceTree = "<group>"; };
+		7A1E00D1C0FFEE0000000011 /* UntetheredNightscout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredNightscout.swift; sourceTree = "<group>"; };
+		7A1E00D1C0FFEE0000000014 /* WatchNightscoutUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNightscoutUploader.swift; sourceTree = "<group>"; };
 		1FCEB19A6ED03C5248D45FB0 /* OrefPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrefPipeline.swift; sourceTree = "<group>"; };
 		2574DA85B1E2B0640CA5D1B4 /* UntetheredPhoneManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredPhoneManager.swift; sourceTree = "<group>"; };
 		307F95E02AD95DB27D3A0263 /* UntetheredViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredViews.swift; sourceTree = "<group>"; };
@@ -5692,6 +5697,7 @@
 			children = (
 				D5ED52A29E0C748FDC7625AA /* UntetheredMessage.swift */,
 				14C973E733E528B7A9E70D90 /* UntetheredRecord.swift */,
+				7A1E00D1C0FFEE0000000011 /* UntetheredNightscout.swift */,
 				61789ED90A7D300F20DD6D50 /* UntetheredSession.swift */,
 				7A1E00D1C0FFEE0000000001 /* UntetheredPhoneState.swift */,
 				A815925DB49E34B07E469B9A /* UntetheredAudit.swift */,
@@ -5714,6 +5720,7 @@
 				46503E57F74FC1CCF19C1FAD /* UntetheredStore.swift */,
 				4D4E50D79109E81DBA4462C8 /* UntetheredWatchManager.swift */,
 				F8535A7C77C96A85512D5319 /* UntetheredWatchManager+Loop.swift */,
+				7A1E00D1C0FFEE0000000014 /* WatchNightscoutUploader.swift */,
 				71217E2B7E28E30291910EDF /* WatchDeviceManagers.swift */,
 				307F95E02AD95DB27D3A0263 /* UntetheredViews.swift */,
 			);
@@ -6980,6 +6987,7 @@
 				F706371F56FB551EC8600342 /* UntetheredSession.swift in Sources */,
 				7A1E00D1C0FFEE0000000002 /* UntetheredPhoneState.swift in Sources */,
 				6E9BAD0AA06FCA26FB3BE0B8 /* UntetheredRecord.swift in Sources */,
+				7A1E00D1C0FFEE0000000012 /* UntetheredNightscout.swift in Sources */,
 				8B5C7EE9457B2C68BC5DB007 /* UntetheredMessage.swift in Sources */,
 				0C07B0DAE834E9B934D195F6 /* OrefPipeline.swift in Sources */,
 				DE6F63D93662C12AD18A3802 /* LogRecord.swift in Sources */,
@@ -7176,6 +7184,7 @@
 				0AAAC44111298494D6B6B0C2 /* UntetheredViews.swift in Sources */,
 				5239F5C9E7FE55B128E16F1B /* WatchDeviceManagers.swift in Sources */,
 				3F43916B772958743955D25E /* UntetheredWatchManager+Loop.swift in Sources */,
+				7A1E00D1C0FFEE0000000015 /* WatchNightscoutUploader.swift in Sources */,
 				EAEF5FE75E7327F3862B8696 /* UntetheredWatchManager.swift in Sources */,
 				87C557E1A947A277DB2BC4CA /* UntetheredStore.swift in Sources */,
 				82BEF5A4EE93B49EFA536B2C /* UntetheredAudit.swift in Sources */,
@@ -7254,6 +7263,7 @@
 				001E5DF0860840FDB193C0CC /* Autosens.swift in Sources */,
 				70F2E2A542AFDDCD2A11864B /* UntetheredSession.swift in Sources */,
 				41C9F75540CA1FF3A6F9156E /* UntetheredRecord.swift in Sources */,
+				7A1E00D1C0FFEE0000000013 /* UntetheredNightscout.swift in Sources */,
 				7F885363AAA60DF2C3A309E9 /* UntetheredMessage.swift in Sources */,
 				EAB60535CE1FDC59AFC38597 /* Preferences+DosingMode.swift in Sources */,
 				1839EB2C31586EF659F1A665 /* DosingMode.swift in Sources */,

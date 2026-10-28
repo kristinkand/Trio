@@ -40,9 +40,11 @@ final class OpenAPS {
     // Use the helper function for cleaner code
     /// - Parameter enactedAt: for a determination enacted elsewhere (the untethered watch); the phone's own loop
     ///   marks its determination enacted afterwards.
+    /// - Parameter uploadedToNS: the untethered watch uploaded it to Nightscout itself.
     func processDetermination(
         _ determination: Determination,
         enactedAt: Date? = nil,
+        uploadedToNS: Bool = false,
         on context: NSManagedObjectContext
     ) async {
         await context.perform {
@@ -68,7 +70,7 @@ final class OpenAPS {
             newOrefDetermination.cob = Int16(Int(determination.cob ?? 0))
             newOrefDetermination.smbToDeliver = determination.units.map { NSDecimalNumber(decimal: $0) }
             newOrefDetermination.carbsRequired = Int16(Int(determination.carbsReq ?? 0))
-            newOrefDetermination.isUploadedToNS = false
+            newOrefDetermination.isUploadedToNS = uploadedToNS
             if let enactedAt {
                 newOrefDetermination.timestamp = enactedAt
                 newOrefDetermination.enacted = true

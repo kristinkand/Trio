@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - feature/untethered-fallback
+      - feature/untethered-fallback-ns
       - feature/untethered-pr-plus
     paths:
       - 'Trio/Sources/**'

@@ -134,6 +134,27 @@ struct WatchConfigAppleWatchView: BaseView {
 
                 SettingInputSection(
                     decimalValue: $decimalPlaceholder,
+                    booleanValue: $state.nightscoutUploadWatch,
+                    shouldDisplayHint: $shouldDisplayHint,
+                    selectedVerboseHint: Binding(
+                        get: { selectedVerboseHint },
+                        set: {
+                            selectedVerboseHint = $0.map { AnyView($0) }
+                            hintLabel = String(localized: "Upload to Nightscout From the Watch")
+                        }
+                    ),
+                    units: state.units,
+                    type: .boolean,
+                    label: String(localized: "Upload to Nightscout From the Watch"),
+                    miniHint: String(localized: "While the watch loops without the iPhone, it uploads readings and loops itself"),
+                    verboseHint: Text(
+                        "Needs Nightscout upload on. While untethered mode runs and the iPhone is out of reach, the watch uploads its glucose readings and each loop's status (IOB, forecast, what it enacted) to Nightscout itself, so followers see them as they happen. A watch without cellular uploads only on a Wi-Fi network it knows; without one, nothing goes up until the iPhone takes the session's history after the hand-back, as when this is off. The iPhone passes the watch your Nightscout address and the API secret in the hashed form Nightscout's upload takes. Boluses and temp basals still come from the iPhone after the hand-back."
+                    ),
+                    headerText: nil
+                )
+
+                SettingInputSection(
+                    decimalValue: $decimalPlaceholder,
                     booleanValue: $state.untetheredTintHomeWatch,
                     shouldDisplayHint: $shouldDisplayHint,
                     selectedVerboseHint: Binding(

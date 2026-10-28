@@ -731,6 +731,12 @@ import WatchConnectivity
             fallbackLoop = fallback
         }
 
+        // the phone's Upload to Nightscout From the Watch: the address and secret hash, or empty to forget them
+        if let nightscout = message[WatchMessageKeys.nightscoutWatch] as? [String: Any] {
+            let credentials = UntetheredNightscoutCredentials(dictionary: nightscout)
+            Task { await WatchNightscoutUploader.shared.setCredentials(credentials) }
+        }
+
         if let workout = message[WatchMessageKeys.untetheredWorkoutWatch] as? Bool, workout != untetheredWorkout {
             untetheredWorkout = workout
         }

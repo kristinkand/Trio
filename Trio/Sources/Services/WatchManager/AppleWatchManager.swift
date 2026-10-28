@@ -1,5 +1,6 @@
 import Combine
 import CoreData
+import CryptoKit
 import Foundation
 import G7SensorKit
 import LoopKit
@@ -27,6 +28,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     @Injected() var broadcaster: Broadcaster!
     @Injected() private var apsManager: APSManager!
     @Injected() private var settingsManager: SettingsManager!
+    @Injected() private var keychain: Keychain!
     @Injected() private var fileStorage: FileStorage!
     @Injected() private var glucoseStorage: GlucoseStorage!
     @Injected() private var determinationStorage: DeterminationStorage!
@@ -143,6 +145,19 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     private func watchNeedsState(_ session: WCSession) -> Bool {
         session.isPaired && session.isWatchAppInstalled
             && (session.isReachable || session.isComplicationEnabled || fallbackWatchesPhone)
+    }
+
+    /// For the untethered watch's own Nightscout upload: the address and the API secret as Nightscout's upload header
+    /// takes it (SHA-1), never the secret itself. Nil when the watch doesn't upload, which clears its copy.
+    private func nightscoutForWatch() -> UntetheredNightscoutCredentials? {
+        let settings = settingsManager.settings
+        guard settings.nightscoutUploadWatch, settings.untetheredModeWatch, settings.isUploadEnabled,
+              let urlString = keychain.getValue(String.self, forKey: NightscoutConfig.Config.urlKey),
+              let url = URL(string: urlString), url.host != nil,
+              let secret = keychain.getValue(String.self, forKey: NightscoutConfig.Config.secretKey), !secret.isEmpty
+        else { return nil }
+        let hash = Insecure.SHA1.hash(data: Data(secret.utf8)).map { String(format: "%02hhx", $0) }.joined()
+        return UntetheredNightscoutCredentials(url: url, secretHash: hash, uploadsGlucose: settings.uploadGlucose)
     }
 
     /// The watch starts by itself when the phone's readings stop reaching it, and it learns of them only from the
@@ -770,6 +785,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             .allowUntetheredStartWithoutPhoneWatch
         message[WatchMessageKeys.untetheredModeWatch] = settingsManager.settings.untetheredModeWatch
         message[WatchMessageKeys.fallbackLoopWatch] = settingsManager.settings.fallbackLoopWatch
+        message[WatchMessageKeys.nightscoutWatch] = nightscoutForWatch()?.dictionary ?? [String: Any]()
         message[WatchMessageKeys.untetheredWorkoutWatch] = settingsManager.settings.untetheredWorkoutWatch
         message[WatchMessageKeys.watchGlanceLayout] = settingsManager.settings.watchGlanceLayout.strings
         message[WatchMessageKeys.watchGlanceEnabled] = settingsManager.settings.watchGlanceEnabled

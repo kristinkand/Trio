@@ -1319,6 +1319,11 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         // the Apple Watch update waits until the batch is in: one per stored reading slowed the history to a crawl
         Self.historyBusyUntil = Date().addingTimeInterval(Self.historyQuietGap)
         let todo = records.sorted(by: { $0.date < $1.date }).filter { applied[$0.key]?.id != $0.id }
+        // loops the watch uploaded to Nightscout itself: stored as uploaded, so the phone's upload doesn't repeat them
+        let uploadedByWatch = Set(todo.compactMap { record -> Int? in
+            if case let .nightscoutUploaded(date) = record.kind { return Int(date.timeIntervalSince1970) }
+            return nil
+        })
         var index = 0
         while index < todo.count {
             // a run of readings or of pump events goes in one save, one update for the app instead of one each
@@ -1328,7 +1333,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 if run.count > 1 {
                     try await storeRun(run, epoch: epoch)
                 } else {
-                    try await store(run[0], epoch: epoch)
+                    try await store(run[0], epoch: epoch, uploadedByWatch: uploadedByWatch)
                 }
                 for record in run { applied[record.key] = record.syncEntry }
             } catch {
@@ -1429,7 +1434,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
     }
 
-    private func store(_ record: UntetheredRecord, epoch: Int) async throws {
+    private func store(_ record: UntetheredRecord, epoch: Int, uploadedByWatch: Set<Int> = []) async throws {
         switch record.kind {
         case let .pumpEvent(data):
             let event = try Self.pumpEvent(from: data)
@@ -1510,7 +1515,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         case let .determination(determination, enactedAt):
             let context = CoreDataStack.shared.newTaskContext()
             context.name = "untetheredDetermination"
-            await openAPS.processDetermination(determination, enactedAt: enactedAt, on: context)
+            let uploaded = determination.deliverAt.map { uploadedByWatch.contains(Int($0.timeIntervalSince1970)) } ?? false
+            await openAPS.processDetermination(determination, enactedAt: enactedAt, uploadedToNS: uploaded, on: context)
             // `ingest` sorts the uploads once the batch is in
         case let .tdd(tdd):
             await tddStorage.storeTDD(
@@ -1537,6 +1543,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         case let .loopCompleted(date):
             // the loop's age and the interval to the next loop go on from the watch's last loop
             await MainActor.run { self.apsManager.adoptLoop(at: date) }
+        case let .nightscoutUploaded(date):
+            // the loop came in an earlier batch than this note: marked now, unless the phone uploaded it already
+            await markDeterminationUploadedByWatch(deliveredAt: date)
         }
     }
 
@@ -1549,6 +1558,22 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
             request.fetchLimit = 1
             return (try? context.fetch(request).first?.value(forKey: "date") as? Date)?.rounded
+        }
+    }
+
+    /// A loop the untethered watch uploaded to Nightscout itself, as stored from its history.
+    private func markDeterminationUploadedByWatch(deliveredAt date: Date) async {
+        let context = CoreDataStack.shared.newTaskContext()
+        context.name = "untetheredDeterminationUploadedByWatch"
+        await context.perform {
+            let request = OrefDetermination.fetchRequest() as NSFetchRequest<OrefDetermination>
+            request.predicate = NSPredicate(
+                format: "isUploadedToNS == NO AND deliverAt >= %@ AND deliverAt < %@",
+                date.addingTimeInterval(-1) as NSDate,
+                date.addingTimeInterval(1) as NSDate
+            )
+            for row in (try? context.fetch(request)) ?? [] { row.isUploadedToNS = true }
+            if context.hasChanges { try? context.save() }
         }
     }
 
