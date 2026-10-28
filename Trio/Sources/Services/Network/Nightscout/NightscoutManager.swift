@@ -634,11 +634,26 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
         // Gather all relevant data for OpenAPS Status
         let iob = await fetchedIOBEntry
 
+        // The phone's IOB file is written by its own loop. During an untethered session the watch loops and the phone
+        // doesn't, so the file keeps the phone's last IOB from before the session: on 27 October a follower saw one IOB
+        // for ten hours. A loop newer than the file goes with its own IOB, as a loop synced from the watch is uploaded.
+        let loopToUpload = fetchedEnactedDetermination ?? fetchedSuggestedDetermination
+        var iobToUpload = iob?.first
+        if let loopToUpload, let loopIOB = loopToUpload.iob,
+           let loopTime = loopToUpload.timestamp ?? loopToUpload.deliverAt,
+           (iobToUpload?.time ?? .distantPast) < loopTime.addingTimeInterval(-5 * 60)
+        {
+            iobToUpload = IOBEntry(
+                iob: loopIOB, activity: 0, basaliob: 0, bolusiob: 0, netbasalinsulin: 0, bolusinsulin: 0,
+                iobWithZeroTemp: nil, lastBolusTime: nil, lastTemp: nil, time: loopTime
+            )
+        }
+
         let suggestedToUpload = modifiedSuggestedDetermination ?? lastSuggestedDetermination
         let enactedToUpload = fetchedEnactedDetermination ?? lastEnactedDetermination
 
         let openapsStatus = OpenAPSStatus(
-            iob: iob?.first,
+            iob: iobToUpload,
             suggested: suggestedToUpload,
             enacted: settingsManager.settings.dosingMode.automation != .off ? enactedToUpload : nil,
             version: Bundle.main.releaseVersionNumber ?? "Unknown",
