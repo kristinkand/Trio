@@ -848,6 +848,17 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             untethered.receiveChunk(message, replyHandler: replyHandler)
             return
         }
+        // a part of the plain watch log: the answer is the watch's confirmation, after which it deletes the part
+        if message["watchLogs"] != nil {
+            let id = WatchLogIngest.acceptLegacy(message)
+            replyHandler(id.map { ["watchLogsAck": [$0]] } ?? [:])
+            if message.count <= 2 { return }
+            var rest = message
+            rest["watchLogs"] = nil
+            rest["watchLogsID"] = nil
+            self.session(session, didReceiveMessage: rest)
+            return
+        }
         replyHandler([:])
         self.session(session, didReceiveMessage: message)
     }
@@ -858,10 +869,10 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             return
         }
         // Handle logs first - doesn't need self, so it can run even during teardown
-        if let logs = message["watchLogs"] as? String {
-            WatchLogIngest.legacyRecords(from: logs).forEach(TrioLogger.sink.accept)
+        if message["watchLogs"] != nil {
+            Self.confirmWatchLogs(WatchLogIngest.acceptLegacy(message))
             // logs alone are no request: answering them with a failure put an error banner on the watch
-            if message.count == 1 { return }
+            if message.count == 1 || (message.count == 2 && message["watchLogsID"] != nil) { return }
         }
 
         Task { @MainActor [weak self] in
@@ -1000,8 +1011,8 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             untethered.receive(userInfo, replyHandler: nil)
             return
         }
-        if let logs = userInfo["watchLogs"] as? String {
-            WatchLogIngest.legacyRecords(from: logs).forEach(TrioLogger.sink.accept)
+        if userInfo["watchLogs"] != nil {
+            Self.confirmWatchLogs(WatchLogIngest.acceptLegacy(userInfo))
         }
 
         if let snoozeMinutes = userInfo[WatchMessageKeys.snoozeDuration] as? Int {
@@ -1011,6 +1022,15 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 await self.notificationsManager.applySnooze(for: TimeInterval(snoozeMinutes * 60))
             }
         }
+    }
+
+    /// The watch keeps a part of its plain log until the phone confirms it; queued, so the confirmation also reaches a
+    /// watch that is out of reach right now.
+    private static func confirmWatchLogs(_ id: String?) {
+        guard let id else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated, session.isPaired, session.isWatchAppInstalled else { return }
+        _ = session.transferUserInfo(["watchLogsAck": [id]])
     }
 
     func session(_: WCSession, didReceive file: WCSessionFile) {
