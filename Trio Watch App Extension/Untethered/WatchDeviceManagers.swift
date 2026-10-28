@@ -16,6 +16,26 @@ let watchCGMManagers: [String: (CGMManager & DeviceConfigurationSharing).Type] =
     G7CGMManager.pluginIdentifier: G7CGMManager.self
 ]
 
+/// Why the sensor's newest message brought no reading the loop can use, when the sensor itself says so: the watch is
+/// in contact with it then, and "keep it near the sensor" points the wrong way (27 October, second tester: a
+/// temporary sensor issue at 19:05 and 19:10, and "No Sensor Readings … keep it near the sensor" at 19:12).
+enum WatchSensorProblem {
+    case temporaryIssue
+    case failed
+    case warmup
+}
+
+func watchCGMSensorProblem(_ manager: CGMManager?, now: Date = Date()) -> WatchSensorProblem? {
+    guard let g7 = manager as? G7CGMManager, let message = g7.latestReading, let at = g7.latestReadingTimestamp,
+          now.timeIntervalSince(at) < 11 * 60
+    else { return nil }
+    let state = message.algorithmState
+    if state.sensorFailed { return .failed }
+    if state.isInWarmup { return .warmup }
+    if state.hasTemporaryError { return .temporaryIssue }
+    return nil
+}
+
 /// On a wake that isn't the sensor's own, the G7's acquisition re-checks itself: a lost Bluetooth
 /// callback can leave no connect standing and nothing that notices.
 func watchCGMRecheckAcquisition(_ manager: CGMManager?) {
