@@ -274,6 +274,13 @@ import WatchConnectivity
         }
     }
 
+    /// The phone confirms parts of the plain watch log it has filed; the watch deletes them only then.
+    private static func handleLineLogAck(_ message: [String: Any]) -> Bool {
+        guard let ids = message[UntetheredLineLog.ackKey] as? [String] else { return false }
+        Task { await UntetheredLineLog.shared.acknowledge(ids) }
+        return true
+    }
+
     /// Untethered mode's interactive messages; nothing else asks the watch for a reply.
     func session(_: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         if message[UntetheredChunks.key] != nil {
@@ -289,6 +296,7 @@ import WatchConnectivity
 
     /// Handles incoming messages from the paired iPhone when Phone is in the foreground
     func session(_: WCSession, didReceiveMessage message: [String: Any]) {
+        if Self.handleLineLogAck(message) { return }
         if WatchLogger.shared.handlePhoneMessage(message) { return }
         if message[UntetheredEnvelope.key] != nil {
             UntetheredWatchManager.shared.receive(message, replyHandler: nil)
@@ -326,6 +334,7 @@ import WatchConnectivity
     }
 
     func session(_: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        if Self.handleLineLogAck(userInfo) { return }
         if WatchLogger.shared.handlePhoneMessage(userInfo) { return }
         if userInfo[UntetheredEnvelope.key] != nil {
             UntetheredWatchManager.shared.receive(userInfo, replyHandler: nil)
@@ -394,8 +403,8 @@ import WatchConnectivity
             WatchLogger.shared.warning(.connectivity, "User info transfer to the phone failed", error: error)
             // untethered history among it would otherwise wait for the phone's next sync request
             DispatchQueue.main.async { UntetheredWatchManager.shared.requeueUnconfirmed() }
-            // the plain lines kept in memory go to the file, which is sent again once the phone is back
-            Task { await UntetheredLineLog.shared.persistLogsLocally() }
+            // plain watch lines among it are sent again; the phone skips what it already has
+            Task { await UntetheredLineLog.shared.transferFailed() }
         }
     }
 

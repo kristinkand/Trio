@@ -271,31 +271,75 @@ extension WatchLogger {
     }
 }
 
-/// The watch log as it was sent before the structured log: kept in memory, sent every 3 minutes or 100 lines, and kept
-/// in a file while the phone is away, sent once it is back.
+/// The watch log as it was sent before the structured log, now kept until the phone confirms it has it.
+///
+/// Every line goes to a file at once (`outbox.txt`). Sending seals that file into parts of at most 48 KB
+/// (`outbox-pending/`), each with an id; a sent part waits in `outbox-sent/` until the phone answers with its id
+/// (`watchLogsAck`), and only then is it deleted. On 27 October the lines from 19:22 to 20:16 were lost: they had been
+/// handed to WatchConnectivity's queue and the file deleted at once, and the watch app update at 20:16 dropped the
+/// queue. A part the phone hasn't confirmed and that is no longer in the queue is sent again; the phone skips ids it
+/// already has.
 actor UntetheredLineLog {
     static let shared = UntetheredLineLog()
 
-    private var logs: [String] = []
-    private let maxEntries = 500
+    static let payloadKey = "watchLogs"
+    static let idKey = "watchLogsID"
+    static let ackKey = "watchLogsAck"
+
     private let flushInterval: TimeInterval = 3 * 60
     private let flushSizeThreshold = 100
+    /// a part sent that the phone hasn't confirmed and that WatchConnectivity no longer holds goes again after this
+    private let resendAfter: TimeInterval = 10 * 60
+    /// parts older than this are dropped, confirmed or not, as are the oldest beyond `maxParts`
+    private let keepFor: TimeInterval = 2 * 24 * 60 * 60
+    private let maxParts = 150
+    private let partBytes = 48000
+
     private var lastFlush = Date()
+    private var outboxLines: Int
+    private var outboxBytes: Int
+    private var counter = 0
 
     private let session = WCSession.default
     private var timerTask: Task<Void, Never>?
 
+    private let directory: URL
+    private let outbox: URL
+    private let pendingDir: URL
+    private let sentDir: URL
+
     private init() {
+        let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("logs", isDirectory: true)
+        let outbox = directory.appendingPathComponent("outbox.txt")
+        let pendingDir = directory.appendingPathComponent("outbox-pending", isDirectory: true)
+        let sentDir = directory.appendingPathComponent("outbox-sent", isDirectory: true)
+        for dir in [directory, pendingDir, sentDir] {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        var lines = 0
+        var bytes = 0
+        if let data = try? Data(contentsOf: outbox) {
+            bytes = data.count
+            lines = data.reduce(0) { $1 == 0x0A ? $0 + 1 : $0 }
+        }
+        self.directory = directory
+        self.outbox = outbox
+        self.pendingDir = pendingDir
+        self.sentDir = sentDir
+        outboxLines = lines
+        outboxBytes = bytes
         Task {
             await startFlushTimer()
         }
     }
 
-    private var dateFormatter: DateFormatter {
+    private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
         return formatter
-    }
+    }()
 
     private func startFlushTimer() async {
         timerTask = Task {
@@ -314,121 +358,168 @@ actor UntetheredLineLog {
         line: Int = #line
     ) async {
         let shortFile = (file as NSString).lastPathComponent
-        let timestamp = dateFormatter.string(from: Date())
+        let timestamp = Self.dateFormatter.string(from: Date())
         let entry = "[\(timestamp)] [\(shortFile):\(line)] \(function) → \(message)"
-
-        logs.append(entry)
-        if logs.count > maxEntries {
-            logs.removeFirst(logs.count - maxEntries)
-        }
-
         print(entry)
+
+        append(entry + "\n")
+        // hours with the phone away: sealed as they fill, so no part grows past what one transfer takes
+        if outboxBytes >= partBytes { sealOutbox() }
         await flushIfNeeded(force: force)
     }
 
+    /// Sends when the phone is in reach and 3 minutes or 100 lines have gathered; with the phone away the lines wait
+    /// in the file for `flushPersistedLogs`.
     func flushIfNeeded(force: Bool = false) async {
-        let now = Date()
-        let shouldFlush = force || now.timeIntervalSince(lastFlush) >= flushInterval || logs.count >= flushSizeThreshold
+        let due = force || Date().timeIntervalSince(lastFlush) >= flushInterval || outboxLines >= flushSizeThreshold
+        guard due, session.activationState == .activated, session.isReachable else { return }
+        send(queued: false)
+    }
 
-        if shouldFlush {
-            await flushToPhone()
+    /// Sends everything not yet confirmed; `queued` hands it to WatchConnectivity's queue even with the phone in
+    /// reach (a background moment, where an interactive message may not get its answer).
+    func flushPersistedLogs(queued: Bool = false) async {
+        send(queued: queued)
+    }
+
+    /// WatchConnectivity reported a failed transfer: what isn't confirmed is sent again once the phone is in reach.
+    func transferFailed() async {
+        guard session.isReachable else { return }
+        send(queued: false)
+    }
+
+    /// The phone has these parts.
+    func acknowledge(_ ids: [String]) {
+        for id in ids where Self.isValidID(id) {
+            try? FileManager.default.removeItem(at: sentDir.appendingPathComponent(id + ".txt"))
+            try? FileManager.default.removeItem(at: pendingDir.appendingPathComponent(id + ".txt"))
         }
     }
 
-    private func flushToPhone() async {
-        guard !logs.isEmpty else {
+    // MARK: - Files
+
+    private func append(_ text: String) {
+        guard let data = text.data(using: .utf8) else { return }
+        if let handle = try? FileHandle(forWritingTo: outbox) {
+            try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: outbox)
+        }
+        outboxBytes += data.count
+        outboxLines += 1
+    }
+
+    private func nextID() -> String {
+        counter += 1
+        let millis = Int64(Date().timeIntervalSince1970 * 1000)
+        return String(format: "%013lld-%04d-%@", millis, counter % 10000, String(UUID().uuidString.prefix(6)))
+    }
+
+    static func isValidID(_ id: String) -> Bool {
+        !id.isEmpty && id.count < 64 && !id.contains("/") && !id.contains("..")
+    }
+
+    /// The file's lines become pending parts; the old files of builds before this one (`watch_log.txt`,
+    /// `watch_log_prev.txt`) go first.
+    private func sealOutbox() {
+        for legacy in ["watch_log_prev.txt", "watch_log.txt"] {
+            seal(directory.appendingPathComponent(legacy))
+        }
+        seal(outbox)
+        outboxLines = 0
+        outboxBytes = 0
+    }
+
+    private func seal(_ file: URL) {
+        guard let data = try? Data(contentsOf: file) else { return }
+        let text = String(decoding: data, as: UTF8.self)
+        for part in Self.parts(of: text, maxBytes: partBytes) {
+            try? part.data(using: .utf8)?.write(to: pendingDir.appendingPathComponent(nextID() + ".txt"))
+        }
+        try? FileManager.default.removeItem(at: file)
+    }
+
+    private func files(in dir: URL) -> [URL] {
+        ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? [])
+            .filter { $0.pathExtension == "txt" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    private static func modified(_ url: URL) -> Date {
+        (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+    }
+
+    /// Drops parts past `keepFor`, and the oldest beyond `maxParts`, so a watch whose phone stays away can't fill up.
+    private func prune() {
+        let cutoff = Date().addingTimeInterval(-keepFor)
+        var all = files(in: pendingDir) + files(in: sentDir)
+        for url in all where Self.modified(url) < cutoff {
+            try? FileManager.default.removeItem(at: url)
+        }
+        all = (files(in: pendingDir) + files(in: sentDir)).sorted { $0.lastPathComponent < $1.lastPathComponent }
+        if all.count > maxParts {
+            all.prefix(all.count - maxParts).forEach { try? FileManager.default.removeItem(at: $0) }
+        }
+    }
+
+    /// Sent parts the phone hasn't confirmed, that WatchConnectivity no longer holds, and that went out over
+    /// `resendAfter` ago (a dropped queue, a failed transfer, a lost answer) become pending again.
+    private func recoverUnconfirmed() {
+        let queued = Set(session.outstandingUserInfoTransfers.compactMap { $0.userInfo[Self.idKey] as? String })
+        let cutoff = Date().addingTimeInterval(-resendAfter)
+        for url in files(in: sentDir) {
+            let id = url.deletingPathExtension().lastPathComponent
+            guard !queued.contains(id), Self.modified(url) < cutoff else { continue }
+            moveBack(id)
+        }
+    }
+
+    private func moveBack(_ id: String) {
+        let from = sentDir.appendingPathComponent(id + ".txt")
+        let to = pendingDir.appendingPathComponent(id + ".txt")
+        guard FileManager.default.fileExists(atPath: from.path) else { return }
+        try? FileManager.default.removeItem(at: to)
+        try? FileManager.default.moveItem(at: from, to: to)
+    }
+
+    // MARK: - Sending
+
+    private func send(queued: Bool) {
+        if session.activationState != .activated {
+            session.activate()
             return
         }
-
-        let payload: [String: Any] = ["watchLogs": logs.joined(separator: "\n")]
-
-        if session.activationState != .activated {
-            session.activate()
-        }
-
-        if session.isReachable {
-            // the buffer is empty by the time a send fails: what failed is kept, not the empty buffer
-            let sent = logs
-            session.sendMessage(payload, replyHandler: nil) { _ in
-                Task {
-                    await self.persistLogsLocally(sent)
-                }
-            }
-        } else {
-            await persistLogsLocally()
-        }
-
+        sealOutbox()
+        prune()
+        if session.isReachable { recoverUnconfirmed() }
         lastFlush = Date()
-        logs.removeAll()
-    }
 
-    func persistLogsLocally(_ entries: [String]? = nil) async {
-        let logDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("logs", isDirectory: true)
+        for url in files(in: pendingDir) {
+            guard let data = try? Data(contentsOf: url) else { continue }
+            let id = url.deletingPathExtension().lastPathComponent
+            let payload: [String: Any] = [Self.payloadKey: String(decoding: data, as: UTF8.self), Self.idKey: id]
 
-        try? FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
+            // sent first, then handed over: an answer that comes back at once finds the file where it looks
+            let sent = sentDir.appendingPathComponent(id + ".txt")
+            try? FileManager.default.removeItem(at: sent)
+            guard (try? FileManager.default.moveItem(at: url, to: sent)) != nil else { continue }
+            try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: sent.path)
 
-        let logFile = logDir.appendingPathComponent("watch_log.txt")
-        let previousLogFile = logDir.appendingPathComponent("watch_log_prev.txt")
-        let startOfDay = Calendar.current.startOfDay(for: Date())
-
-        if let attributes = try? FileManager.default.attributesOfItem(atPath: logFile.path),
-           let creationDate = attributes[.creationDate] as? Date,
-           creationDate < startOfDay
-        {
-            try? FileManager.default.removeItem(at: previousLogFile)
-            try? FileManager.default.moveItem(at: logFile, to: previousLogFile)
-            FileManager.default.createFile(atPath: logFile.path, contents: nil, attributes: [.creationDate: startOfDay])
-        }
-
-        let fullLog = (entries ?? logs).joined(separator: "\n") + "\n"
-        if let data = fullLog.data(using: .utf8) {
-            if let handle = try? FileHandle(forWritingTo: logFile) {
-                try? handle.seekToEnd()
-                handle.write(data)
-                try? handle.close()
-            } else {
-                try? data.write(to: logFile)
-            }
-        }
-    }
-
-    /// `queued` hands the log to WatchConnectivity even with the phone reachable: a log kept back while the
-    /// phone was away can be too large for an interactive message.
-    func flushPersistedLogs(queued: Bool = false) async {
-        let logDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("logs", isDirectory: true)
-        // Yesterday's file first: what was kept back before midnight moves there at the first line after it and was
-        // never sent (25 October: the watch log from 21:31 to midnight, an untethered night with the phone away).
-        await flushPersistedLog(at: logDir.appendingPathComponent("watch_log_prev.txt"), queued: queued)
-        await flushPersistedLog(at: logDir.appendingPathComponent("watch_log.txt"), queued: queued)
-    }
-
-    private func flushPersistedLog(at logFile: URL, queued: Bool) async {
-        guard let data = try? Data(contentsOf: logFile),
-              let logString = String(data: data, encoding: .utf8),
-              !logString.isEmpty
-        else { return }
-
-        if session.activationState != .activated {
-            session.activate()
-        }
-
-        // hours kept back while the phone was away are far over what one transfer takes ("payload too large"): in
-        // parts, each of which the phone appends
-        for part in Self.parts(of: logString) {
-            let payload: [String: Any] = ["watchLogs": part]
             if session.isReachable, !queued {
-                session.sendMessage(payload, replyHandler: nil) { _ in
-                    Task {
-                        await self.persistLogsLocally(part.split(separator: "\n").map(String.init))
-                    }
-                }
+                session.sendMessage(payload, replyHandler: { reply in
+                    // a phone on a build before this one answers with nothing, after it has taken the lines
+                    let ids = reply[Self.ackKey] as? [String] ?? [id]
+                    Task { await self.acknowledge(ids) }
+                }, errorHandler: { _ in
+                    // not delivered: pending again, for the next send
+                    Task { await self.moveBack(id) }
+                })
             } else {
                 _ = session.transferUserInfo(payload)
             }
         }
-        try? FileManager.default.removeItem(at: logFile)
     }
 
     /// WatchConnectivity refuses a payload a little over 64 KB; whole lines, at most `maxBytes` each part.
