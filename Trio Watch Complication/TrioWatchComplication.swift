@@ -32,6 +32,12 @@ struct TrioComplicationData: Codable {
     /// The sensor sends no glucose (failed, ended, a temporary issue) or the watch got none for 11 minutes in
     /// untethered mode: a yellow triangle, so a look at the face shows something needs checking.
     var sensorWarning: Bool?
+    /// The watch has the pump (untethered mode): a watch symbol, so a look at the face shows it while another app
+    /// (a workout) is in front.
+    var untethered: Bool?
+    /// The session's last loop, or its newest reading if newer (the loop follows the reading within seconds, and the
+    /// face is redrawn for the reading): the symbol turns orange once this is `untetheredLateAfter` old.
+    var untetheredLastLoop: Date?
 
     static func load() -> TrioComplicationData? {
         guard let group = Bundle.main.object(forInfoDictionaryKey: "AppGroupID") as? String,
@@ -43,6 +49,36 @@ struct TrioComplicationData: Codable {
 
 /// A reading older than this shows struck through and grey.
 private let staleAfter: TimeInterval = 15 * 60
+/// Untethered mode without a loop or reading for this long: the watch symbol turns orange.
+private let untetheredLateAfter: TimeInterval = 10 * 60
+
+extension TrioComplicationData {
+    /// When the watch symbol turns orange, nil without untethered mode.
+    var untetheredLateAt: Date? {
+        guard untethered == true else { return nil }
+        let reference = [untetheredLastLoop, points.last?.date].compactMap { $0 }.max() ?? .distantPast
+        return reference.addingTimeInterval(untetheredLateAfter)
+    }
+}
+
+/// The watch symbol while untethered mode has the pump: orange with an exclamation mark once it is late.
+struct UntetheredBadge: View {
+    let data: TrioComplicationData?
+    let date: Date
+    var size: CGFloat = 11
+    var isFullColor = true
+
+    var body: some View {
+        if let lateAt = data?.untetheredLateAt {
+            let isLate = date >= lateAt
+            Image(systemName: isLate ? "exclamationmark.applewatch" : "applewatch")
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(isLate && isFullColor ? Color.orange : Color.primary)
+                .widgetAccentable()
+                .accessibilityLabel(isLate ? "Untethered mode, not looping" : "Untethered mode")
+        }
+    }
+}
 
 // MARK: - Provider
 
@@ -64,6 +100,11 @@ struct TrioWatchComplicationProvider: TimelineProvider {
         if let latest = data?.points.last?.date, latest.addingTimeInterval(staleAfter) > now {
             entries.append(TrioWatchComplicationEntry(date: latest.addingTimeInterval(staleAfter + 1), data: data))
         }
+        // the watch symbol turns orange by itself: a watch app that stopped running can't redraw the face
+        if let lateAt = data?.untetheredLateAt, lateAt > now {
+            entries.append(TrioWatchComplicationEntry(date: lateAt.addingTimeInterval(1), data: data))
+        }
+        entries.sort { $0.date < $1.date }
         completion(Timeline(entries: entries, policy: .never))
     }
 }
@@ -103,7 +144,7 @@ struct TrioWatchComplicationEntryView: View {
             Text("")
                 .widgetCurvesContent()
                 .widgetLabel {
-                    Text("Trio")
+                    Text(entry.data?.untethered == true ? "Trio ⌚︎" : "Trio")
                 }
                 .widgetBackground(backgroundView: Color.clear)
         }
@@ -124,6 +165,9 @@ struct TrioAccessoryCircularView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(.yellow)
                 }
+            }
+            .overlay(alignment: .bottomLeading) {
+                UntetheredBadge(data: entry.data, date: entry.date, size: 12)
             }
             .widgetBackground(backgroundView: Color.clear)
     }
@@ -180,6 +224,7 @@ struct TrioAccessoryRectangularView: View {
                 Text(isStale ? "" : data.delta ?? "")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                 HStack(spacing: 2) {
+                    UntetheredBadge(data: data, date: entry.date, size: 11, isFullColor: isFullColor)
                     if data.sensorWarning == true {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 11))

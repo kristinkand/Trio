@@ -130,6 +130,7 @@ struct WatchG7DetailsView: View {
                     row(
                         String(localized: "Last 2 h", comment: "Watch sensor details label: readings received in the last two hours"),
                         "\(coverage.count)/\(coverage.expected) · max gap \(coverage.longestGapMinutes) min"
+                            + (coverage.filledIn > 0 ? " · +\(coverage.filledIn) filled" : "")
                     )
                     row(String(localized: "Units", comment: "Watch sensor details label"), reader.units)
                     row(
@@ -203,7 +204,8 @@ struct WatchG7DetailsView: View {
             "Trio \(version)",
             "Sensor: \(reader.sensorName ?? "–")",
             "Paired: \(reader.hasWatchKey ? "yes" : "no") · connected: \(reader.isConnected ? "yes" : "no")",
-            "Last 2 h: \(coverage.count)/\(coverage.expected) readings, longest gap \(coverage.longestGapMinutes) min",
+            "Last 2 h: \(coverage.count)/\(coverage.expected) readings live, \(coverage.filledIn) filled in later, "
+                + "longest gap \(coverage.longestGapMinutes) min (untethered time left out)",
             "Units: \(reader.units)"
         ]
         return (header + [""] + reader.logLines).joined(separator: "\n")

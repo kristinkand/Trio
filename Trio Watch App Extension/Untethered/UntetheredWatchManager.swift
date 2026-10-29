@@ -143,6 +143,8 @@ import WatchKit
         updateReaderStandAside()
         // the first page marks the reading as the watch's own while this mode reads the sensor
         if WatchState.shared.currentGlucoseIsWatchOwn != isActive { WatchState.shared.currentGlucoseIsWatchOwn = isActive }
+        // the face's watch symbol: before the readings go to the complication, so their redraw carries the last loop
+        ComplicationStore.setUntethered(isActive, lastLoop: data.lastLoopDate)
         if isActive {
             publishToWatchState()
         } else if !WatchState.shared.treatmentMarkers.isEmpty {
