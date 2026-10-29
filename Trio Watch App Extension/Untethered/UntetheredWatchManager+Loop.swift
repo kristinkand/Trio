@@ -174,6 +174,8 @@ extension UntetheredWatchManager {
                 // a failed determination for the screens is no loop error
                 if enacts { self.store.update { $0.lastLoopError = error.localizedDescription } }
                 Task { await WatchLogger.shared.log("⌚️ Untethered loop failed: \(error)", force: true) }
+                // refused because the phone used the pod: it has the pump now
+                if self.yieldIfPhoneTookPod() { return }
             }
             if !self.loopHoldExpired, self.isActive {
                 await self.uploadToNightscout(forNightscout, grant: grant)
@@ -465,6 +467,7 @@ extension UntetheredWatchManager {
                 self.runLoop(.treatment)
             } catch {
                 completion(false, error.localizedDescription)
+                self.yieldIfPhoneTookPod()
             }
         }
     }

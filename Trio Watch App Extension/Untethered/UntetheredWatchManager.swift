@@ -455,6 +455,11 @@ import WatchKit
         reply?([:])
         // the grant's sensor, in case it changed since the phone's last update
         if !wasActive, store.data.session.phase == .active {
+            // From now on a pod session another controller made counts as the phone having taken the pod back: the
+            // watch's next pod command is refused and the watch lets go (`yieldIfPhoneTookPod`), even when the
+            // phone's own message never arrives (28 October, 23:38 to 02:39: the phone took the pod back, its stop
+            // didn't reach the sleeping watch, and both dosed it in turn until the watch app was opened).
+            pumpManager?.refusesForeignSessionsSince = Date()
             startCGM()
             resumeHandedOverTempBasal()
             recordPumpStatus()
@@ -603,6 +608,8 @@ import WatchKit
             return
         }
         install(pump)
+        // the phone's sessions before the hand-over are expected; only one after the watch has the pod counts
+        pump.refusesForeignSessionsSince = nil
         pump.takeControl()
         isBusy = true
         let epoch = data.session.epoch
@@ -1147,6 +1154,28 @@ import WatchKit
         )
         send(.handbackRequested(minutesWithoutLoop: minutes), epoch: data.session.epoch, queueing: true)
         holdOffPodForTakeBack()
+    }
+
+    /// The phone has used the pod since the watch took it (the pod resynchronized to another controller's newer
+    /// session): the phone took it back, whether or not its message arrived. The watch lets go at once and tells the
+    /// phone, so only one of them doses. Returns whether it let go.
+    @discardableResult func yieldIfPhoneTookPod() -> Bool {
+        guard isActive, let pump = pumpManager, let since = pump.refusesForeignSessionsSince,
+              let foreign = pump.lastForeignSessionAt, foreign > since
+        else { return false }
+        Task {
+            await WatchLogger.shared.log(
+                "⌚️ Untethered: the iPhone has used the pod since the watch took it, the watch lets go of the pump",
+                force: true
+            )
+        }
+        notify(
+            id: Self.notificationPrefix + "phoneTookPod",
+            title: String(localized: "iPhone Has the Pump"),
+            body: String(localized: "The iPhone has used the pod, so the watch stopped untethered mode. The iPhone loops again.")
+        )
+        apply(.emergencyStop(nil))
+        return true
     }
 
     /// The phone reaches for the pod for a few seconds after it gets the request; a loop of the watch's that takes
