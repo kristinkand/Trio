@@ -639,6 +639,8 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
         // for ten hours. A loop newer than the file goes with its own IOB, as a loop synced from the watch is uploaded.
         let loopToUpload = fetchedEnactedDetermination ?? fetchedSuggestedDetermination
         var iobToUpload = iob?.first
+        // the forecast starts from the file's IOB: with the loop's IOB in its place, a stale forecast would contradict it
+        var iobForecastToUpload = iob.flatMap { $0.count > 1 ? NightscoutIOBForecast($0) : nil }
         if let loopToUpload, let loopIOB = loopToUpload.iob,
            let loopTime = loopToUpload.timestamp ?? loopToUpload.deliverAt,
            (iobToUpload?.time ?? .distantPast) < loopTime.addingTimeInterval(-5 * 60)
@@ -647,6 +649,7 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
                 iob: loopIOB, activity: 0, basaliob: 0, bolusiob: 0, netbasalinsulin: 0, bolusinsulin: 0,
                 iobWithZeroTemp: nil, lastBolusTime: nil, lastTemp: nil, time: loopTime
             )
+            iobForecastToUpload = nil
         }
 
         let suggestedToUpload = modifiedSuggestedDetermination ?? lastSuggestedDetermination
@@ -659,7 +662,7 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
             version: Bundle.main.releaseVersionNumber ?? "Unknown",
             recommendedBolus: recommendedBolus,
             dosingMode: settingsManager.settings.dosingMode.rawValue,
-            iobForecast: iob.flatMap { $0.count > 1 ? NightscoutIOBForecast($0) : nil }
+            iobForecast: iobForecastToUpload
         )
 
         debug(
