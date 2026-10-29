@@ -49,6 +49,12 @@ struct TrioComplicationData: Codable {
     /// The sensor sends no glucose (failed, ended, a temporary issue) or the watch got none for 11 minutes in
     /// untethered mode: a yellow triangle, so a look at the face shows something needs checking.
     var sensorWarning: Bool?
+    /// The watch has the pump (untethered mode): a watch symbol, so a look at the face shows it while another app
+    /// (a workout) is in front.
+    var untethered: Bool?
+    /// The session's last loop, or its newest reading if newer (the loop follows the reading within seconds, and the
+    /// face is redrawn for the reading): the symbol turns orange once this is `untetheredLateAfter` old.
+    var untetheredLastLoop: Date?
 }
 
 enum ComplicationStore {
@@ -130,10 +136,24 @@ enum ComplicationStore {
                 delta: delta,
                 colorScheme: colorScheme ?? old?.colorScheme,
                 targetMgDL: targetMgDL ?? old?.targetMgDL,
-                sensorWarning: old?.sensorWarning
+                sensorWarning: old?.sensorWarning,
+                untethered: old?.untethered,
+                untetheredLastLoop: old?.untetheredLastLoop
             ),
             previousLatest: old?.points.last?.date
         )
+    }
+
+    /// Untethered mode on or off, and its last loop. Redrawn at once when the mode changes; a new loop waits for the
+    /// redraw of its reading (watchOS budgets the redraws), which the face takes as the loop's time until then.
+    static func setUntethered(_ on: Bool, lastLoop: Date?) {
+        guard var data = load() else { return }
+        let loop = on ? lastLoop : nil
+        guard (data.untethered ?? false) != on || data.untetheredLastLoop != loop else { return }
+        let modeChanged = (data.untethered ?? false) != on
+        data.untethered = on
+        data.untetheredLastLoop = loop
+        save(data, previousLatest: data.points.last?.date, force: modeChanged)
     }
 
     /// The sensor warning on or off; redrawn at once when it changes, which is rare.
@@ -185,7 +205,9 @@ enum ComplicationStore {
                 delta: delta,
                 colorScheme: old?.colorScheme,
                 targetMgDL: old?.targetMgDL,
-                sensorWarning: old?.sensorWarning
+                sensorWarning: old?.sensorWarning,
+                untethered: old?.untethered,
+                untetheredLastLoop: old?.untetheredLastLoop
             ),
             previousLatest: old?.points.last?.date
         )
