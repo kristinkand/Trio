@@ -453,7 +453,7 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
         switch status.bolusState {
         case .initiating:
             bolusTrigger.send(.initiating)
-        case let .inProgress(dose):
+        case .inProgress:
             bolusTrigger.send(.inProgress)
         default:
             bolusTrigger.send(.noBolus)
