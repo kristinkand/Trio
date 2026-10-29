@@ -37,6 +37,11 @@ import WatchKit
     /// second one sees whether another controller (the phone) made a session on the pod in between.
     @ObservationIgnored var fallbackWitness: (pump: PumpManager & ExclusiveDeviceControl, at: Date)?
     @ObservationIgnored var isWitnessingPod = false
+    /// No looks at the pod until then, while the phone's newest reading stays this one: a look the phone sees as
+    /// another controller's session holds its dosing up to 3 minutes if the watch can't answer it.
+    @ObservationIgnored var fallbackLooksPaused: (phoneNewest: Date, until: Date)?
+    /// What the log last said about Start by Itself, so it says it again when it changes.
+    @ObservationIgnored var loggedFallbackSetting: Bool?
     /// When the copy a start without the phone runs on was issued: a newer one from the phone replaces it until the
     /// start has the pod.
     @ObservationIgnored var startCopyIssuedAt: Date?
@@ -1519,8 +1524,8 @@ extension Optional {
 /// Elias Maurer's fallback loop (EJM0/Trio feat/direct-to-watch, 84ad4da and 7943e43 to 5444214), built here on
 /// this branch's own parts: the watch reader supplies the readings and Start Without Phone does the start. With
 /// Settings › Apple Watch › Start by Itself When iPhone Stops on (it needs Allow Start Without iPhone), the watch starts
-/// untethered mode by itself once the phone is out of reach and its newest reading is 11 minutes old, while the watch
-/// read two of its own; once per outage. When the phone is in reach again for a minute, it hands back by itself.
+/// untethered mode by itself once the phone's newest reading is about 10 minutes old, the watch read two of its own, and
+/// nobody used the pod between the watch's two looks at it; once per outage. When the phone is in reach again for a minute, it hands back by itself.
 extension UntetheredWatchManager {
     /// The start: the phone's newest reading this old, two of the watch's own newer, and the pod's witness agreeing.
     static let fallbackPhoneSilence: TimeInterval = 9.5 * 60
@@ -1532,6 +1537,10 @@ extension UntetheredWatchManager {
     static let fallbackProbeDelay: TimeInterval = 15
     /// The wait, the look and a start fit in it.
     static let fallbackWitnessHold: TimeInterval = 50
+    /// After a look showed the phone at the pod: the phone sees every look as another controller's session and holds
+    /// its dosing up to 3 minutes when the watch can't answer, so the watch doesn't look again for this long unless it
+    /// hears from the phone (a phone gone right then is caught up to this much later).
+    static let fallbackLookPause: TimeInterval = 20 * 60
     static let fallbackHandbackGrace: TimeInterval = 60
     static let fallbackHandbackRepeat: TimeInterval = 5 * 60
     private static let fallbackEpochKey = "untethered.fallbackEpoch"
@@ -1555,6 +1564,11 @@ extension UntetheredWatchManager {
             return
         }
         let state = WatchState.shared
+        let fallbackOn = state.fallbackLoop && state.untetheredMode && state.allowUntetheredStartWithoutPhone
+        if fallbackOn != loggedFallbackSetting {
+            loggedFallbackSetting = fallbackOn
+            Task { await WatchLogger.shared.log("⌚️ Untethered: Start by Itself is \(fallbackOn ? "on" : "off")", force: true) }
+        }
         guard state.fallbackLoop, state.untetheredMode, state.allowUntetheredStartWithoutPhone,
               data.session.phase == .idle, !isBusy, !WCSession.default.isReachable,
               versionMismatch == nil, standingGrantAge != nil
@@ -1565,6 +1579,13 @@ extension UntetheredWatchManager {
         let phoneNewest = WatchG7Reader.shared.phoneGlucoseDate ?? .distantPast
         let silence = now.timeIntervalSince(phoneNewest)
         let ownNewer = readerReadings.filter { $0 > phoneNewest.addingTimeInterval(60) }.count
+        if let paused = fallbackLooksPaused {
+            guard paused.phoneNewest == phoneNewest, now < paused.until else {
+                fallbackLooksPaused = nil
+                return checkFallback(readerReadings: readerReadings, now: now)
+            }
+            return
+        }
         guard silence > Self.fallbackProbeAfter, ownNewer >= 1 else {
             dropFallbackWitness()
             return
@@ -1599,9 +1620,12 @@ extension UntetheredWatchManager {
                     )
                 }
             case let .phoneUsedPod(at):
+                self.dropFallbackWitness()
+                self.fallbackLooksPaused = (phoneNewest, Date().addingTimeInterval(Self.fallbackLookPause))
                 Task {
                     await WatchLogger.shared.log(
-                        "⌚️ Untethered: fallback — the phone used the pod at \(Self.timeText(at)): it loops, no start",
+                        "⌚️ Untethered: fallback — the phone used the pod at \(Self.timeText(at)): it loops, no start; " +
+                            "no look for \(Int(Self.fallbackLookPause / 60)) min unless the phone is heard",
                         force: true
                     )
                 }
