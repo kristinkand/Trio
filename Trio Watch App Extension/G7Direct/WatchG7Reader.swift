@@ -983,12 +983,37 @@ import WatchKit
             keepInFrontForPairing()
         } else if line.contains("expect the system pairing prompt") {
             WKInterfaceDevice.current().play(.notification)
+            if WKApplication.shared().applicationState != .active { askToOpenForPairing() }
         } else if line.hasPrefix("Bonded") || line.hasPrefix("Already authenticated and bonded") || line.hasPrefix("Reading ") {
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [Self.pairingNotificationID])
             guard let keepAlive = pairingKeepAlive else { return }
             pairingKeepAlive = nil
             keepAlive.stop()
             appendLog("Paired: Trio no longer held in front")
         }
+    }
+
+    private static let pairingNotificationID = notificationIdentifierPrefix + "openForPairing"
+    @ObservationIgnored private var lastPairingAsk: Date?
+
+    /// The system's Bluetooth pairing request only shows with Trio in front. In the background a new sensor's
+    /// pairing went round in circles for an hour (29 October, second tester: paired at 15:38, 15:48, 16:13, 16:23 and
+    /// refused each time at the next reading) until Trio was opened at 16:33 and the bond went through at once.
+    private func askToOpenForPairing() {
+        guard (lastPairingAsk ?? .distantPast).addingTimeInterval(20 * 60) < Date() else { return }
+        lastPairingAsk = Date()
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Open Trio to Pair the Sensor")
+        content.body = String(
+            localized: "The watch needs Trio on the screen to finish pairing the new sensor. Open Trio on the watch and keep it in front until the first reading shows."
+        )
+        content.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(
+            identifier: Self.pairingNotificationID,
+            content: content,
+            trigger: nil
+        ))
+        appendLog("Pairing: asked to open Trio on the watch")
     }
 
     private func keepInFrontForPairing() {

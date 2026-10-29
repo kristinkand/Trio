@@ -711,10 +711,21 @@ import WatchKit
         if sameSensor, let restored = restoredCGM() {
             install(restored)
         } else if let type = watchCGMManagers[configuration.managerIdentifier],
-                  let cgm = type.init(adopting: configuration, localState: localState(for: configuration.managerIdentifier))
+                  let adopted = type.init(adopting: configuration, localState: localState(for: configuration.managerIdentifier))
         {
-            Task { await WatchLogger.shared.log("⌚️ Untethered: new sensor, pairing the watch afresh", force: true) }
-            sensorPairingDue()
+            // 29 October, second tester: the reader bonded the new sensor at 16:33:46, the session started at 16:34
+            // and paired the watch slot again, and from then on the sensor refused the watch's Bluetooth encryption
+            // ("Failed to encrypt the connection") until the session ended without a reading
+            let reused = Self.sensorPairedByReader(adopted, type: type)
+            let cgm: CGMManager = reused ?? adopted
+            if reused != nil {
+                Task {
+                    await WatchLogger.shared.log("⌚️ Untethered: new sensor, already paired by the watch's reader: taking its key", force: true)
+                }
+            } else {
+                Task { await WatchLogger.shared.log("⌚️ Untethered: new sensor, pairing the watch afresh", force: true) }
+                sensorPairingDue()
+            }
             store.update {
                 $0.cgmBuiltFrom = Self.plist(configuration.state)
                 $0.pendingPumpAlerts.removeAll { $0.managerIdentifier == cgm.pluginIdentifier }
@@ -723,6 +734,25 @@ import WatchKit
         } else {
             setError(String(localized: "The watch could not set up the CGM."))
         }
+    }
+
+    /// The adopted manager with the reader's key and handle, when the reader is paired with this very sensor and
+    /// code: the sensor keeps one key per display slot, and a second pairing makes it start a new Bluetooth bond,
+    /// which the watch can only complete with Trio in front. Nil when the reader has no key for it.
+    private static func sensorPairedByReader(
+        _ adopted: CGMManager,
+        type: (CGMManager & DeviceConfigurationSharing).Type
+    ) -> CGMManager? {
+        let reader = WatchG7Reader.shared
+        var state = adopted.rawState
+        guard reader.hasWatchKey, let slotKey = WatchG7SlotKey.current,
+              let sensor = state["sensorID"] as? String, let readerSensor = reader.sensorName,
+              sensor.suffix(2) == readerSensor.suffix(2),
+              let code = state["pairingCode"] as? String, code == reader.pairingCode
+        else { return nil }
+        state["sharedKey"] = slotKey
+        if let handle = WatchG7SlotKey.peripheral?.uuidString { state["peripheralIdentifier"] = handle }
+        return type.init(rawState: state)
     }
 
     /// The watch stops connecting; its saved state stays for the next session.
