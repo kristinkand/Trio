@@ -1185,7 +1185,18 @@ extension UntetheredWatchManager: CGMManagerDelegate {
                 if wasRunning {
                     // ended in watchOS, not by Trio, also by a workout started in another app (one runs at a time):
                     // no new one until the next session, which would end that workout in turn
-                    if self.isActive, WatchState.shared.untetheredWorkout { self.workoutEndedByUser = true }
+                    if self.isActive, WatchState.shared.untetheredWorkout {
+                        self.workoutEndedByUser = true
+                        // with the other app in front Trio's screen doesn't show (29 October: an outdoor walk ended
+                        // it at once, and 2 of 5 readings were missed): say so, as the face's symbol can't
+                        self.notify(
+                            id: Self.notificationPrefix + "workoutReplaced",
+                            title: String(localized: "Workout Replaced Trio's"),
+                            body: String(
+                                localized: "The watch still has the pump, but without Trio's workout it may miss readings and loop less often until this session ends. The watch symbol on the face turns orange when it hasn't looped for 10 minutes."
+                            )
+                        )
+                    }
                 } else {
                     // refused, as in the background, or ended before it ran: again with Trio in front
                     self.workoutStartFailed = true

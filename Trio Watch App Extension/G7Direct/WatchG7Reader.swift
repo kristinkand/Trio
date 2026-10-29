@@ -87,7 +87,14 @@ import WatchKit
         static let lastAlert = "watchG7.lastAlert."
         static let lastPhoneContact = "watchG7.lastPhoneContact"
         static let phoneGlucoseDate = "watchG7.phoneGlucoseDate"
+        static let liveReadings = "watchG7.liveReadings"
+        static let asideSpans = "watchG7.asideSpans"
     }
+
+    /// When live readings arrived (not filled in afterwards), for the coverage line.
+    private var liveReadingDates: [Date] = []
+    /// Untethered mode's stretches with the sensor, [start, end], end 0 while it lasts: no gap of the reader's.
+    private var asideSpans: [[TimeInterval]] = []
 
     private init() {
         let defaults = UserDefaults.standard
@@ -113,6 +120,26 @@ import WatchKit
         }
         // The log survives restarts, so a gap can still be looked at afterwards.
         logLines = defaults.stringArray(forKey: Key.log) ?? []
+        liveReadingDates = (defaults.array(forKey: Key.liveReadings) as? [TimeInterval] ?? []).map(Date.init(timeIntervalSince1970:))
+        asideSpans = defaults.array(forKey: Key.asideSpans) as? [[TimeInterval]] ?? []
+    }
+
+    private func noteLiveReading(_ date: Date) {
+        let cutoff = Date().addingTimeInterval(-TimeInterval(hours: 2))
+        liveReadingDates = (liveReadingDates + [date]).filter { $0 > cutoff }
+        UserDefaults.standard.set(liveReadingDates.map(\.timeIntervalSince1970), forKey: Key.liveReadings)
+    }
+
+    private func noteAside(_ aside: Bool) {
+        let now = Date().timeIntervalSince1970
+        if aside {
+            asideSpans.append([now, 0])
+        } else if let last = asideSpans.indices.last, asideSpans[last].count == 2, asideSpans[last][1] == 0 {
+            asideSpans[last][1] = now
+        }
+        let cutoff = now - 2 * 3600
+        asideSpans.removeAll { $0.count != 2 || ($0[1] != 0 && $0[1] < cutoff) }
+        UserDefaults.standard.set(asideSpans, forKey: Key.asideSpans)
     }
 
     // MARK: - Derived values for the views
@@ -163,20 +190,36 @@ import WatchKit
         return String(format: "%+ld", Int(delta))
     }
 
-    /// The watch's own readings over the last two hours: how many of the
-    /// possible ones arrived, and the longest stretch without one.
-    var recentCoverage: (count: Int, expected: Int, longestGapMinutes: Int) {
+    /// The watch's own live readings over the last two hours: how many of the possible ones arrived, the longest
+    /// stretch without one, and how many were only filled in afterwards. Untethered mode's time with the sensor is
+    /// left out: the reader pauses then on purpose. (29 October: filled-in readings counted as arrived, so a 25-minute
+    /// gap showed as "24/24, longest gap 5 min", and a session as a 26-minute gap.)
+    var recentCoverage: (count: Int, expected: Int, longestGapMinutes: Int, filledIn: Int) {
         let now = Date()
         let window = TimeInterval(hours: 2)
-        let recent = history.filter { now.timeIntervalSince($0.date) <= window }.map(\.date)
+        let start = now.addingTimeInterval(-window)
+        let spans = asideSpans.compactMap { span -> (Date, Date)? in
+            guard span.count == 2 else { return nil }
+            let from = max(Date(timeIntervalSince1970: span[0]), start)
+            let to = span[1] == 0 ? now : min(Date(timeIntervalSince1970: span[1]), now)
+            return from < to ? (from, to) : nil
+        }
+        func aside(_ date: Date) -> Bool { spans.contains { $0.0 <= date && date <= $0.1 } }
+        let live = liveReadingDates.filter { $0 > start && !aside($0) }
+        // the gaps between live readings, each stretch with the sensor closing one and opening the next
+        let events = (live.map { ($0, $0) } + spans).sorted { $0.0 < $1.0 }
         var longest: TimeInterval = 0
-        var previous = now.addingTimeInterval(-window)
-        for date in recent {
-            longest = max(longest, date.timeIntervalSince(previous))
-            previous = date
+        var previous = start
+        for (from, to) in events {
+            longest = max(longest, from.timeIntervalSince(previous))
+            previous = max(previous, to)
         }
         longest = max(longest, now.timeIntervalSince(previous))
-        return (recent.count, Int(window / 300), Int(longest / 60))
+        let asideTotal = spans.reduce(0) { $0 + $1.1.timeIntervalSince($1.0) }
+        let filledIn = history.filter { reading in
+            reading.date > start && !aside(reading.date) && !live.contains { abs($0.timeIntervalSince(reading.date)) < 60 }
+        }.count
+        return (live.count, Int((window - asideTotal) / 300), Int(longest / 60), filledIn)
     }
 
     /// One line saying what the watch is doing, for the sensor page.
@@ -340,6 +383,7 @@ import WatchKit
         dispatchPrecondition(condition: .onQueue(.main))
         guard aside != isStandingAside else { return }
         isStandingAside = aside
+        noteAside(aside)
         if aside {
             appendLog("Paused: untethered mode has the sensor")
             // untethered mode books its own "No Sensor Readings"
@@ -879,6 +923,7 @@ import WatchKit
                 trendRate: message.trend
             )
             self.merge([reading])
+            self.noteLiveReading(reading.date)
             self.handBackAt = nil
             UntetheredWatchManager.shared.checkFallback(readerReadings: self.history.map(\.date))
             ComplicationStore.add(reading)
