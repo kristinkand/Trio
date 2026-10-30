@@ -1707,6 +1707,14 @@ extension UntetheredWatchManager {
             made.delegateQueue = .main
             pump = made
         }
+        // A pod this watch never connected to has no handle here, and finding it takes a search, which watchOS
+        // doesn't run for an app in the background (30 October: the pod changed at 20:25 on the 29th; from then
+        // every look searched and none found it, as the watch's own takeover searches found the pod in the night
+        // of the 28th only when Trio was opened at 02:38). The watch learns the handle in a session of its own.
+        if pump.takeControlNeedsSearch, WKApplication.shared().applicationState != .active {
+            askForSessionWithNewPod()
+            return .notReached("the watch doesn't know this pod yet and can't search for it in the background")
+        }
         // the link takes a few seconds: a single read right after taking control failed at once every time
         // (29 October, 20:28 to 20:53 with the phone in a pot: 6 looks, none reached the pod, no start)
         pump.takeControl()
@@ -1722,9 +1730,27 @@ extension UntetheredWatchManager {
             return .notReached("no answer in \(Int(Date().timeIntervalSince(started))) s")
         }
         fallbackWitness = (pump, Date())
+        // the handle it found is kept, as a session keeps its own: the next look and a takeover connect directly
+        if let local = Self.plist(pump.localState) { store.update { $0.localStates[pump.pluginIdentifier] = local } }
         guard let since else { return .firstLook }
         if let foreign = pump.lastForeignSessionAt, foreign > since { return .phoneUsedPod(foreign) }
         return .nobody
+    }
+
+    private static let newPodNoticeKey = "untethered.newPodNoticeAt"
+
+    /// At most every 12 hours while the watch doesn't know the pod: one session started by hand teaches it.
+    private func askForSessionWithNewPod() {
+        let last = UserDefaults.standard.object(forKey: Self.newPodNoticeKey) as? Date ?? .distantPast
+        guard Date().timeIntervalSince(last) > 12 * 60 * 60 else { return }
+        UserDefaults.standard.set(Date(), forKey: Self.newPodNoticeKey)
+        notify(
+            id: Self.notificationPrefix + "newPod",
+            title: String(localized: "Watch Doesn't Know the New Pod Yet"),
+            body: String(
+                localized: "To take over by itself, the watch has to have used this pod once. Start untethered mode on the watch by hand, with Trio open and the iPhone nearby; a minute is enough, then end it."
+            )
+        )
     }
 
     func dropFallbackWitness() {
