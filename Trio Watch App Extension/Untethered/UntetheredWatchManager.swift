@@ -42,6 +42,9 @@ import WatchKit
     @ObservationIgnored var fallbackLooksPaused: (phoneNewest: Date, until: Date)?
     /// What the log last said about Start by Itself, so it says it again when it changes.
     @ObservationIgnored var loggedFallbackSetting: Bool?
+    /// The phone's newest reading when the looks found nobody at the pod: while it stays the newest, a start that
+    /// didn't begin or didn't reach the pod is tried again at the next reading without looking again.
+    @ObservationIgnored var fallbackDecidedFor: Date?
     /// When the copy a start without the phone runs on was issued: a newer one from the phone replaces it until the
     /// start has the pod.
     @ObservationIgnored var startCopyIssuedAt: Date?
@@ -1648,6 +1651,12 @@ extension UntetheredWatchManager {
             dropFallbackWitness()
             return
         }
+        // the pod already showed nobody since this reading of the phone: try the start again (up to its tries)
+        if fallbackDecidedFor == phoneNewest {
+            dropFallbackWitness()
+            startFallback(phoneNewest: phoneNewest, minutes: Int(silence / 60))
+            return
+        }
         // The phone's readings reach a sleeping watch late or not at all (28 October: the watch started at 21:58
         // and 20:30 beside a phone that looped every 5 minutes). So the pod decides: a phone that loops makes a
         // session on it every 5 minutes, which the watch's next look at the pod shows. The watch starts only when
@@ -1697,9 +1706,12 @@ extension UntetheredWatchManager {
                         force: true
                     )
                 }
+                // The look's manager goes before the start: two managers in this app bidding for the pod, the
+                // takeover's never connected (30 October, 14:03:59 and 14:18:54: the looks reached the pod within a
+                // second, both tries didn't; at 12:18, with the look's manager gone first, the start took 6 s).
+                self.dropFallbackWitness()
+                self.fallbackDecidedFor = phoneNewest
                 self.startFallback(phoneNewest: phoneNewest, minutes: minutes)
-                // a start that didn't begin keeps the look, so the next reading tries again without a first look
-                if self.data.session.phase != .idle { self.dropFallbackWitness() }
             }
         }
     }
