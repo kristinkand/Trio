@@ -922,9 +922,13 @@ import WatchKit
 
     /// With the phone off or out of reach, from the phone's standing grant: the ordinary takeover, with a fresh lease
     /// and an epoch of the watch's own. The phone stands aside once it hears from the watch. As LoopKit/Loop#2545.
-    func startWithoutPhone() {
+    /// `phoneReachableIsNoPhone`: the fallback's start, decided by the pod (nobody used it for minutes) and the phone's
+    /// silent readings; a phone that flickers into reach without looping doesn't hold it up (30 October, 12:03:53: the
+    /// phone in a pot showed up for 5 s at the very second of the start, which then didn't begin).
+    func startWithoutPhone(phoneReachableIsNoPhone: Bool = false) {
         guard WatchState.shared.untetheredMode, WatchState.shared.allowUntetheredStartWithoutPhone,
-              data.session.phase == .idle, !isBusy, !WCSession.default.isReachable, standingGrantAge != nil,
+              data.session.phase == .idle, !isBusy, phoneReachableIsNoPhone || !WCSession.default.isReachable,
+              standingGrantAge != nil,
               let grant = data.standingGrant
         else { return }
         setError(nil)
@@ -1584,7 +1588,7 @@ extension UntetheredWatchManager {
     /// The first look at the pod: the phone's newest reading this old, one of the watch's own newer.
     static let fallbackProbeAfter: TimeInterval = 4.5 * 60
     /// The second look counts only this long after the first: a phone that loops talks to the pod in between.
-    static let fallbackWitnessGap: TimeInterval = 4 * 60
+    static let fallbackWitnessGap: TimeInterval = 3 * 60
     /// Each look waits this long after the reading, so the phone's loop for the same reading is already done.
     static let fallbackProbeDelay: TimeInterval = 15
     /// How long a look keeps trying to reach the pod, as a takeover does (reads 8 s apart).
@@ -1693,8 +1697,9 @@ extension UntetheredWatchManager {
                         force: true
                     )
                 }
-                self.dropFallbackWitness()
                 self.startFallback(phoneNewest: phoneNewest, minutes: minutes)
+                // a start that didn't begin keeps the look, so the next reading tries again without a first look
+                if self.data.session.phase != .idle { self.dropFallbackWitness() }
             }
         }
     }
@@ -1805,7 +1810,7 @@ extension UntetheredWatchManager {
         }
         // held before the start, not after: the wake that brought the reading may be ending already
         let releaseHold = holdForFallbackTakeover()
-        startWithoutPhone()
+        startWithoutPhone(phoneReachableIsNoPhone: true)
         guard data.session.phase == .starting else {
             Task { await WatchLogger.shared.log("⌚️ Untethered: fallback start didn't begin", force: true) }
             releaseHold()
