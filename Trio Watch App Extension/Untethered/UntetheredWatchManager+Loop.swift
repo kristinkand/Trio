@@ -1094,8 +1094,9 @@ extension UntetheredWatchManager: CGMManagerDelegate {
             Task {
                 await WatchLogger.shared
                     .log("⌚️ Untethered: extended mode workout never started, again with Trio in front", force: true) }
-            // let go, not stop: its late "ended" would drop the new one; a start that went through after all is taken
-            // back by the new one's `recoverActiveWorkoutSession`
+            // Ended, not only let go: its late answer is ignored (`current`), but a session left behind may still hold
+            // HealthKit's one workout (30 October, 19:59 to 20:11: three starts after one another, none answered).
+            workoutKeepAlive?.stop()
             workoutKeepAlive = nil
         }
         // watchOS starts a workout only for an app in front: one that failed in the background (a fallback start) goes
@@ -1728,22 +1729,59 @@ final class UntetheredWorkoutKeepAlive: NSObject, HKWorkoutSessionDelegate, HKLi
         super.init()
     }
 
+    /// Each step goes to the log: on 30 October from 19:59 three starts were never answered, and the log showed no
+    /// step after the request.
+    private static func note(_ text: String) {
+        Task { await WatchLogger.shared.log("⌚️ Untethered: workout — \(text)", force: true) }
+    }
+
+    private static func name(_ state: HKWorkoutSessionState) -> String {
+        switch state {
+        case .notStarted: return "not started"
+        case .prepared: return "prepared"
+        case .running: return "running"
+        case .paused: return "paused"
+        case .stopped: return "stopped"
+        case .ended: return "ended"
+        @unknown default: return "state \(state.rawValue)"
+        }
+    }
+
     func start() {
-        healthStore.recoverActiveWorkoutSession { recovered, _ in
+        Self.note("start requested")
+        healthStore.recoverActiveWorkoutSession { recovered, error in
             DispatchQueue.main.async {
                 guard self.session == nil else { return }
+                // let go meanwhile: nothing of this attempt may keep running
+                guard !self.isStopped else {
+                    recovered?.end()
+                    return
+                }
                 if let recovered, recovered.state == .running {
                     self.run(recovered)
                     self.onChange(true, "taken back after a relaunch")
+                } else if let recovered {
+                    // One left over, not running: ended first, and the new one a moment later. Started at once, the
+                    // new one may find HealthKit's one workout still taken by the old.
+                    Self.note("one left over (\(Self.name(recovered.state))), ending it before the new one")
+                    recovered.end()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        guard self.session == nil, !self.isStopped else { return }
+                        self.startNew()
+                    }
                 } else {
-                    recovered?.end()
+                    if let error { Self.note("nothing to take back (\(error.localizedDescription))") }
                     self.startNew()
                 }
             }
         }
     }
 
+    /// Stopped before it ran: a start still on its way doesn't go on.
+    private var isStopped = false
+
     func stop() {
+        isStopped = true
         guard let session else { return }
         session.end()
     }
@@ -1752,7 +1790,7 @@ final class UntetheredWorkoutKeepAlive: NSObject, HKWorkoutSessionDelegate, HKLi
         guard HKHealthStore.isHealthDataAvailable() else { return onChange(false, "Health unavailable") }
         healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [Self.heartRate]) { _, error in
             DispatchQueue.main.async {
-                guard self.session == nil else { return }
+                guard self.session == nil, !self.isStopped else { return }
                 let status = self.healthStore.authorizationStatus(for: .workoutType())
                 guard status == .sharingAuthorized else {
                     // not asked yet: the iPhone shows the request (`applicationShouldRequestHealthAuthorization`)
@@ -1769,6 +1807,7 @@ final class UntetheredWorkoutKeepAlive: NSObject, HKWorkoutSessionDelegate, HKLi
                     let session = try HKWorkoutSession(healthStore: self.healthStore, configuration: configuration)
                     self.run(session)
                     let start = Date()
+                    Self.note("permission there, starting a new one")
                     session.startActivity(with: start)
                     session.associatedWorkoutBuilder().beginCollection(withStart: start) { _, _ in }
                 } catch {
@@ -1809,9 +1848,10 @@ final class UntetheredWorkoutKeepAlive: NSObject, HKWorkoutSessionDelegate, HKLi
     func workoutSession(
         _ workoutSession: HKWorkoutSession,
         didChangeTo toState: HKWorkoutSessionState,
-        from _: HKWorkoutSessionState,
+        from fromState: HKWorkoutSessionState,
         date _: Date
     ) {
+        Self.note("\(Self.name(fromState)) → \(Self.name(toState))")
         switch toState {
         case .running:
             DispatchQueue.main.async { self.onChange(true, "running") }
