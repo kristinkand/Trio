@@ -34,7 +34,7 @@ struct UntetheredStatusView: View {
                     if manager.isPairingSensor {
                         card(tint: .untethered) {
                             Label(
-                                "Pairing the sensor: keep Trio open until a glucose value shows, and accept the Bluetooth pairing request.",
+                                "Pairing the sensor: keep Trio open until a glucose value shows. If a Bluetooth pairing request appears, accept it.",
                                 systemImage: "sensor.tag.radiowaves.forward"
                             )
                             .font(.footnote)
