@@ -62,6 +62,8 @@ enum WatchMessageKeys {
     // Notification Actions
     static let snoozeDuration = "snoozeDuration"
     static let snoozeUntilDate = "snoozeUntilDate"
+    /// The newest reading the phone's own CGM delivered; the glucose values may also hold the watch's own.
+    static let phoneOwnGlucoseDate = "phoneOwnGlucoseDate"
 
     // Devices page: pump and CGM lifetime (from EJM0/Trio's PeripheralsView, Elias Maurer)
     /// Sub-dictionary wrapping every device field, mirroring `forecastData`.

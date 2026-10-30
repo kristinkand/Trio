@@ -338,6 +338,13 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             await apply(.forceTakeBack)
             return
         }
+        // Without Bluetooth the phone can't reach the pod, however long it tries; the watch's messages may still come
+        // over another way (30 October, 16:34 to 16:57: eight take-backs refused with Bluetooth off).
+        if isBluetoothOff {
+            debug(.watch, "Untethered: take-back refused, the iPhone's Bluetooth is off")
+            setError(String(localized: "The iPhone's Bluetooth is off. Turn it on to take the pump back; the watch keeps running."))
+            return
+        }
         isReachingPod = true
         defer { isReachingPod = false }
         setError(nil)
@@ -356,6 +363,11 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         debug(.watch, "Untethered: take-back, pod link up — telling the watch to stop")
         await apply(.forceTakeBack)
+    }
+
+    /// The iPhone's Bluetooth is off, as in flight mode: no pod is in reach.
+    private var isBluetoothOff: Bool {
+        apsManager.bluetoothManager?.bluetoothState == .poweredOff
     }
 
     @MainActor func acknowledgeAuditFinding() {
@@ -458,6 +470,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 // than waiting for the watch's next request (24 October: refused at 13:55:56, taken back by hand 14:07).
                 for attempt in 1 ... Self.handbackRequestTries {
                     await self.forceTakeBack()
+                    // trying again in 20 s won't turn Bluetooth on: the watch asks again later
+                    guard !self.isBluetoothOff else { break }
                     guard self.state.session.phase == .active, envelope.epoch == self.state.session.epoch,
                           attempt < Self.handbackRequestTries
                     else { break }
