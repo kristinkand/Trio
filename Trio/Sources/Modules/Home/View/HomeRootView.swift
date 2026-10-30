@@ -36,7 +36,6 @@ extension Home {
         @State var showManualGlucose: Bool = false
         @State var showReleaseNotes: Bool = false
         @State var showUntetheredAuditFinding: Bool = false
-        @State var alarmsSnoozeUntil: Date = .distantPast
         @ObservedObject var releaseNotesService = ReleaseNotesService.shared
         // Pull-down-to-force-loop (see HomeRootView+Refresh.swift)
         @State var pullOffset: CGFloat = 0
@@ -216,7 +215,7 @@ extension Home {
                     if notificationsDisabled != $0 {
                         notificationsDisabled = $0
                         if notificationsDisabled {
-                            debug(.default, "notificationsDisabled")
+                            debug(.alerts, "Notifications are disabled in iOS settings")
                         }
                     }
                 }
@@ -270,14 +269,9 @@ extension Home {
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .onAppear {
                 configureView()
-                refreshAlarmsSnooze()
             }
             .task {
                 await releaseNotesService.load()
-            }
-            // UserDefaults changes don't invalidate views; refresh on sheet dismissal
-            .onChange(of: showSnoozeSheet) {
-                if !showSnoozeSheet { refreshAlarmsSnooze() }
             }
             .navigationTitle("Home")
             .navigationBarHidden(true)
@@ -369,8 +363,15 @@ extension Home {
             }
         }
 
+        /// iOS 26 with UIDesignRequiresCompatibility draws the classic tab bar, not glass;
+        /// iOS 27 ignores the key
+        private static let designRequiresCompatibility: Bool = {
+            if #available(iOS 27.0, *) { return false }
+            return Bundle.main.object(forInfoDictionaryKey: "UIDesignRequiresCompatibility") as? Bool ?? false
+        }()
+
         @ViewBuilder func tabBar() -> some View {
-            if #available(iOS 26.0, *) {
+            if #available(iOS 26.0, *), !RootView.designRequiresCompatibility {
                 modernTabBar()
             } else {
                 legacyTabBar()

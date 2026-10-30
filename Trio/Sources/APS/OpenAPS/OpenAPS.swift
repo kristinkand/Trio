@@ -106,7 +106,7 @@ final class OpenAPS {
                 guard context.hasChanges else { return }
                 try context.save()
             } catch {
-                debugPrint("\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to save Determination to Core Data")
+                warning(.storage, "Saving the determination failed", error: error)
             }
         }
     }
@@ -259,8 +259,6 @@ final class OpenAPS {
         simulatedCarbsDate: Date? = nil,
         simulation: Bool = false
     ) async throws -> Determination? {
-        debug(.openAPS, "Start determineBasal")
-
         let context = newContext("determineBasal")
 
         // Perform asynchronous calls in parallel
@@ -361,7 +359,10 @@ final class OpenAPS {
             clock: Date()
         )
 
-        debug(.openAPS, "\(simulation ? "[SIMULATION]" : "") OREF DETERMINATION: \(String(describing: orefDetermination))")
+        debug(
+            .algorithm,
+            "Determination\(simulation ? " (simulation)" : ""): BG \(orefDetermination?.bg ?? 0) mg/dL, IOB \(orefDetermination?.iob ?? 0) U, COB \(orefDetermination?.cob ?? 0) g, ISF \(orefDetermination?.isf ?? 0) mg/dL/U, sensitivity ratio \(orefDetermination?.sensitivityRatio ?? 1)"
+        )
 
         if var determination = orefDetermination, let deliverAt = determination.deliverAt {
             // set both timestamp and deliverAt to the SAME date; this will be updated for timestamp once it is enacted
@@ -381,10 +382,7 @@ final class OpenAPS {
 
             return determination
         } else {
-            debug(
-                .openAPS,
-                "\(DebuggingIdentifiers.failed) No determination data. determination: \(String(describing: orefDetermination)), deliverAt: \(String(describing: orefDetermination?.deliverAt))"
-            )
+            warning(.algorithm, "No determination produced\(orefDetermination == nil ? "" : ": missing delivery time")")
             throw APSError.apsError(message: "No determination data.")
         }
     }
@@ -409,8 +407,6 @@ final class OpenAPS {
     }
 
     func autosense(shouldSmoothGlucose: Bool) async throws -> Autosens? {
-        debug(.openAPS, "Start autosens")
-
         let context = newContext("autosense")
 
         // Perform asynchronous calls in parallel
@@ -451,7 +447,7 @@ final class OpenAPS {
             clock: Date()
         )
 
-        debug(.openAPS, "AUTOSENS: \(autosens)")
+        debug(.algorithm, "Autosens ratio \(autosens.ratio)")
         autosens.timestamp = Date()
         await storage.saveAsync(autosens, as: Settings.autosense)
 
@@ -459,8 +455,6 @@ final class OpenAPS {
     }
 
     func createProfiles(for dosingMode: DosingMode) async throws {
-        debug(.openAPS, "Start creating pump profile and user profile")
-
         let context = newContext("createProfiles")
 
         // Load required settings and profiles asynchronously
@@ -493,7 +487,7 @@ final class OpenAPS {
         let adjustedPreferences = OrefPipeline.profilePreferences(preferences, activeTempTarget: activeTempTarget)
             .clamped(for: dosingMode)
         debug(
-            .openAPS,
+            .algorithm,
             "Profile preferences: HBT=\(adjustedPreferences.halfBasalExerciseTarget), lowTTlowersSens=\(adjustedPreferences.lowTemptargetLowersSensitivity)"
         )
 
@@ -535,10 +529,7 @@ final class OpenAPS {
             await storage.saveAsync(pumpProfile, as: Settings.pumpProfile)
             await storage.saveAsync(profile, as: Settings.profile)
         } catch {
-            debug(
-                .apsManager,
-                "\(DebuggingIdentifiers.failed) \(#file) \(#function) Failed to create pump profile and normal profile: \(error)"
-            )
+            warning(.algorithm, "Creating profiles failed", error: error)
             throw error
         }
     }
@@ -581,7 +572,7 @@ final class OpenAPS {
                 guard context.hasChanges else { return }
                 try context.save()
             } catch {
-                print(error.localizedDescription)
+                warning(.storage, "Saving forecasts failed", error: error)
             }
         }
     }

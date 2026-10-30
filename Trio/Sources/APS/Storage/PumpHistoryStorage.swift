@@ -205,8 +205,8 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                     where !assertedRows.contains(orphan.objectID) && !heldByWatch.contains(orphan.syncIdentifier ?? "")
                 {
                     debug(
-                        .coreData,
-                        "Purging unasserted mutable event \(orphan.syncIdentifier ?? orphan.id ?? "-") (\(orphan.type ?? "?")), uploaded to NS: \(orphan.isUploadedToNS)"
+                        .storage,
+                        "Purging stale pending pump event \(orphan.syncIdentifier ?? orphan.id ?? "-") (\(orphan.type ?? "?")), uploaded to Nightscout: \(orphan.isUploadedToNS)"
                     )
                     if orphan.isUploadedToNS, let id = orphan.id {
                         purgedUploadedIds.append(id)
@@ -220,9 +220,9 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                 try context.save()
 
                 self.updateSubject.send(())
-                debug(.coreData, "\(DebuggingIdentifiers.succeeded) stored pump events in Core Data")
+                debug(.storage, "Stored pump events")
             } catch let error as NSError {
-                debug(.coreData, "\(DebuggingIdentifiers.failed) failed to store pump events with error: \(error.userInfo)")
+                warning(.storage, "Storing pump events failed", error: error)
                 throw error
             }
             return purgedUploadedIds
@@ -244,7 +244,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
             let rows = try context.fetch(request).filter { !heldByWatch.contains($0.syncIdentifier ?? "") }
             for row in rows {
                 row.isMutable = false
-                debug(.coreData, "Kept in-flight \(row.type ?? "?") \(row.syncIdentifier ?? row.id ?? "-") as programmed")
+                debug(.storage, "Kept in-flight \(row.type ?? "?") \(row.syncIdentifier ?? row.id ?? "-") as programmed")
             }
             guard context.hasChanges else { return 0 }
             try context.save()
@@ -297,7 +297,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                 event.isUploadedToNS = false
             }
             if !dose.isMutable {
-                debug(.coreData, "Finalized bolus \(dose.syncIdentifier ?? "-"): \(bolus.amount ?? 0) U")
+                debug(.pump, "Finalized bolus \(dose.syncIdentifier ?? "-"): \(bolus.amount ?? 0) U")
             }
 
         case PumpEventStored.EventType.tempBasal.rawValue:
@@ -321,8 +321,8 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
             }
             if !dose.isMutable {
                 debug(
-                    .coreData,
-                    "Finalized temp basal \(dose.syncIdentifier ?? "-"): \(tempBasal.rate ?? 0) U/hr, \(tempBasal.duration) min"
+                    .pump,
+                    "Finalized temp basal \(dose.syncIdentifier ?? "-"): rate \(tempBasal.rate ?? 0) U/h for \(tempBasal.duration) min"
                 )
             }
 
@@ -362,10 +362,10 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
             do {
                 guard context.hasChanges else { return }
                 try context.save()
-                debug(.coreData, "External insulin saved")
+                debug(.storage, "Saved external insulin \(amount) U")
                 self.updateSubject.send(())
             } catch {
-                debug(.coreData, "Failed to store external insulin in context: \(error)")
+                warning(.storage, "Saving external insulin failed", error: error)
             }
         }
     }

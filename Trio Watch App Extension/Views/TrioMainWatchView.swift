@@ -5,13 +5,14 @@ import WatchKit
 struct TrioMainWatchView: View {
     @State private var state = WatchState.shared
     @State private var untethered = UntetheredWatchManager.shared
-
+    // Pages: glucose, chart, alarm snooze, untethered mode's status page, and while the watch loops, its loop status.
     // Pages: glucose, chart, untethered mode's status page, and while the watch loops, its loop status.
-    private let statusPage = 2
+    private let snoozePage = 2
+    private let statusPage = 3
     /// Untethered mode off on the phone: no status page, but a session still running keeps it.
     private var showsUntethered: Bool { state.untetheredMode || untethered.isActive }
     private var loopPage: Int? { untethered.isActive ? statusPage + 1 : nil }
-    private var lastPage: Int { showsUntethered ? loopPage ?? statusPage : 1 }
+    private var lastPage: Int { showsUntethered ? loopPage ?? statusPage : snoozePage }
 
     // misc
     @State private var currentPage: Int = 0
@@ -106,6 +107,10 @@ struct TrioMainWatchView: View {
                     glucoseValues: state.glucoseValues
                 )
                 .tag(1)
+
+                // Page 3: alarm snooze (nightscout/Trio#1576, t1dude)
+                AlarmSnoozeView(state: state)
+                    .tag(snoozePage)
 
                 if showsUntethered {
                     UntetheredStatusView(manager: untethered).tag(statusPage)
