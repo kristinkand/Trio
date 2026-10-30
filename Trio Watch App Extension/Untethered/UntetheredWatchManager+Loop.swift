@@ -721,12 +721,19 @@ private struct WatchReservoir: ReservoirValue {
 }
 
 extension UntetheredWatchManager: PumpManagerDelegate {
+    /// The session's pump, not the fallback's look at the pod: the look's manager reports here too, for its link
+    /// messages, but its events, status and errors are not the session's.
+    func isSessionPump(_ manager: AnyObject) -> Bool {
+        pumpManager.map { ($0 as AnyObject) === manager } ?? false
+    }
+
     /// As on the phone: the pod's heartbeat keeps the link, the CGM drives the loop.
     func pumpManagerBLEHeartbeatDidFire(_: PumpManager) {}
 
     func pumpManagerMustProvideBLEHeartbeat(_: PumpManager) -> Bool { false }
 
-    func pumpManagerWillDeactivate(_: PumpManager) {
+    func pumpManagerWillDeactivate(_ manager: PumpManager) {
+        guard isSessionPump(manager as AnyObject) else { return }
         setError(String(localized: "The pod was deactivated. Pair a new one on the phone."))
     }
 
@@ -734,17 +741,23 @@ extension UntetheredWatchManager: PumpManagerDelegate {
 
     func pumpManager(_: PumpManager, didUpdatePumpRecordsBasalProfileStartEvents _: Bool) {}
 
-    func pumpManager(_: PumpManager, didError error: PumpManagerError) {
+    func pumpManager(_ manager: PumpManager, didError error: PumpManagerError) {
+        guard isSessionPump(manager as AnyObject) else {
+            Task { await WatchLogger.shared.log("⌚️ Untethered: fallback — the look's pump: \(error.localizedDescription)", force: true) }
+            return
+        }
         setError(error.localizedDescription)
     }
 
     func pumpManager(
-        _: PumpManager,
+        _ manager: PumpManager,
         hasNewPumpEvents events: [NewPumpEvent],
         lastReconciliation _: Date?,
         replacePendingEvents: Bool,
         completion: @escaping (Error?) -> Void
     ) {
+        // the look only reads the pod; its records are the phone's
+        guard isSessionPump(manager as AnyObject) else { return completion(nil) }
         let increment = data.grant?.preferences.bolusIncrement ?? 0.05
         let epoch = data.session.epoch
         let identifiers = events.map { event in
@@ -795,7 +808,7 @@ extension UntetheredWatchManager: PumpManagerDelegate {
     }
 
     func pumpManager(
-        _: PumpManager,
+        _ manager: PumpManager,
         didReadReservoirValue units: Double,
         at date: Date,
         completion: @escaping (Result<
@@ -804,7 +817,7 @@ extension UntetheredWatchManager: PumpManagerDelegate {
         >)
             -> Void
     ) {
-        store.update { $0.reservoir = Decimal(units) }
+        if isSessionPump(manager as AnyObject) { store.update { $0.reservoir = Decimal(units) } }
         completion(.success((
             newValue: WatchReservoir(startDate: date, unitVolume: units),
             lastValue: nil,
@@ -834,7 +847,8 @@ extension UntetheredWatchManager: PumpManagerDelegate {
 
     var automaticDosingEnabled: Bool { data.grant.map { $0.dosingMode.automation != .off } ?? false }
 
-    func pumpManager(_: PumpManager, didUpdate status: PumpManagerStatus, oldStatus _: PumpManagerStatus) {
+    func pumpManager(_ manager: PumpManager, didUpdate status: PumpManagerStatus, oldStatus _: PumpManagerStatus) {
+        guard isSessionPump(manager as AnyObject) else { return }
         updateBolusState(status)
         refresh()
     }
@@ -855,7 +869,9 @@ extension UntetheredWatchManager: PumpManagerDelegate {
                 Task { await WatchLogger.shared.log("⌚️ Device: \(message)") }
             }
         } else {
-            Task { await WatchLogger.shared.log("⌚️ Device: \(message)") }
+            // the fallback's look at the pod: its link messages say why a look didn't reach the pod
+            let look = manager is PumpManager && !isSessionPump(manager as AnyObject)
+            Task { await WatchLogger.shared.log(look ? "⌚️ Device (look): \(message)" : "⌚️ Device: \(message)", force: look) }
         }
         DispatchQueue.main.async { self.noteSensorPairingEvent(message) }
         // ponytail: matched on G7SensorKit's log line, which is the only place it reports a link error;
@@ -878,14 +894,17 @@ extension UntetheredWatchManager: PumpManagerDelegate {
         return words.count == 1 || (words.count == 2 && ["backfill", "control"].contains(words[0]))
     }
 
-    func deviceManagerControlDidBecomeReady(_: DeviceManager) {
-        Task { await WatchLogger.shared.log("⌚️ Untethered: pump link ready") }
+    func deviceManagerControlDidBecomeReady(_ manager: DeviceManager) {
+        let look = manager is PumpManager && !isSessionPump(manager as AnyObject)
+        Task { await WatchLogger.shared.log(look ? "⌚️ Untethered: fallback — the look's pump link ready" : "⌚️ Untethered: pump link ready") }
     }
 
     // MARK: Alerts
 
     /// A scheduled alert (the G7 schedules its session-end warnings days ahead) shows from when it is due.
     func issueAlert(_ alert: LoopKit.Alert) {
+        // the fallback's look reads the pod's alerts too; they are the phone's to show
+        guard pumpManager != nil || !isWitnessingPod else { return }
         let content = alert.foregroundContent ?? alert.backgroundContent
         let delay: TimeInterval?
         switch alert.trigger {

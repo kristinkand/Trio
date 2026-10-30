@@ -1568,9 +1568,9 @@ extension UntetheredWatchManager {
     /// Each look waits this long after the reading, so the phone's loop for the same reading is already done.
     static let fallbackProbeDelay: TimeInterval = 15
     /// How long a look keeps trying to reach the pod, as a takeover does (reads 8 s apart).
-    static let fallbackLookPatience: TimeInterval = 24
+    static let fallbackLookPatience: TimeInterval = 32
     /// The wait, the look and a start fit in it.
-    static let fallbackWitnessHold: TimeInterval = 60
+    static let fallbackWitnessHold: TimeInterval = 70
     /// After a look showed the phone at the pod: the phone sees every look as another controller's session and holds
     /// its dosing up to 3 minutes when the watch can't answer, so the watch doesn't look again for this long unless it
     /// hears from the phone (a phone gone right then is caught up to this much later).
@@ -1702,6 +1702,9 @@ extension UntetheredWatchManager {
                   let type = watchPumpManagers[configuration.managerIdentifier],
                   let made = type.init(adopting: configuration, localState: localState(for: configuration.managerIdentifier))
             else { return .notReached("no copy of the pod to look from") }
+            // its link messages reach the log; its events and status are kept apart (isSessionPump)
+            made.pumpManagerDelegate = self
+            made.delegateQueue = .main
             pump = made
         }
         // the link takes a few seconds: a single read right after taking control failed at once every time
