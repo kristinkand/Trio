@@ -35,7 +35,10 @@ import WatchKit
     @ObservationIgnored var fallbackGrantCopy: (grant: UntetheredGrant, issuedAt: Date)?
     /// The fallback's witness: a pump manager that only looked at the pod, and when. Kept between two looks, so the
     /// second one sees whether another controller (the phone) made a session on the pod in between.
-    @ObservationIgnored var fallbackWitness: (pump: PumpManager & ExclusiveDeviceControl, at: Date)?
+    @ObservationIgnored var fallbackWitness: (pump: PumpManager & ExclusiveDeviceControl, at: Date, issuedAt: Date?)?
+    /// The witness, once its looks found nobody at the pod: the start's takeover goes on with it instead of making a
+    /// second manager, so the watch never has two bidding for the pod.
+    @ObservationIgnored var fallbackTakeoverPump: (pump: PumpManager & ExclusiveDeviceControl, issuedAt: Date?)?
     @ObservationIgnored var isWitnessingPod = false
     /// No looks at the pod until then, while the phone's newest reading stays this one: a look the phone sees as
     /// another controller's session holds its dosing up to 3 minutes if the watch can't answer it.
@@ -613,13 +616,28 @@ import WatchKit
     // MARK: - Taking the pump
 
     private func takeover() {
-        guard let grant = data.grant,
-              let configuration = Self.configuration(data.handover?.pumpConfiguration ?? grant.pumpConfiguration),
-              let type = watchPumpManagers[configuration.managerIdentifier],
-              let pump = type.init(adopting: configuration, localState: localState(for: configuration.managerIdentifier))
-        else {
-            apply(.takeoverFailed(String(localized: "The watch could not set up the pump.")))
-            return
+        // The fallback's looks just read the pod with a manager made from the same copy: the takeover goes on with it.
+        // A second manager beside it never connected (30 October, 14:03 and 14:18), and dropping it first left the
+        // start to a fresh one's search (12:18: 6 s, but not every time).
+        let witness = fallbackTakeoverPump
+        fallbackTakeoverPump = nil
+        let pump: PumpManager & ExclusiveDeviceControl
+        if let witness, data.session.startedWithoutPhone, data.handover == nil,
+           witness.issuedAt != nil, witness.issuedAt == startCopyIssuedAt
+        {
+            pump = witness.pump
+            Task { await WatchLogger.shared.log("⌚️ Untethered: the takeover goes on with the look's pod manager", force: true) }
+        } else {
+            if let witness, !witness.pump.isControlReleased { witness.pump.releaseControl() }
+            guard let grant = data.grant,
+                  let configuration = Self.configuration(data.handover?.pumpConfiguration ?? grant.pumpConfiguration),
+                  let type = watchPumpManagers[configuration.managerIdentifier],
+                  let made = type.init(adopting: configuration, localState: localState(for: configuration.managerIdentifier))
+            else {
+                apply(.takeoverFailed(String(localized: "The watch could not set up the pump.")))
+                return
+            }
+            pump = made
         }
         install(pump)
         // the phone's sessions before the hand-over are expected; only one after the watch has the pod counts
@@ -1631,6 +1649,14 @@ extension UntetheredWatchManager {
             dropFallbackWitness()
             return
         }
+        // this outage's tries are spent, or the watch already had the pod in it: no more looks (each holds the
+        // phone's dosing if it comes back) until the phone sends a newer reading
+        if UserDefaults.standard.object(forKey: Self.fallbackTriedForKey) as? Date == phoneNewest,
+           UserDefaults.standard.integer(forKey: Self.fallbackTriesKey) >= Self.fallbackTries
+        {
+            dropFallbackWitness()
+            return
+        }
         // the pod already showed nobody since this reading of the phone: try the start again (up to its tries)
         if fallbackDecidedFor == phoneNewest {
             dropFallbackWitness()
@@ -1686,10 +1712,11 @@ extension UntetheredWatchManager {
                         force: true
                     )
                 }
-                // The look's manager goes before the start: two managers in this app bidding for the pod, the
-                // takeover's never connected (30 October, 14:03:59 and 14:18:54: the looks reached the pod within a
-                // second, both tries didn't; at 12:18, with the look's manager gone first, the start took 6 s).
-                self.dropFallbackWitness()
+                // Never two managers bidding for the pod: with the look's beside the takeover's, the takeover never
+                // connected (30 October, 14:03:59 and 14:18:54). The look's manager, connected a moment ago, becomes
+                // the takeover's (`takeover`).
+                if let witness = self.fallbackWitness { self.fallbackTakeoverPump = (witness.pump, witness.issuedAt) }
+                self.fallbackWitness = nil
                 self.fallbackDecidedFor = phoneNewest
                 self.startFallback(phoneNewest: phoneNewest, minutes: minutes)
             }
@@ -1711,9 +1738,12 @@ extension UntetheredWatchManager {
         let since = fallbackWitness?.at
         if let since, Date().timeIntervalSince(since) < Self.fallbackWitnessGap { return .tooSoon }
         let pump: PumpManager & ExclusiveDeviceControl
+        // the copy the manager was made from: the takeover goes on with it only if it starts from the same
+        var issuedAt = fallbackWitness?.issuedAt
         if let witness = fallbackWitness {
             pump = witness.pump
         } else {
+            issuedAt = data.standingGrantIssuedAt
             guard let grant = data.standingGrant,
                   let configuration = Self.configuration(grant.pumpConfiguration),
                   let type = watchPumpManagers[configuration.managerIdentifier],
@@ -1746,7 +1776,7 @@ extension UntetheredWatchManager {
         guard read != nil else {
             return .notReached("no answer in \(Int(Date().timeIntervalSince(started))) s")
         }
-        fallbackWitness = (pump, Date())
+        fallbackWitness = (pump, Date(), issuedAt)
         // the handle it found is kept, as a session keeps its own: the next look and a takeover connect directly
         if let local = Self.plist(pump.localState) { store.update { $0.localStates[pump.pluginIdentifier] = local } }
         guard let since else { return .firstLook }
@@ -1784,6 +1814,13 @@ extension UntetheredWatchManager {
 
     /// The start itself, once the pod showed nobody used it between the watch's two looks.
     private func startFallback(phoneNewest: Date, minutes: Int) {
+        // the look's manager, if the start didn't take it (`takeover`): let go of the pod
+        defer {
+            if let unused = fallbackTakeoverPump {
+                fallbackTakeoverPump = nil
+                if !unused.pump.isControlReleased { unused.pump.releaseControl() }
+            }
+        }
         // A few tries per outage, one per reading of the reader at most: the pod may not answer within the seconds
         // a background wake gives (24 October, tester: none in the first, and no second). The next outage needs a
         // newer reading from the phone first.
@@ -1827,6 +1864,10 @@ extension UntetheredWatchManager {
 
     private func fallbackTookOver() {
         fallbackGrantCopy = nil
+        // This outage is done: a session ended later, by hand or otherwise, isn't started again until the phone has
+        // sent a newer reading (before, the next reading started it again at once while the phone stayed away).
+        fallbackDecidedFor = nil
+        UserDefaults.standard.set(Self.fallbackTries, forKey: Self.fallbackTriesKey)
         Task { await WatchLogger.shared.log("⌚️ Untethered: fallback — the watch has the pod", force: true) }
         let minutes = (WatchG7Reader.shared.phoneGlucoseDate).map { Int(Date().timeIntervalSince($0) / 60) }
         let body = minutes.map {
