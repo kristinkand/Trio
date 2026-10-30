@@ -1587,8 +1587,10 @@ extension UntetheredWatchManager {
     static let fallbackWitnessGap: TimeInterval = 4 * 60
     /// Each look waits this long after the reading, so the phone's loop for the same reading is already done.
     static let fallbackProbeDelay: TimeInterval = 15
+    /// How long a look keeps trying to reach the pod, as a takeover does (reads 8 s apart).
+    static let fallbackLookPatience: TimeInterval = 24
     /// The wait, the look and a start fit in it.
-    static let fallbackWitnessHold: TimeInterval = 50
+    static let fallbackWitnessHold: TimeInterval = 60
     /// After a look showed the phone at the pod: the phone sees every look as another controller's session and holds
     /// its dosing up to 3 minutes when the watch can't answer, so the watch doesn't look again for this long unless it
     /// hears from the phone (a phone gone right then is caught up to this much later).
@@ -1662,8 +1664,10 @@ extension UntetheredWatchManager {
             switch await self.lookAtPod() {
             case .tooSoon:
                 return
-            case .notReached:
-                Task { await WatchLogger.shared.log("⌚️ Untethered: fallback — the pod didn't answer the watch's look", force: true) }
+            case let .notReached(reason):
+                Task {
+                    await WatchLogger.shared.log("⌚️ Untethered: fallback — the watch's look didn't reach the pod (\(reason))", force: true)
+                }
             case .firstLook:
                 Task {
                     await WatchLogger.shared.log(
@@ -1697,7 +1701,7 @@ extension UntetheredWatchManager {
 
     enum PodLook: Equatable {
         case tooSoon
-        case notReached
+        case notReached(String)
         case firstLook
         case phoneUsedPod(Date)
         case nobody
@@ -1717,13 +1721,23 @@ extension UntetheredWatchManager {
                   let configuration = Self.configuration(grant.pumpConfiguration),
                   let type = watchPumpManagers[configuration.managerIdentifier],
                   let made = type.init(adopting: configuration, localState: localState(for: configuration.managerIdentifier))
-            else { return .notReached }
+            else { return .notReached("no copy of the pod to look from") }
             pump = made
         }
+        // the link takes a few seconds: a single read right after taking control failed at once every time
+        // (29 October, 20:28 to 20:53 with the phone in a pot: 6 looks, none reached the pod, no start)
         pump.takeControl()
-        let read = await readPump(pump)
+        let started = Date()
+        var read: UntetheredPodStatus?
+        while read == nil {
+            read = await readPump(pump)
+            guard read == nil, Date().timeIntervalSince(started) < Self.fallbackLookPatience else { break }
+            try? await Task.sleep(nanoseconds: Self.takeoverReadInterval)
+        }
         pump.releaseControl()
-        guard read != nil else { return .notReached }
+        guard read != nil else {
+            return .notReached("no answer in \(Int(Date().timeIntervalSince(started))) s")
+        }
         fallbackWitness = (pump, Date())
         guard let since else { return .firstLook }
         if let foreign = pump.lastForeignSessionAt, foreign > since { return .phoneUsedPod(foreign) }
