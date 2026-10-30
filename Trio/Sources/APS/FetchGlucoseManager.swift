@@ -324,6 +324,8 @@ final class BaseFetchGlucoseManager: FetchGlucoseManager, Injectable {
             endBackgroundTaskSafely(&backgroundTaskID, taskName: "Glucose Store and Heartbeat Decision")
             return
         }
+        // before the filters: a reading the watch already sent is left out as stored, but the phone read it too
+        PhoneOwnGlucose.noteReading(at: newGlucose.map(\.dateString).max())
 
         let backfillGlucose = newGlucose.filter { $0.dateString <= syncDate }
         if backfillGlucose.isNotEmpty {
@@ -509,5 +511,21 @@ extension BaseFetchGlucoseManager {
         } catch {
             warning(.cgm, "Glucose smoothing failed", error: error)
         }
+    }
+}
+
+/// The newest reading the phone's own CGM delivered. The phone's watch state also carries the readings it stored
+/// from the watch, so the newest one there may be the watch's own: with the phone's Bluetooth off, its state kept
+/// sending the watch's readings back, and the watch took that for the phone being back (30 October, 16:34 to 16:57).
+enum PhoneOwnGlucose {
+    private static let key = "untethered.phoneOwnGlucoseDate"
+
+    static var newest: Date? {
+        UserDefaults.standard.object(forKey: key) as? Date
+    }
+
+    static func noteReading(at date: Date?) {
+        guard let date, date > (newest ?? .distantPast) else { return }
+        UserDefaults.standard.set(date, forKey: key)
     }
 }

@@ -603,6 +603,10 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WatchMessageKeys.isForecastCone: state.isForecastCone,
             WatchMessageKeys.snoozeUntilDate: state.snoozeUntilDate.timeIntervalSince1970
         ]
+        // the readings above include the watch's own the phone stored; this says when the phone itself last read one
+        if let own = PhoneOwnGlucose.newest {
+            dictionary[WatchMessageKeys.phoneOwnGlucoseDate] = own.timeIntervalSince1970
+        }
 
         var forecastData: [String: Any] = [
             WatchMessageKeys.forecastConeMin: state.forecastConeMin,
