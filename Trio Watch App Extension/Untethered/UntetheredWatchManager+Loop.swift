@@ -1077,13 +1077,24 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         } else if message.contains("expect the system pairing prompt") {
             WKInterfaceDevice.current().play(.notification)
         } else if message.contains("dropped the link after the bond request") {
-            notify(
-                id: Self.pairingID,
-                title: String(localized: "Sensor Pairing Not Finished"),
-                body: String(
-                    localized: "Trio wasn't on the watch screen for the Bluetooth pairing request. Open Trio on the watch and keep it open: it pairs again at the next reading."
+            // Not always the end: the sensor may take the key without the system's Bluetooth pairing, as G7SensorKit
+            // reports a moment later (30 October, 20:58:41: dropped, then "authenticated directly" in the same second,
+            // and the warning stayed, saying Trio wasn't on the screen while it was). Said only if still unpaired.
+            let wasInFront = WKApplication.shared().applicationState == .active
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+                guard let self, self.isActive, self.isPairingSensor else { return }
+                self.notify(
+                    id: Self.pairingID,
+                    title: String(localized: "Sensor Pairing Not Finished"),
+                    body: wasInFront
+                        ? String(
+                            localized: "The sensor didn't finish pairing with the watch. Keep Trio open on the watch: it pairs again at the next reading."
+                        )
+                        : String(
+                            localized: "Trio wasn't on the watch screen for the Bluetooth pairing request. Open Trio on the watch and keep it open: it pairs again at the next reading."
+                        )
                 )
-            )
+            }
         } else if message.hasPrefix("Bonded") || message.contains("Authenticated with the sensor directly") {
             sensorPairingDone()
         }
@@ -1102,7 +1113,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
                 id: Self.pairingID,
                 title: String(localized: "Pair the Sensor"),
                 body: String(
-                    localized: "Open Trio on the watch and keep it open until a glucose value shows, and accept the Bluetooth pairing request."
+                    localized: "Open Trio on the watch and keep it open until a glucose value shows. If a Bluetooth pairing request appears, accept it."
                 )
             )
         }
