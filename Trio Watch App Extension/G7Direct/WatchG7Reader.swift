@@ -446,7 +446,13 @@ import WatchKit
         if let values = payload[WatchMessageKeys.glucoseValues] as? [[String: Any]],
            let newest = values.compactMap({ $0["date"] as? TimeInterval }).max()
         {
-            let date = Date(timeIntervalSince1970: newest)
+            var date = Date(timeIntervalSince1970: newest)
+            // The phone's state also carries the watch's own readings it stored: what counts is when the phone itself
+            // last read one (30 October: its Bluetooth off, it kept sending the watch's readings back, and the watch
+            // took that for the phone being back). A phone build without the key is taken as before.
+            if let own = payload[WatchMessageKeys.phoneOwnGlucoseDate] as? TimeInterval {
+                date = min(date, Date(timeIntervalSince1970: own))
+            }
             phoneGlucoseDate = date
             defaults.set(date, forKey: Key.phoneGlucoseDate)
             session?.notePhoneReading(at: date)
