@@ -87,7 +87,11 @@ import WatchKit
         static let lastAlert = "watchG7.lastAlert."
         static let lastPhoneContact = "watchG7.lastPhoneContact"
         static let phoneGlucoseDate = "watchG7.phoneGlucoseDate"
+        static let liveReadings = "watchG7.liveReadings"
     }
+
+    /// When live readings arrived (not filled in afterwards), for the coverage line.
+    private var liveReadingDates: [Date] = []
 
     private init() {
         let defaults = UserDefaults.standard
@@ -113,6 +117,13 @@ import WatchKit
         }
         // The log survives restarts, so a gap can still be looked at afterwards.
         logLines = defaults.stringArray(forKey: Key.log) ?? []
+        liveReadingDates = (defaults.array(forKey: Key.liveReadings) as? [TimeInterval] ?? []).map(Date.init(timeIntervalSince1970:))
+    }
+
+    private func noteLiveReading(_ date: Date) {
+        let cutoff = Date().addingTimeInterval(-TimeInterval(hours: 2))
+        liveReadingDates = (liveReadingDates + [date]).filter { $0 > cutoff }
+        UserDefaults.standard.set(liveReadingDates.map(\.timeIntervalSince1970), forKey: Key.liveReadings)
     }
 
     // MARK: - Derived values for the views
@@ -165,18 +176,24 @@ import WatchKit
 
     /// The watch's own readings over the last two hours: how many of the
     /// possible ones arrived, and the longest stretch without one.
-    var recentCoverage: (count: Int, expected: Int, longestGapMinutes: Int) {
+    /// Live readings only, and how many were filled in afterwards: filled-in readings counted as arrived made a
+    /// 25-minute gap show as "24/24, longest gap 5 min" (29 October).
+    var recentCoverage: (count: Int, expected: Int, longestGapMinutes: Int, filledIn: Int) {
         let now = Date()
         let window = TimeInterval(hours: 2)
-        let recent = history.filter { now.timeIntervalSince($0.date) <= window }.map(\.date)
+        let start = now.addingTimeInterval(-window)
+        let live = liveReadingDates.filter { $0 > start }.sorted()
         var longest: TimeInterval = 0
-        var previous = now.addingTimeInterval(-window)
-        for date in recent {
+        var previous = start
+        for date in live {
             longest = max(longest, date.timeIntervalSince(previous))
             previous = date
         }
         longest = max(longest, now.timeIntervalSince(previous))
-        return (recent.count, Int(window / 300), Int(longest / 60))
+        let filledIn = history.filter { reading in
+            reading.date > start && !live.contains { abs($0.timeIntervalSince(reading.date)) < 60 }
+        }.count
+        return (live.count, Int(window / 300), Int(longest / 60), filledIn)
     }
 
     /// One line saying what the watch is doing, for the sensor page.
@@ -826,6 +843,7 @@ import WatchKit
                 trendRate: message.trend
             )
             self.merge([reading])
+            self.noteLiveReading(reading.date)
             ComplicationStore.add(reading)
             self.bookNoReadingsAlert()
             self.appendLog("Reading \(self.format(Double(reading.glucose))) \(self.units) \(self.arrow(for: reading.trendName))")
@@ -873,6 +891,7 @@ import WatchKit
     /// handed to the daemon as a start delay only when the app leaves the screen during it (idea from xDrip4iOS
     /// 7.2.0, see G7WatchAcquisition).
     func appBecameActive() {
+        clearPairingAsk(bonded: false)
         session?.appBecameActive()
     }
 
@@ -905,12 +924,54 @@ import WatchKit
             keepInFrontForPairing()
         } else if line.contains("expect the system pairing prompt") {
             WKInterfaceDevice.current().play(.notification)
+            if WKApplication.shared().applicationState != .active { askToOpenForPairing() }
         } else if line.hasPrefix("Bonded") || line.hasPrefix("Already authenticated and bonded") || line.hasPrefix("Reading ") {
+            clearPairingAsk()
             guard let keepAlive = pairingKeepAlive else { return }
             pairingKeepAlive = nil
             keepAlive.stop()
             appendLog("Paired: Trio no longer held in front")
         }
+    }
+
+    private static let pairingNotificationID = notificationIdentifierPrefix + "openForPairing"
+    /// The ask again after 2 and 5 minutes, unless Trio came to the front or the sensor bonded meanwhile.
+    private static let pairingReminderDelays: [TimeInterval] = [2 * 60, 5 * 60]
+    @ObservationIgnored private var lastPairingAsk: Date?
+
+    /// The system's Bluetooth pairing request only shows with Trio in front. In the background a new sensor's
+    /// pairing went round in circles for an hour (29 October: paired at 15:38, 15:48, 16:13, 16:23 and refused each
+    /// time at the next reading) until Trio was opened at 16:33 and the bond went through at once. It asks for
+    /// action, so it is felt twice and asked again; a single tap read like news.
+    private func askToOpenForPairing() {
+        guard (lastPairingAsk ?? .distantPast).addingTimeInterval(20 * 60) < Date() else { return }
+        lastPairingAsk = Date()
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Open Trio to Pair the Sensor")
+        content.body = String(
+            localized: "The watch needs Trio on the screen to finish pairing the new sensor. Open Trio on the watch and keep it in front until the first reading shows."
+        )
+        content.sound = .default
+        let center = UNUserNotificationCenter.current()
+        center.add(UNNotificationRequest(identifier: Self.pairingNotificationID, content: content, trigger: nil))
+        for (index, delay) in Self.pairingReminderDelays.enumerated() {
+            center.add(UNNotificationRequest(
+                identifier: Self.pairingNotificationID + ".again\(index + 1)",
+                content: content,
+                trigger: UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+            ))
+        }
+        WKInterfaceDevice.current().play(.notification)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { WKInterfaceDevice.current().play(.notification) }
+        appendLog("Pairing: asked to open Trio on the watch")
+    }
+
+    /// Trio in front, or the sensor bonded: the ask isn't repeated, and a bonded sensor's goes.
+    private func clearPairingAsk(bonded: Bool = true) {
+        let reminders = Self.pairingReminderDelays.indices.map { Self.pairingNotificationID + ".again\($0 + 1)" }
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: reminders)
+        if bonded { center.removeDeliveredNotifications(withIdentifiers: [Self.pairingNotificationID] + reminders) }
     }
 
     private func keepInFrontForPairing() {
