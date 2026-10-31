@@ -685,6 +685,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         switch message {
         case .adjustmentCancelled,
              .dosingModeChanged,
+             .remoteAdjustment,
              .remoteTreatment,
              .revoke,
              .statusQuery:
@@ -746,12 +747,28 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         _ treatment: UntetheredRemoteTreatment,
         late: @escaping (RemoteTreatmentAnswer) -> Void
     ) async -> RemoteTreatmentAnswer {
+        await forwardRemote(.remoteTreatment(treatment), id: treatment.id, summary: treatment.summary, late: late)
+    }
+
+    /// The same for a remote override or temp target.
+    @MainActor func forwardRemoteAdjustment(
+        _ adjustment: UntetheredRemoteAdjustment,
+        late: @escaping (RemoteTreatmentAnswer) -> Void
+    ) async -> RemoteTreatmentAnswer {
+        await forwardRemote(.remoteAdjustment(adjustment), id: adjustment.id, summary: adjustment.summary, late: late)
+    }
+
+    @MainActor private func forwardRemote(
+        _ message: UntetheredMessage,
+        id: UUID,
+        summary: String,
+        late: @escaping (RemoteTreatmentAnswer) -> Void
+    ) async -> RemoteTreatmentAnswer {
         guard state.session.phase == .active else {
             return .refused(String(localized: "Command rejected: the pump is changing hands between the iPhone and the Apple Watch. Try again in a few minutes."))
         }
-        let id = treatment.id
         let epoch = state.session.epoch
-        info(.remote, "Untethered: passing a remote command to the watch: \(treatment.summary)")
+        info(.remote, "Untethered: passing a remote command to the watch: \(summary)")
         remoteTreatmentLate[id] = late
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(Self.remoteTreatmentWait * 1_000_000_000))
@@ -762,7 +779,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         return await withCheckedContinuation { continuation in
             remoteTreatmentWaits[id] = continuation
-            send(.remoteTreatment(treatment), epoch: epoch)
+            send(message, epoch: epoch)
         }
     }
 

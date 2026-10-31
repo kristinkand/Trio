@@ -45,8 +45,48 @@ enum UntetheredMessage: Codable, Equatable {
     /// A remote bolus or meal (LoopFollow, Nightscout) that reached the phone while the watch has the pump: the watch
     /// checks it as the phone checks one, with its own IOB and history, and delivers it.
     case remoteTreatment(UntetheredRemoteTreatment)
-    /// The watch's answer, which the phone passes back to the sender.
+    /// The watch's answer, which the phone passes back to the sender (treatments and adjustments alike).
     case remoteTreatmentResult(id: UUID, delivered: Bool, message: String)
+    /// A remote override or temp target (start or cancel) while the watch has the pump.
+    case remoteAdjustment(UntetheredRemoteAdjustment)
+}
+
+/// A remote override or temp target, started or cancelled from LoopFollow or Nightscout while the watch has the pump:
+/// it applies them to its own loop, and the phone takes them over with the watch's history.
+struct UntetheredRemoteAdjustment: Codable, Equatable {
+    enum Action: Codable, Equatable {
+        /// By preset name, as the phone's remote control starts one.
+        case startOverride(name: String)
+        case cancelOverride
+        /// A custom target in mg/dL for its minutes, as the phone's remote control sets one.
+        case startTempTarget(targetMgdl: Decimal, minutes: Decimal)
+        case cancelTempTarget
+    }
+
+    let id: UUID
+    let sentAt: Date
+    let action: Action
+
+    var summary: String {
+        switch action {
+        case let .startOverride(name): return "start override \(name)"
+        case .cancelOverride: return "cancel override"
+        case let .startTempTarget(target, minutes): return "temp target \(target) mg/dL for \(minutes) min"
+        case .cancelTempTarget: return "cancel temp target"
+        }
+    }
+
+    /// The same for the phone's copy and the one sent straight to the watch (`UntetheredRemoteTreatment.id`).
+    static func id(sentAt: TimeInterval, commandType: String, overrideName: String?, target: Int?, duration: Int?) -> UUID {
+        UntetheredRemoteTreatment.id(
+            sentAt: sentAt,
+            commandType: commandType + "|" + (overrideName ?? ""),
+            bolus: nil,
+            carbs: target,
+            fat: duration,
+            protein: nil
+        )
+    }
 }
 
 /// A remote bolus or meal on its way to the watch. Sent interactively and queued as well: the watch acts on the
