@@ -21,7 +21,8 @@ protocol NightscoutManager: GlucoseSource {
     @discardableResult func uploadNoteTreatment(note: String) async -> Bool
     func uploadWeekendProfileEvent(_ event: NightscoutExercise, replacingPrevious: Bool) async
     /// The time the Apple Watch looped, as a note with its duration.
-    @discardableResult func uploadUntetheredSession(from start: Date, to end: Date) async -> Bool
+    /// - Parameter end: nil while the watch still has the pump; uploaded again with it at the end, which replaces it
+    @discardableResult func uploadUntetheredSession(from start: Date, to end: Date?) async -> Bool
     func importSettings() async -> ScheduledNightscoutProfile?
     var cgmURL: URL? { get }
     /// Past loops, each as its own device status at its own time, so Nightscout's history shows their forecasts.
@@ -1420,12 +1421,13 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
         }
     }
 
-    /// A note rather than an override's "Exercise": Nightscout shows it as a band for its duration, and nothing reads it
-    /// as a running override.
-    @discardableResult func uploadUntetheredSession(from start: Date, to end: Date) async -> Bool {
+    /// Its own event type rather than an override's "Exercise": nothing reads it as a running override, and followers
+    /// (LoopFollow) show it as a band of its own, running while there is no duration yet. Nightscout keeps one treatment
+    /// per time and type, so the end's upload replaces the start's.
+    @discardableResult func uploadUntetheredSession(from start: Date, to end: Date?) async -> Bool {
         let note = NightscoutTreatment(
-            duration: max(1, Int((end.timeIntervalSince(start) / 60).rounded())),
-            eventType: .nsNote,
+            duration: end.map { max(1, Int(($0.timeIntervalSince(start) / 60).rounded())) },
+            eventType: .nsUntethered,
             createdAt: start,
             enteredBy: NightscoutTreatment.local,
             notes: String(localized: "Untethered on Apple Watch"),
