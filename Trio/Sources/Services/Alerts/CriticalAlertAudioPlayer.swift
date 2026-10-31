@@ -109,7 +109,7 @@ final class CriticalAlertAudioPlayer {
     private func handleVolumeButtonPress() {
         guard !hasTriggeredVolumeSnooze else { return }
         hasTriggeredVolumeSnooze = true
-        os_log("Volume button pressed during critical alarm playback — triggering snooze", log: log, type: .info)
+        info(.alerts, "Volume button pressed during critical alarm, snoozing")
         onVolumeButtonPressed?()
     }
 
