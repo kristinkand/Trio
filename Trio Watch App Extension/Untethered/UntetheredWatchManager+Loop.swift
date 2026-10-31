@@ -209,7 +209,8 @@ extension UntetheredWatchManager {
             pumpHistory: data.pumpHistory,
             carbs: data.carbs,
             since: data.session.startStatus?.date ?? now.addingTimeInterval(-6 * 60 * 60),
-            now: now
+            now: now,
+            sessionStart: data.session.startStatus?.date
         )
         let outcome = await WatchNightscoutUploader.shared.upload(glucose: data.glucose, status: status, treatments: treatments)
         if outcome.statusUploaded, let deliverAt = loop?.determination.deliverAt {
