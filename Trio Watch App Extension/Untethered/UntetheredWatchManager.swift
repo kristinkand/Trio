@@ -1816,7 +1816,8 @@ extension UntetheredWatchManager {
             title: String(localized: "Watch Doesn't Know the New Pod Yet"),
             body: String(
                 localized: "To take over by itself, the watch has to have used this pod once. Start untethered mode on the watch by hand, with Trio open and the iPhone nearby; a minute is enough, then end it."
-            )
+            ),
+            asksForAction: true
         )
     }
 
