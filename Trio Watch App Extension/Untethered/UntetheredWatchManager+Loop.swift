@@ -564,6 +564,73 @@ extension UntetheredWatchManager {
         }
     }
 
+    /// A remote override or temp target, started or cancelled on the watch's own loop; the phone takes it over with the
+    /// watch's history. Answered as a treatment is: to the phone, or to the sender with `reply`.
+    func handleRemoteAdjustment(
+        _ adjustment: UntetheredRemoteAdjustment,
+        epoch: Int,
+        reply: (((delivered: Bool, message: String)?) -> Void)? = nil
+    ) {
+        guard Self.claimRemoteTreatment(adjustment.id) else {
+            if let reply {
+                reply(nil)
+            } else {
+                send(.remoteTreatmentResult(id: adjustment.id, delivered: true, message: ""), epoch: epoch, queueing: true)
+            }
+            return
+        }
+        let age = Date().timeIntervalSince(adjustment.sentAt)
+        let via = reply == nil ? "through the iPhone" : "straight to the watch"
+        func log(_ line: String) {
+            Task { await WatchLogger.shared.log("⌚️ Untethered remote command (\(via)): \(line)", force: true) }
+        }
+        log("\(adjustment.summary), sent \(Int(age)) s ago")
+        func answer(_ done: Bool, _ message: String) {
+            log(done ? "done: \(message)" : "refused: \(message)")
+            notify(
+                id: Self.notificationPrefix + "remote",
+                title: done ? String(localized: "Remote Command") : String(localized: "Remote Command Refused"),
+                body: message
+            )
+            if let reply {
+                reply((done, message))
+            } else {
+                send(.remoteTreatmentResult(id: adjustment.id, delivered: done, message: message), epoch: epoch, queueing: true)
+            }
+        }
+        guard data.session.phase == .active, epoch == data.session.epoch, !isFinalizing, let grant = data.grant else {
+            return answer(false, String(localized: "Command rejected: the Apple Watch doesn't have the pump right now."))
+        }
+        guard age <= UntetheredRemoteTreatment.window else {
+            return answer(false, String(localized: "Command rejected: the message is too old (sent \(Int(age)) seconds ago)."))
+        }
+        guard age >= -UntetheredRemoteTreatment.window else {
+            return answer(false, String(localized: "Command rejected: the message has an invalid future timestamp."))
+        }
+        switch adjustment.action {
+        case let .startOverride(name):
+            // as the phone's `AdjustmentManager`: by preset name only
+            guard grant.overridePresets.contains(where: { $0.name == name }) else {
+                return answer(false, String(localized: "Command rejected: Preset \"\(name)\" not found."))
+            }
+            activateOverride(named: name)
+            answer(true, String(localized: "Override started on the Apple Watch"))
+        case .cancelOverride:
+            // nothing running is the state asked for, as on the phone
+            endOverride()
+            answer(true, String(localized: "Override canceled on the Apple Watch"))
+        case let .startTempTarget(target, minutes):
+            guard target > 0, minutes > 0 else {
+                return answer(false, String(localized: "Command rejected: temp target data is incomplete or invalid."))
+            }
+            activateTempTarget(targetMgdl: target, minutes: minutes, halfBasalTarget: grant.preferences.halfBasalExerciseTarget)
+            answer(true, String(localized: "Temp target set on the Apple Watch"))
+        case .cancelTempTarget:
+            endTempTarget()
+            answer(true, String(localized: "Temp target canceled on the Apple Watch"))
+        }
+    }
+
     /// `BolusSafetyEvaluator`'s rules (phone only) with the watch's numbers.
     private func remoteBolusRejection(_ units: Decimal, since sentAt: Date, grant: UntetheredGrant) -> String? {
         if units > grant.maxBolus {
@@ -788,6 +855,25 @@ extension UntetheredWatchManager {
             id: preset.id, name: preset.name, createdAt: now, targetTop: preset.targetTop, targetBottom: preset.targetBottom,
             duration: preset.duration, enteredBy: TempTarget.local, reason: TempTarget.custom, isPreset: true,
             enabled: true, halfBasalTarget: preset.halfBasalTarget
+        )
+        let key = UntetheredRecord.tempTargetKey(now)
+        store.update {
+            $0.tempTargets.append(tempTarget)
+            $0.activeTempTargetKey = key
+        }
+        store.record(UntetheredRecord(key: key, date: now, kind: .tempTarget(tempTarget)), epoch: data.session.epoch)
+        refresh()
+        runLoop(.treatment)
+    }
+
+    /// A custom temp target, as the phone's remote control sets one (`handleTempTargetCommand`).
+    func activateTempTarget(targetMgdl target: Decimal, minutes: Decimal, halfBasalTarget: Decimal) {
+        endTempTarget()
+        let now = Date()
+        let tempTarget = TempTarget(
+            name: TempTarget.custom, createdAt: now, targetTop: target, targetBottom: target, duration: minutes,
+            enteredBy: TempTarget.local, reason: TempTarget.custom, isPreset: false, enabled: true,
+            halfBasalTarget: halfBasalTarget
         )
         let key = UntetheredRecord.tempTargetKey(now)
         store.update {

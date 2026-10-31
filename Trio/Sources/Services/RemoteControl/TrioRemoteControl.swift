@@ -75,9 +75,14 @@ class TrioRemoteControl: Injectable {
             case .bolus,
                  .meal:
                 await forwardToWatch(commandPayload)
+            case .startOverride,
+                 .cancelOverride,
+                 .tempTarget,
+                 .cancelTempTarget:
+                await forwardAdjustmentToWatch(commandPayload)
             default:
                 await logError(
-                    "Command rejected: the Apple Watch is running the loop (untethered). Only boluses and meals reach it.",
+                    "Command rejected: the Apple Watch is running the loop (untethered). Boluses, meals, overrides and temp targets reach it; this command doesn't.",
                     payload: commandPayload
                 )
             }
@@ -183,6 +188,49 @@ extension TrioRemoteControl {
         await reportWatchAnswer(answer, payload: payload, late: false)
     }
 
+    /// An override or temp target while the watch has the pump: started or cancelled on the watch's own loop, which the
+    /// phone takes over with the watch's history when it has the pump back.
+    func forwardAdjustmentToWatch(_ payload: CommandPayload) async {
+        let action: UntetheredRemoteAdjustment.Action
+        switch payload.commandType {
+        case .startOverride:
+            guard let name = payload.overrideName, !name.isEmpty else {
+                await logError("Command rejected: override name is missing.", payload: payload)
+                return
+            }
+            action = .startOverride(name: name)
+        case .tempTarget:
+            guard let target = payload.target, let duration = payload.duration else {
+                await logError("Command rejected: temp target data is incomplete or invalid.", payload: payload)
+                return
+            }
+            action = .startTempTarget(targetMgdl: Decimal(target), minutes: Decimal(duration))
+        case .cancelOverride:
+            action = .cancelOverride
+        default:
+            action = .cancelTempTarget
+        }
+        guard let manager = TrioApp.resolver.resolve(UntetheredPhoneManager.self) else {
+            await logError("Command rejected: the Apple Watch is running the loop and can't be reached.", payload: payload)
+            return
+        }
+        let adjustment = UntetheredRemoteAdjustment(
+            id: UntetheredRemoteAdjustment.id(
+                sentAt: payload.timestamp,
+                commandType: payload.commandType.rawValue,
+                overrideName: payload.overrideName,
+                target: payload.target,
+                duration: payload.duration
+            ),
+            sentAt: Date(timeIntervalSince1970: payload.timestamp),
+            action: action
+        )
+        let answer = await manager.forwardRemoteAdjustment(adjustment) { [weak self] late in
+            Task { await self?.reportWatchAnswer(late, payload: payload, late: true) }
+        }
+        await reportWatchAnswer(answer, payload: payload, late: false)
+    }
+
     private func reportWatchAnswer(
         _ answer: UntetheredPhoneManager.RemoteTreatmentAnswer,
         payload: CommandPayload,
@@ -203,7 +251,7 @@ extension TrioRemoteControl {
         case .noAnswer:
             // not a failure: the watch may still get it, and acts on it until the command is 10 minutes old
             await logError(
-                "No answer from the Apple Watch yet. It may still deliver this within 10 minutes of sending: check IOB before sending again.",
+                "No answer from the Apple Watch yet. It may still carry this out within 10 minutes of sending: check before sending again.",
                 payload: payload
             )
         }
