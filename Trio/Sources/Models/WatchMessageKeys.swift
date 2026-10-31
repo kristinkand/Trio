@@ -64,6 +64,12 @@ enum WatchMessageKeys {
     static let snoozeUntilDate = "snoozeUntilDate"
     /// The newest reading the phone's own CGM delivered; the glucose values may also hold the watch's own.
     static let phoneOwnGlucoseDate = "phoneOwnGlucoseDate"
+    /// The watch app's push token, from the watch: the phone uploads it with its own so a remote command can also go
+    /// straight to the watch while it has the pump.
+    static let watchPushToken = "watchPushToken"
+    /// Remote control's shared secret, for the watch to open those commands; empty when remote control or untethered
+    /// mode is off, and the watch forgets it.
+    static let remoteControlSecret = "remoteControlSecret"
 
     // Devices page: pump and CGM lifetime (from EJM0/Trio's PeripheralsView, Elias Maurer)
     /// Sub-dictionary wrapping every device field, mirroring `forecastData`.
