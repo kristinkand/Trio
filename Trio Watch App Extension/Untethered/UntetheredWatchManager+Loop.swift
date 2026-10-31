@@ -1286,6 +1286,22 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         watchCGMAppBecameActive(cgmManager)
         if isPairingSensor { keepTrioInFrontForPairing() }
         updateWorkoutKeepAlive()
+        guard isActive else { return }
+        let state = WKApplication.shared().applicationState
+        Task { await WatchLogger.shared.log("⌚️ Untethered: Trio in front (state \(state.rawValue))", force: true) }
+        // Opened from a notification, Trio may not count as in front yet when this runs, and the workout start is
+        // skipped (31 October, 11:09: "Watch Took Over" tapped, no workout). Asked again once it has settled.
+        for delay in [1.0, 3.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, self.isActive, WatchState.shared.untetheredWorkout, !self.isKeptAwake else { return }
+                self.updateWorkoutKeepAlive()
+                guard delay == 3.0, self.workoutKeepAlive == nil else { return }
+                let state = WKApplication.shared().applicationState
+                let line = "⌚️ Untethered: workout not started 3 s after Trio came to the front (state \(state.rawValue), "
+                    + "ended by user \(self.workoutEndedByUser), earlier start failed \(self.workoutStartFailed))"
+                Task { await WatchLogger.shared.log(line, force: true) }
+            }
+        }
     }
 
     /// How long a workout start may go unanswered before Trio in front asks again.

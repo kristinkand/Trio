@@ -24,6 +24,39 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
         _ = UntetheredWatchManager.shared
         WatchG7Reader.shared.bootstrap()
         WatchG7Reader.shared.scheduleBackgroundRefresh()
+        // Test for remote commands sent straight to the watch while the phone is away: whether a push reaches
+        // the watch app and wakes it. Only registers and logs; nothing acts on a push yet.
+        WKApplication.shared().registerForRemoteNotifications()
+    }
+
+    // MARK: - Push test
+
+    private static let pushTokenKey = "PushTest.token"
+
+    func didRegisterForRemoteNotifications(withDeviceToken deviceToken: Data) {
+        let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        // logged at every launch's registration, so a log always carries the current one
+        UserDefaults.standard.set(token, forKey: Self.pushTokenKey)
+        Task { await WatchLogger.shared.log("⌚️ Push test: watch push token \(token)", force: true) }
+    }
+
+    func didFailToRegisterForRemoteNotificationsWithError(_ error: Error) {
+        Task { await WatchLogger.shared.log("⌚️ Push test: registering failed: \(error.localizedDescription)", force: true) }
+    }
+
+    func didReceiveRemoteNotification(
+        _ userInfo: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler: @escaping (WKBackgroundFetchResult) -> Void
+    ) {
+        let state = WKApplication.shared().applicationState
+        // the test push carries the Mac's send time, so the log shows how long it took
+        let sent = (userInfo["sentAt"] as? Double).map { Date(timeIntervalSince1970: $0) }
+        let delay = sent.map { " \(Int(Date().timeIntervalSince($0))) s after sending" } ?? ""
+        let phone = WCSession.default.isReachable ? "phone in reach" : "phone not in reach"
+        Task {
+            await WatchLogger.shared.log("⌚️ Push test: push received\(delay), app state \(state.rawValue), \(phone)", force: true)
+            completionHandler(.newData)
+        }
     }
 
     func applicationDidBecomeActive() {
