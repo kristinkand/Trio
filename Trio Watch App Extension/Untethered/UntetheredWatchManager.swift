@@ -1596,10 +1596,12 @@ extension UntetheredWatchManager {
     static let fallbackLookPatience: TimeInterval = 32
     /// The wait, the look and a start fit in it.
     static let fallbackWitnessHold: TimeInterval = 70
-    /// After a look showed the phone at the pod: the phone sees every look as another controller's session and holds
-    /// its dosing up to 3 minutes when the watch can't answer, so the watch doesn't look again for this long unless it
-    /// hears from the phone (a phone gone right then is caught up to this much later).
-    static let fallbackLookPause: TimeInterval = 20 * 60
+    /// After a look found the phone at the pod, no look until the second reading after: about 10 minutes, measured from
+    /// the look, so the reading 10 minutes on gets one. A look the phone sees as another controller's session holds its
+    /// next loop until the watch answered (seconds when it can, up to 3 minutes when not). 20 minutes made a phone
+    /// left behind a few minutes after a look wait 34 minutes for the watch (31 October: looked at 08:48 with the phone
+    /// still looping, airplane mode at 08:54, the pause from 08:58 kept the 09:18 reading from a look).
+    static let fallbackLookPause: TimeInterval = 9 * 60
     static let fallbackHandbackGrace: TimeInterval = 60
     static let fallbackHandbackRepeat: TimeInterval = 5 * 60
     private static let fallbackEpochKey = "untethered.fallbackEpoch"
@@ -1699,8 +1701,8 @@ extension UntetheredWatchManager {
                 self.fallbackLooksPaused = (phoneNewest, Date().addingTimeInterval(Self.fallbackLookPause))
                 Task {
                     await WatchLogger.shared.log(
-                        "⌚️ Untethered: fallback — the phone used the pod at \(Self.timeText(at)): it loops, no start; " +
-                            "no look for \(Int(Self.fallbackLookPause / 60)) min unless the phone is heard",
+                        "⌚️ Untethered: fallback — the phone has used the pod since the first look (seen at \(Self.timeText(at))): " +
+                            "it loops, no start; next look in about 10 min unless the phone is heard",
                         force: true
                     )
                 }
