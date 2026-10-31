@@ -64,6 +64,9 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var sweetMeals: Bool = false
     var sweetMealFactor: Decimal = 1
     var displayPresets: Bool = true
+    var showMealTime: Bool = true
+    var showMealNote: Bool = true
+    var showExternalInsulin: Bool = true
     var confirmBolus: Bool = false
     var enableQuickPickTreatments: Bool = false
     var useLiveActivity: Bool = false
@@ -346,6 +349,18 @@ extension TrioSettings: Decodable {
 
         if let displayPresets = try? container.decode(Bool.self, forKey: .displayPresets) {
             settings.displayPresets = displayPresets
+        }
+
+        if let showMealTime = try? container.decode(Bool.self, forKey: .showMealTime) {
+            settings.showMealTime = showMealTime
+        }
+
+        if let showMealNote = try? container.decode(Bool.self, forKey: .showMealNote) {
+            settings.showMealNote = showMealNote
+        }
+
+        if let showExternalInsulin = try? container.decode(Bool.self, forKey: .showExternalInsulin) {
+            settings.showExternalInsulin = showExternalInsulin
         }
 
         if let confirmBolus = try? container.decode(Bool.self, forKey: .confirmBolus) {
