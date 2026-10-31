@@ -1796,7 +1796,8 @@ extension UntetheredWatchManager {
             title: String(localized: "Watch Doesn't Know the New Pod Yet"),
             body: String(
                 localized: "To take over by itself, the watch has to have used this pod once. Start untethered mode on the watch by hand, with Trio open and the iPhone nearby; a minute is enough, then end it."
-            )
+            ),
+            asksForAction: true
         )
     }
 
@@ -1877,10 +1878,14 @@ extension UntetheredWatchManager {
         } ?? String(localized: "The watch runs the pump until the iPhone is back, then hands it back by itself.")
         // watchOS starts Extended Untethered Mode's workout only with Trio in front
         let opensForWorkout = WatchState.shared.untetheredWorkout && WKApplication.shared().applicationState != .active
+        // with the workout to start the user has something to do: said in the title, felt and asked again
         notify(
             id: Self.notificationPrefix + "fallback",
-            title: String(localized: "Watch Took Over"),
-            body: opensForWorkout ? body + " " + String(localized: "Open Trio to start the workout that keeps it awake.") : body
+            title: opensForWorkout ? String(localized: "Watch Took Over: Open Trio") : String(localized: "Watch Took Over"),
+            body: opensForWorkout
+                ? body + " " + String(localized: "Open Trio on the watch once, so it starts the workout that keeps it awake.")
+                : body,
+            asksForAction: opensForWorkout
         )
     }
 
@@ -1908,7 +1913,8 @@ extension UntetheredWatchManager {
             title: String(localized: "Watch Couldn't Take Over"),
             body: String(
                 localized: "The watch couldn't reach the pod, and nothing is looping: the pod finishes the iPhone's last temp basal, then runs its scheduled basal. Bring the iPhone back, or open Trio on the watch near the pod and tap Start Without Phone."
-            )
+            ),
+            asksForAction: true
         )
     }
 

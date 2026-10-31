@@ -1092,7 +1092,8 @@ extension UntetheredWatchManager: CGMManagerDelegate {
                         )
                         : String(
                             localized: "Trio wasn't on the watch screen for the Bluetooth pairing request. Open Trio on the watch and keep it open: it pairs again at the next reading."
-                        )
+                        ),
+                    asksForAction: true
                 )
             }
         } else if message.hasPrefix("Bonded") || message.contains("Authenticated with the sensor directly") {
@@ -1114,7 +1115,8 @@ extension UntetheredWatchManager: CGMManagerDelegate {
                 title: String(localized: "Pair the Sensor"),
                 body: String(
                     localized: "Open Trio on the watch and keep it open until a glucose value shows. If a Bluetooth pairing request appears, accept it."
-                )
+                ),
+                asksForAction: true
             )
         }
     }
@@ -1126,12 +1128,14 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         pairingKeepAlive = nil
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [Self.pairingID])
+        ActionNotice.clearReminders()
         center.removeDeliveredNotifications(withIdentifiers: [Self.pairingID])
         Task { await WatchLogger.shared.log("⌚️ Untethered: sensor paired", force: true) }
     }
 
     /// Trio came to the front: a pairing that is due keeps it there.
     func appBecameActive() {
+        ActionNotice.clearReminders()
         watchCGMAppBecameActive(cgmManager)
         if isPairingSensor { keepTrioInFrontForPairing() }
         updateWorkoutKeepAlive()
@@ -1595,7 +1599,9 @@ extension UntetheredWatchManager {
         notificationPrefix + "urgentLow", notLoopingID, noReadingsID, podLinkID
     ]
 
-    func notify(id: String, title: String, body: String, after delay: TimeInterval? = nil) {
+    /// - Parameter asksForAction: the user has to do something (open Trio, pair the sensor): felt at once and asked
+    ///   again (`ActionNotice`)
+    func notify(id: String, title: String, body: String, after delay: TimeInterval? = nil, asksForAction: Bool = false) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -1611,6 +1617,7 @@ extension UntetheredWatchManager {
                 await WatchLogger.shared.log("⌚️ Untethered: notification \(id) failed: \(error.localizedDescription)", force: true)
             }
         }
+        if asksForAction, delay == nil { ActionNotice.ask(id: id, content: content) }
     }
 
     /// What the pump delivers now, for the status page: the running temp, else the scheduled rate. A loop that keeps
@@ -1953,4 +1960,40 @@ final class UntetheredWorkoutKeepAlive: NSObject, HKWorkoutSessionDelegate, HKLi
     }
 
     func workoutBuilderDidCollectEvent(_: HKLiveWorkoutBuilder) {}
+}
+
+/// Notifications that ask the user to do something (open Trio, pair the sensor, start a session by hand). A plain
+/// notification taps the wrist once and reads like news (31 October: "Watch Took Over" wasn't taken as "open Trio").
+/// These are felt twice at once while Trio runs, and asked again after 2 and 5 minutes unless Trio comes to the front
+/// meanwhile (`clearReminders`).
+enum ActionNotice {
+    static let reminderDelays: [TimeInterval] = [2 * 60, 5 * 60]
+    private static let reminderMark = ".again"
+
+    static func ask(id: String, content: UNNotificationContent) {
+        let center = UNUserNotificationCenter.current()
+        for (index, delay) in reminderDelays.enumerated() {
+            center.add(UNNotificationRequest(
+                identifier: id + reminderMark + "\(index + 1)",
+                content: content,
+                trigger: UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)
+            ))
+        }
+        DispatchQueue.main.async {
+            // the notification's own tap may wait for the screen; these come while Trio still runs
+            WKInterfaceDevice.current().play(.notification)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { WKInterfaceDevice.current().play(.notification) }
+        }
+        Task { await WatchLogger.shared.log("⌚️ Notice asking for action: \(content.title)", force: true) }
+    }
+
+    /// Trio came to the front: what the notices asked for can be done now, so they aren't asked again.
+    static func clearReminders() {
+        let center = UNUserNotificationCenter.current()
+        center.getPendingNotificationRequests { requests in
+            let ids = requests.map(\.identifier).filter { $0.contains(reminderMark) }
+            guard !ids.isEmpty else { return }
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+        }
+    }
 }

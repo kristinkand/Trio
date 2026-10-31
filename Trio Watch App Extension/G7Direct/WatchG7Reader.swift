@@ -299,6 +299,7 @@ import WatchKit
     /// The app's scene phase, for the acquisition's wait past the sensor's tail: held in the app while in front,
     /// handed to the daemon as a start delay behind (idea from xDrip4iOS 7.2.0, see G7WatchAcquisition).
     func appBecameActive() {
+        ActionNotice.clearReminders()
         session?.appBecameActive()
     }
 
@@ -1019,6 +1020,7 @@ import WatchKit
             content: content,
             trigger: nil
         ))
+        ActionNotice.ask(id: Self.pairingNotificationID, content: content)
         appendLog("Pairing: asked to open Trio on the watch")
     }
 
