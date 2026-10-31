@@ -454,22 +454,169 @@ extension UntetheredWatchManager {
 // MARK: - Treatments on the wrist
 
 extension UntetheredWatchManager {
-    func bolus(_ units: Decimal, completion: @escaping (Bool, String) -> Void) {
+    /// Where a bolus was asked for, for the log and the notification.
+    enum BolusSource: String {
+        case watch
+        case remote
+    }
+
+    func bolus(_ units: Decimal, source: BolusSource = .watch, completion: @escaping (Bool, String) -> Void) {
+        func log(_ line: String) {
+            Task { await WatchLogger.shared.log("⌚️ Untethered bolus (\(source.rawValue)): \(line)", force: true) }
+        }
+        log("\(units) U requested")
         guard !isFinalizing, let pump = pumpManager, let grant = data.grant else {
-            return completion(false, UntetheredWatchError.noPump.localizedDescription)
+            let reason = UntetheredWatchError.noPump.localizedDescription
+            log("not delivered: \(reason)")
+            notifyBolus(units, delivered: false, message: reason, source: source)
+            return completion(false, reason)
         }
         let amount = min(units, grant.maxBolus)
+        let rounded = pump.roundToSupportedBolusVolume(units: amount.nearestDouble)
+        if amount < units { log("limited to the max bolus of \(grant.maxBolus) U") }
         Task { @MainActor in
             do {
-                try await pump.enactBolus(units: pump.roundToSupportedBolusVolume(units: amount.nearestDouble), automatic: false)
+                try await pump.enactBolus(units: rounded, automatic: false)
+                log("\(rounded) U started")
+                self.notifyBolus(Decimal(rounded), delivered: true, message: nil, source: source)
                 completion(true, String(localized: "Bolus started."))
                 // as the phone's `enactBolus`: IOB and the forecast take the bolus in at once
                 self.runLoop(.treatment)
             } catch {
+                log("not delivered: \(error.localizedDescription)")
+                self.notifyBolus(Decimal(rounded), delivered: false, message: error.localizedDescription, source: source)
                 completion(false, error.localizedDescription)
                 self.yieldIfPhoneTookPod()
             }
         }
+    }
+
+    /// Said on the wrist, as it can come while nobody looks: always for a remote bolus, for one from the watch only
+    /// with Trio in the background (in front, its own screen says it).
+    private func notifyBolus(_ units: Decimal, delivered: Bool, message: String?, source: BolusSource) {
+        guard source == .remote || WKApplication.shared().applicationState != .active else { return }
+        let amount = NSDecimalNumber(decimal: units).doubleValue.formatted(.number.precision(.fractionLength(0 ... 2)))
+        let title: String
+        if source == .remote {
+            title = delivered ? String(localized: "Remote Bolus Started") : String(localized: "Remote Bolus Failed")
+        } else {
+            title = delivered ? String(localized: "Bolus Started") : String(localized: "Bolus Failed")
+        }
+        notify(
+            id: Self.notificationPrefix + "bolus",
+            title: title,
+            body: delivered
+                ? String(localized: "\(amount) U is being delivered.")
+                : String(localized: "\(amount) U not delivered: \(message ?? "")")
+        )
+    }
+
+    // MARK: Remote commands
+
+    /// A remote bolus or meal (LoopFollow, Nightscout) the phone passed on while the watch has the pump. Checked as the
+    /// phone checks one (`TrioRemoteControl`, `BolusSafetyEvaluator`), with the watch's own IOB and history, which are
+    /// the current ones now.
+    func handleRemoteTreatment(_ treatment: UntetheredRemoteTreatment, epoch: Int) {
+        // sent twice, interactively and queued: the second copy finds the first handled
+        guard Self.claimRemoteTreatment(treatment.id) else { return }
+        let age = Date().timeIntervalSince(treatment.sentAt)
+        func log(_ line: String) {
+            Task { await WatchLogger.shared.log("⌚️ Untethered remote command: \(line)", force: true) }
+        }
+        log("\(treatment.summary), sent \(Int(age)) s ago")
+        func answer(_ delivered: Bool, _ message: String) {
+            log(delivered ? "done: \(message)" : "refused: \(message)")
+            send(.remoteTreatmentResult(id: treatment.id, delivered: delivered, message: message), epoch: epoch, queueing: true)
+        }
+        func refuse(_ reason: String) {
+            answer(false, reason)
+            notify(id: Self.notificationPrefix + "remote", title: String(localized: "Remote Command Refused"), body: reason)
+        }
+        guard data.session.phase == .active, epoch == data.session.epoch, !isFinalizing, pumpManager != nil,
+              let grant = data.grant
+        else { return refuse(String(localized: "Command rejected: the Apple Watch doesn't have the pump right now.")) }
+        guard age <= UntetheredRemoteTreatment.window else {
+            return refuse(String(localized: "Command rejected: the message is too old (sent \(Int(age)) seconds ago)."))
+        }
+        guard age >= -UntetheredRemoteTreatment.window else {
+            return refuse(String(localized: "Command rejected: the message has an invalid future timestamp."))
+        }
+
+        let carbs = treatment.carbs ?? 0, fat = treatment.fat ?? 0, protein = treatment.protein ?? 0
+        let isMeal = carbs > 0 || fat > 0 || protein > 0
+        if isMeal {
+            if carbs > grant.maxCarbs {
+                return refuse(String(localized: "Command rejected: carbs amount (\(carbs)g) exceeds the maximum allowed (\(grant.maxCarbs)g)."))
+            }
+            // as the phone: only entries already in the past can mean a replay
+            let now = Date()
+            if data.carbs.contains(where: { ($0.actualDate ?? $0.createdAt) > treatment.sentAt && ($0.actualDate ?? $0.createdAt) <= now }) {
+                return refuse(String(localized: "Command rejected: newer carb entries have been logged since the command was sent."))
+            }
+            addCarbs(
+                NSDecimalNumber(decimal: carbs).intValue,
+                fat: NSDecimalNumber(decimal: fat).intValue,
+                protein: NSDecimalNumber(decimal: protein).intValue,
+                at: treatment.carbsDate ?? now,
+                note: Self.remoteMealNote
+            )
+        }
+        guard let units = treatment.bolus, units > 0 else {
+            notify(
+                id: Self.notificationPrefix + "remote",
+                title: String(localized: "Remote Meal Logged"),
+                body: treatment.summary
+            )
+            return answer(true, String(localized: "Meal logged on the Apple Watch"))
+        }
+        // as the phone, after the meal is logged: the bolus is checked on its own
+        if let reason = remoteBolusRejection(units, since: treatment.sentAt, grant: grant) {
+            return refuse(isMeal ? String(localized: "Meal logged, bolus not given. \(reason)") : reason)
+        }
+        bolus(units, source: .remote) { delivered, message in
+            DispatchQueue.main.async {
+                answer(delivered, delivered ? String(localized: "Bolus started on the Apple Watch") : message)
+            }
+        }
+    }
+
+    /// `BolusSafetyEvaluator`'s rules (phone only) with the watch's numbers.
+    private func remoteBolusRejection(_ units: Decimal, since sentAt: Date, grant: UntetheredGrant) -> String? {
+        if units > grant.maxBolus {
+            return String(localized: "Command rejected: bolus amount (\(units) units) exceeds the maximum allowed (\(grant.maxBolus) units).")
+        }
+        // the last loop's IOB, while it is recent: the boluses since are counted below
+        guard let lastLoop = data.lastLoopDate, Date().timeIntervalSince(lastLoop) < Self.remoteIOBMaxAge,
+              let iob = data.lastDetermination?.iob
+        else { return String(localized: "Command rejected: current IOB is not available.") }
+        let maxIOB = grant.preferences.clamped(for: grant.dosingMode).maxIOB
+        if iob + units > maxIOB {
+            return String(localized: "Command rejected: bolus amount (\(units) units) would exceed max IOB (\(maxIOB) units). Current IOB: \(iob) units.")
+        }
+        let recent = data.pumpHistory
+            .filter { [.bolus, .smb].contains($0.type) && $0.timestamp > sentAt }
+            .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
+        if recent >= units * Self.remoteRecentBolusThreshold {
+            return String(localized: "Command rejected: boluses totaling more than 20% of the requested amount have been delivered since the command was sent.")
+        }
+        return nil
+    }
+
+    static let remoteMealNote = "📡"
+    private static let remoteRecentBolusThreshold: Decimal = 0.2
+    private static let remoteIOBMaxAge: TimeInterval = 15 * 60
+    private static let handledRemoteKey = "untethered.handledRemoteTreatments"
+
+    /// Remembered across relaunches for as long as a command can be acted on: the queued copy may wake a new process.
+    private static func claimRemoteTreatment(_ id: UUID) -> Bool {
+        let defaults = UserDefaults.standard
+        let now = Date().timeIntervalSince1970
+        var handled = (defaults.dictionary(forKey: handledRemoteKey) as? [String: Double] ?? [:])
+            .filter { now - $0.value < UntetheredRemoteTreatment.window * 2 }
+        guard handled[id.uuidString] == nil else { return false }
+        handled[id.uuidString] = now
+        defaults.set(handled, forKey: handledRemoteKey)
+        return true
     }
 
     // MARK: Ending the pod
@@ -529,7 +676,7 @@ extension UntetheredWatchManager {
         }
     }
 
-    func addCarbs(_ grams: Int, fat: Int = 0, protein: Int = 0, at date: Date) {
+    func addCarbs(_ grams: Int, fat: Int = 0, protein: Int = 0, at date: Date, note: String? = nil) {
         guard let grant = data.grant else { return }
         let entry = CarbsEntry(
             id: UUID().uuidString,
@@ -538,7 +685,7 @@ extension UntetheredWatchManager {
             carbs: min(Decimal(grams), grant.maxCarbs),
             fat: fat > 0 ? Decimal(fat) : nil,
             protein: protein > 0 ? Decimal(protein) : nil,
-            note: nil,
+            note: note,
             enteredBy: CarbsEntry.local,
             isFPU: false,
             fpuID: fat > 0 || protein > 0 ? UUID().uuidString : nil

@@ -41,6 +41,38 @@ enum UntetheredMessage: Codable, Equatable {
     /// The watch hasn't reached the pod for this long while readings came in: the phone takes the pump back as with
     /// Take Back the Pump Now, as it reaches a pod the watch's background links can't (2026-10-21, 00:45 to 05:56).
     case handbackRequested(minutesWithoutLoop: Int)
+    /// A remote bolus or meal (LoopFollow, Nightscout) that reached the phone while the watch has the pump: the watch
+    /// checks it as the phone checks one, with its own IOB and history, and delivers it.
+    case remoteTreatment(UntetheredRemoteTreatment)
+    /// The watch's answer, which the phone passes back to the sender.
+    case remoteTreatmentResult(id: UUID, delivered: Bool, message: String)
+}
+
+/// A remote bolus or meal on its way to the watch. Sent interactively and queued as well: the watch acts on the
+/// first copy that arrives and ignores the other one.
+struct UntetheredRemoteTreatment: Codable, Equatable {
+    let id: UUID
+    /// When the command was sent, not received: the watch refuses it once it is older than `window`, and counts the
+    /// boluses and carbs entered since, as the phone does.
+    let sentAt: Date
+    let bolus: Decimal?
+    let carbs: Decimal?
+    let fat: Decimal?
+    let protein: Decimal?
+    /// A meal's own time, when it was given one.
+    let carbsDate: Date?
+
+    /// As the phone's remote control (`TrioRemoteControl.timeWindow`).
+    static let window: TimeInterval = 600
+
+    var summary: String {
+        var parts: [String] = []
+        if let bolus, bolus > 0 { parts.append("bolus \(bolus) U") }
+        if let carbs, carbs > 0 { parts.append("carbs \(carbs) g") }
+        if let fat, fat > 0 { parts.append("fat \(fat) g") }
+        if let protein, protein > 0 { parts.append("protein \(protein) g") }
+        return parts.isEmpty ? "nothing" : parts.joined(separator: ", ")
+    }
 }
 
 enum UntetheredAdjustment: String, Codable {
