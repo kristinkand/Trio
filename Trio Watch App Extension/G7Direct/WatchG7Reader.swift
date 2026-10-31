@@ -943,6 +943,8 @@ import WatchKit
             localized: "The watch needs Trio on the screen to finish pairing the new sensor. Open Trio on the watch and keep it in front until the first reading shows."
         )
         content.sound = .default
+        // it asks for action: through Focus, as the untethered notices that ask for something (`ActionNotice`)
+        content.interruptionLevel = .timeSensitive
         UNUserNotificationCenter.current().add(UNNotificationRequest(
             identifier: Self.pairingNotificationID,
             content: content,
