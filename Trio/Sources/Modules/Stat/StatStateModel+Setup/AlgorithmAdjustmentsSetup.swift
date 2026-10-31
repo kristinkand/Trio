@@ -91,7 +91,7 @@ extension Stat.StateModel {
                     self.algorithmAdjustmentStats = points
                 }
             } catch {
-                debug(.default, "\(DebuggingIdentifiers.failed) failed to fetch algorithm adjustment stats: \(error)")
+                debug(.storage, "\(DebuggingIdentifiers.failed) failed to fetch algorithm adjustment stats: \(error)")
             }
         }
     }

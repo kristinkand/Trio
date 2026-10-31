@@ -12,7 +12,7 @@ extension Adjustments.StateModel {
         let start = Date()
         WeekendProfileStore.activeStartDate = start
         let nightscoutDuration = WeekendProfileStore.nightscoutStartDurationMinutes(start: start)
-        debug(.service, "Profile started (in app): \(WeekendProfileStore.logDescription)")
+        debug(.treatments, "Profile started (in app): \(WeekendProfileStore.logDescription)")
         Task {
             let event = NightscoutExercise(
                 duration: nightscoutDuration,
@@ -36,11 +36,11 @@ extension Adjustments.StateModel {
         guard let start = WeekendProfileStore.activeStartDate else {
             // Nothing to close out -- e.g. Weekend Profile was already active before this version's
             // start-tracking existed. Nothing was recorded to correct on Nightscout either.
-            debug(.service, "Profile stopped (in app) but its start time was missing -- nothing to record or correct")
+            debug(.treatments, "Profile stopped (in app) but its start time was missing -- nothing to record or correct")
             return
         }
         WeekendProfileStore.activeStartDate = nil
-        debug(.service, "Profile stopped (in app): ran \(start) - \(end)")
+        debug(.treatments, "Profile stopped (in app): ran \(start) - \(end)")
         WeekendProfileStore.recordCompletedRun(name: name, start: start, end: end)
 
         let elapsedMinutes = max(1, Int(end.timeIntervalSince(start) / 60))

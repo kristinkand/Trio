@@ -13,7 +13,7 @@ extension Home.StateModel {
             try glucoseController.performFetch()
             updateGlucoseFromController()
         } catch {
-            debug(.default, "\(DebuggingIdentifiers.failed) Failed to perform glucose fetch: \(error)")
+            warning(.ui, "Fetching glucose for home screen failed", error: error)
         }
 
         previousDayGlucoseControllerDelegate.onContentChange = { [weak self] in
@@ -26,7 +26,7 @@ extension Home.StateModel {
             try previousDayGlucoseController.performFetch()
             updatePreviousDayGlucoseFromController()
         } catch {
-            debug(.default, "\(DebuggingIdentifiers.failed) Failed to perform previous day glucose fetch: \(error)")
+            debug(.storage, "\(DebuggingIdentifiers.failed) Failed to perform previous day glucose fetch: \(error)")
         }
     }
 
@@ -60,7 +60,7 @@ extension Home.StateModel {
             try previousDayGlucoseController.performFetch()
             updatePreviousDayGlucoseFromController()
         } catch {
-            debug(.default, "\(DebuggingIdentifiers.failed) Failed to reanchor previous day glucose fetch: \(error)")
+            debug(.storage, "\(DebuggingIdentifiers.failed) Failed to reanchor previous day glucose fetch: \(error)")
         }
     }
 
@@ -129,7 +129,7 @@ extension Home.StateModel {
                 self.extendedStatsPanel = (range: range, stats: stats)
                 self.extendedStatsPanelRefreshedAt = Date()
             } catch {
-                debug(.default, "\(DebuggingIdentifiers.failed) Failed to compute home stats panel: \(error)")
+                warning(.ui, "Computing home stats panel failed", error: error)
             }
         }
     }
@@ -144,13 +144,14 @@ extension Home.StateModel {
         context.name = "HomeStateModel.computeStatsPanelStats"
 
         let startDate = range.startDate()
-        // dictionary rows keep three months of readings light
-        let request = NSFetchRequest<NSDictionary>(entityName: "GlucoseStored")
-        request.predicate = NSPredicate(format: "date >= %@", startDate as NSDate)
-        request.resultType = .dictionaryResultType
-        request.propertiesToFetch = ["glucose", "date"]
 
         return try await context.perform {
+            // dictionary rows keep three months of readings light
+            let request = NSFetchRequest<NSDictionary>(entityName: "GlucoseStored")
+            request.predicate = NSPredicate(format: "date >= %@", startDate as NSDate)
+            request.resultType = .dictionaryResultType
+            request.propertiesToFetch = ["glucose", "date"]
+
             let readings = try context.fetch(request).compactMap { row -> GlucoseReading? in
                 guard let value = (row["glucose"] as? NSNumber)?.intValue, let date = row["date"] as? Date else { return nil }
                 return GlucoseReading(value: value, date: date)

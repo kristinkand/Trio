@@ -395,7 +395,7 @@ extension Stat.StateModel {
                     self.mealImpactEvents = events
                 }
             } catch {
-                debug(.default, "\(DebuggingIdentifiers.failed) failed to fetch meal impact stats: \(error)")
+                debug(.storage, "\(DebuggingIdentifiers.failed) failed to fetch meal impact stats: \(error)")
             }
         }
     }
