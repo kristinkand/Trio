@@ -37,6 +37,7 @@ struct UntetheredNightscoutCredentials: Codable, Equatable {
 enum UntetheredNightscout {
     static let entriesPath = "/api/v1/entries.json"
     static let statusPath = "/api/v1/devicestatus.json"
+    static let treatmentsPath = "/api/v1/treatments.json"
     /// As the phone's batches; a session's first upload after a long time without Wi-Fi takes the newest.
     static let maxEntries = 100
     /// Readings older than this aren't uploaded by the watch: the phone uploads the session after the hand-back.
@@ -66,6 +67,80 @@ enum UntetheredNightscout {
         let fresh = glucose.filter { $0.dateString > floor && $0.dateString <= now.addingTimeInterval(60) }
             .sorted { $0.dateString < $1.dateString }
         return Array(fresh.suffix(maxEntries))
+    }
+
+    /// A bolus, temp basal or carb entry in the shape the phone uploads it (`NightscoutTreatment`).
+    struct Treatment: Encodable, Equatable {
+        let eventType: String
+        let created_at: Date
+        var enteredBy = "Trio"
+        var insulin: Decimal?
+        var duration: Int?
+        var absolute: Decimal?
+        var rate: Decimal?
+        var carbs: Decimal?
+        var fat: Decimal?
+        var protein: Decimal?
+        var notes: String?
+        var foodType: String?
+        var id: String?
+        var fpuID: String?
+
+        /// Changes when the treatment does (a bolus finishing, a temp basal cut short): it goes up again then.
+        var fingerprint: String {
+            "\(eventType)|\(created_at.timeIntervalSince1970)|\(insulin ?? 0)|\(duration ?? 0)|\(rate ?? 0)|\(carbs ?? 0)|\(fat ?? 0)|\(protein ?? 0)"
+        }
+    }
+
+    /// The session's boluses, SMBs, temp basals and carbs from `since`, as the phone uploads them
+    /// (`PumpHistoryStorage.getPumpHistoryNotYetUploadedToNightscout`, `CarbsStorage.getCarbsNotYetUploadedToNightscout`):
+    /// the same `created_at` and `eventType`. Nightscout keeps one treatment per `created_at` and `eventType`, so the
+    /// phone's upload of the same doses after the hand-back replaces these instead of adding to them.
+    static func treatments(pumpHistory: [PumpHistoryEvent], carbs: [CarbsEntry], since: Date, now: Date) -> [Treatment] {
+        let latest = now.addingTimeInterval(60)
+        let events = pumpHistory.filter { $0.timestamp >= since && $0.timestamp <= latest }
+        var result: [Treatment] = []
+        for event in events {
+            switch event.type {
+            case .bolus,
+                 .smb:
+                guard let amount = event.amount else { continue }
+                // as `PumpHistoryStorage.determineBolusEventType`
+                let type: EventType = event.type == .smb || event.isSMB == true ? .smb
+                    : event.isExternal == true ? .isExternal : .bolus
+                result.append(Treatment(eventType: type.rawValue, created_at: event.timestamp, insulin: amount, id: event.id))
+            case .tempBasalDuration:
+                guard let rate = events.first(where: { $0.type == .tempBasal && $0.timestamp == event.timestamp })?.rate
+                else { continue }
+                result.append(Treatment(
+                    eventType: EventType.nsTempBasal.rawValue,
+                    created_at: event.timestamp,
+                    duration: event.durationMin ?? 0,
+                    absolute: rate,
+                    rate: rate,
+                    id: event.id
+                ))
+            default:
+                continue
+            }
+        }
+        for entry in carbs where !(entry.isFPU ?? false) {
+            let date = entry.actualDate ?? entry.createdAt
+            guard date >= since, date <= latest else { continue }
+            result.append(Treatment(
+                eventType: EventType.nsCarbCorrection.rawValue,
+                created_at: date,
+                enteredBy: CarbsEntry.local,
+                carbs: entry.carbs,
+                fat: entry.fat ?? 0,
+                protein: entry.protein ?? 0,
+                notes: entry.note,
+                foodType: entry.note,
+                id: entry.id,
+                fpuID: entry.fpuID
+            ))
+        }
+        return result.sorted { $0.created_at < $1.created_at }
     }
 
     /// One loop as a device status, as the phone uploads a loop synced from the watch

@@ -203,15 +203,24 @@ extension UntetheredWatchManager {
                 version: version
             )
         }
-        let outcome = await WatchNightscoutUploader.shared.upload(glucose: data.glucose, status: status)
+        // the session's own doses and carbs: the phone's copy uploaded them before the start
+        let now = Date()
+        let treatments = UntetheredNightscout.treatments(
+            pumpHistory: data.pumpHistory,
+            carbs: data.carbs,
+            since: data.session.startStatus?.date ?? now.addingTimeInterval(-6 * 60 * 60),
+            now: now
+        )
+        let outcome = await WatchNightscoutUploader.shared.upload(glucose: data.glucose, status: status, treatments: treatments)
         if outcome.statusUploaded, let deliverAt = loop?.determination.deliverAt {
             store.record(
                 UntetheredRecord(key: UntetheredRecord.nightscoutKey(deliverAt), date: Date(), kind: .nightscoutUploaded(deliverAt)),
                 epoch: data.session.epoch
             )
         }
-        guard outcome.entries > 0 || outcome.statusUploaded || outcome.failure != nil else { return }
-        let what = "\(outcome.entries) reading(s)" + (outcome.statusUploaded ? " and the loop's status" : "")
+        guard outcome.entries > 0 || outcome.statusUploaded || outcome.treatments > 0 || outcome.failure != nil else { return }
+        let what = "\(outcome.entries) reading(s)" + (outcome.statusUploaded ? ", the loop's status" : "")
+            + (outcome.treatments > 0 ? ", \(outcome.treatments) treatment(s)" : "")
         let line = outcome.failure.map { "⌚️ Nightscout: upload failed (\($0)) after \(what)" } ?? "⌚️ Nightscout: uploaded \(what)"
         Task { await WatchLogger.shared.log(line, force: true) }
     }

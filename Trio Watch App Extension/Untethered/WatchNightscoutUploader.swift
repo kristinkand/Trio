@@ -13,6 +13,7 @@ actor WatchNightscoutUploader {
     struct Outcome {
         var entries = 0
         var statusUploaded = false
+        var treatments = 0
         var failure: String?
     }
 
@@ -22,6 +23,8 @@ actor WatchNightscoutUploader {
     private static let keychainService = "org.nightscout.trio.watch.nightscout"
     private static let keychainAccount = "credentials"
     private static let lastEntryKey = "WatchNightscoutUploader.lastEntry"
+    /// Fingerprint and time of each treatment uploaded, kept a day: one goes up again only when it changed.
+    private static let uploadedTreatmentsKey = "WatchNightscoutUploader.treatments"
 
     private var cached: UntetheredNightscoutCredentials??
 
@@ -45,6 +48,7 @@ actor WatchNightscoutUploader {
         Self.save(new)
         if new == nil {
             UserDefaults.standard.removeObject(forKey: Self.lastEntryKey)
+            UserDefaults.standard.removeObject(forKey: Self.uploadedTreatmentsKey)
         }
         let line = new == nil ? "⌚️ Nightscout: the watch doesn't upload" : "⌚️ Nightscout: the watch uploads while the iPhone is away"
         Task { await WatchLogger.shared.log(line, force: true) }
@@ -52,7 +56,12 @@ actor WatchNightscoutUploader {
 
     /// The readings not uploaded yet and, when given, one loop's device status. Entries first: followers see the
     /// reading the loop went by before its status.
-    func upload(glucose: [BloodGlucose], status: Data?, now: Date = Date()) async -> Outcome {
+    func upload(
+        glucose: [BloodGlucose],
+        status: Data?,
+        treatments: [UntetheredNightscout.Treatment] = [],
+        now: Date = Date()
+    ) async -> Outcome {
         var outcome = Outcome()
         guard let credentials else {
             outcome.failure = "not set up"
@@ -84,6 +93,23 @@ actor WatchNightscoutUploader {
                 outcome.failure = Self.describe(error)
             }
         }
+        // after the status: a failure here keeps neither the readings nor the loop from followers
+        var uploaded = (UserDefaults.standard.dictionary(forKey: Self.uploadedTreatmentsKey) as? [String: Double] ?? [:])
+            .filter { now.timeIntervalSince1970 - $0.value < UntetheredNightscout.entriesWindow }
+        let fresh = treatments.filter { uploaded[$0.fingerprint] == nil }
+        if !fresh.isEmpty {
+            do {
+                let body = try JSONCoding.encoder.encode(fresh)
+                try await post(UntetheredNightscout.treatmentsPath, body: body, credentials: credentials)
+                for treatment in fresh {
+                    uploaded[treatment.fingerprint] = now.timeIntervalSince1970
+                }
+                outcome.treatments = fresh.count
+            } catch {
+                outcome.failure = outcome.failure ?? Self.describe(error)
+            }
+        }
+        UserDefaults.standard.set(uploaded, forKey: Self.uploadedTreatmentsKey)
         return outcome
     }
 
