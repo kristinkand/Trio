@@ -525,17 +525,37 @@ extension UntetheredWatchManager {
     /// A remote bolus or meal (LoopFollow, Nightscout) the phone passed on while the watch has the pump. Checked as the
     /// phone checks one (`TrioRemoteControl`, `BolusSafetyEvaluator`), with the watch's own IOB and history, which are
     /// the current ones now.
-    func handleRemoteTreatment(_ treatment: UntetheredRemoteTreatment, epoch: Int) {
-        // sent twice, interactively and queued: the second copy finds the first handled
-        guard Self.claimRemoteTreatment(treatment.id) else { return }
+    /// - Parameter reply: for a command sent straight to the watch (`WatchRemoteCommands`), which answers the sender
+    ///   itself; nil when the copy came first by the other way and was handled there. Without it the answer goes to
+    ///   the phone, which passes it on.
+    func handleRemoteTreatment(
+        _ treatment: UntetheredRemoteTreatment,
+        epoch: Int,
+        reply: (((delivered: Bool, message: String)?) -> Void)? = nil
+    ) {
+        // one command can arrive up to three times: from the phone interactively and queued, and straight from the
+        // sender; the watch acts on the first. An empty answer tells the phone not to report it.
+        guard Self.claimRemoteTreatment(treatment.id) else {
+            if let reply {
+                reply(nil)
+            } else {
+                send(.remoteTreatmentResult(id: treatment.id, delivered: true, message: ""), epoch: epoch, queueing: true)
+            }
+            return
+        }
         let age = Date().timeIntervalSince(treatment.sentAt)
+        let via = reply == nil ? "through the iPhone" : "straight to the watch"
         func log(_ line: String) {
-            Task { await WatchLogger.shared.log("⌚️ Untethered remote command: \(line)", force: true) }
+            Task { await WatchLogger.shared.log("⌚️ Untethered remote command (\(via)): \(line)", force: true) }
         }
         log("\(treatment.summary), sent \(Int(age)) s ago")
         func answer(_ delivered: Bool, _ message: String) {
             log(delivered ? "done: \(message)" : "refused: \(message)")
-            send(.remoteTreatmentResult(id: treatment.id, delivered: delivered, message: message), epoch: epoch, queueing: true)
+            if let reply {
+                reply((delivered, message))
+            } else {
+                send(.remoteTreatmentResult(id: treatment.id, delivered: delivered, message: message), epoch: epoch, queueing: true)
+            }
         }
         func refuse(_ reason: String) {
             answer(false, reason)

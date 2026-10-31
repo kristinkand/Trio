@@ -160,8 +160,16 @@ extension TrioRemoteControl {
             await logError("Command rejected: the Apple Watch is running the loop and can't be reached.", payload: payload)
             return
         }
+        // the same id as the copy LoopFollow sends straight to the watch: the watch acts on whichever comes first
         let treatment = UntetheredRemoteTreatment(
-            id: UUID(),
+            id: UntetheredRemoteTreatment.id(
+                sentAt: payload.timestamp,
+                commandType: payload.commandType.rawValue,
+                bolus: payload.bolusAmount,
+                carbs: payload.carbs,
+                fat: payload.fat,
+                protein: payload.protein
+            ),
             sentAt: Date(timeIntervalSince1970: payload.timestamp),
             bolus: payload.bolusAmount,
             carbs: payload.commandType == .meal ? carbs : nil,
@@ -181,6 +189,9 @@ extension TrioRemoteControl {
         late: Bool
     ) async {
         switch answer {
+        case .delivered(""):
+            // the copy sent straight to the watch came first, and the watch answered the sender itself
+            debug(.remote, "Remote command handled on the Apple Watch from its own push")
         case let .delivered(message):
             await logSuccess(
                 "Remote command processed on the Apple Watch\(late ? " (late answer)" : ""). \(payload.humanReadableDescription())",

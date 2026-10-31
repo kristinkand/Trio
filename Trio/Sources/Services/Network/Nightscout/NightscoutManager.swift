@@ -951,7 +951,10 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
                     overridePresets: presetOverrides,
                     teamID: teamID,
                     expirationDate: expireDate,
-                    remoteCommands: remoteCommands
+                    remoteCommands: remoteCommands,
+                    watchDeviceToken: UserDefaults.standard.string(forKey: BaseWatchManager.watchPushTokenKey),
+                    watchBundleIdentifier: UserDefaults.standard.string(forKey: BaseWatchManager.watchPushTokenKey) == nil
+                        ? nil : bundleIdentifier + ".watchkitapp"
                 )
 
                 guard let nightscout = nightscoutAPI, isNetworkReachable else {
