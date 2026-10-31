@@ -904,6 +904,7 @@ import WatchKit
                 trendRate: message.trend
             )
             self.merge([reading])
+            self.noteLiveReading(reading.date)
             UntetheredWatchManager.shared.checkFallback(readerReadings: self.history.map(\.date))
             ComplicationStore.add(reading)
             self.bookNoReadingsAlert()
