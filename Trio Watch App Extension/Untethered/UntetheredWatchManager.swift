@@ -363,6 +363,10 @@ import WatchKit
             replyHandler?([:])
             handleRemoteTreatment(treatment, epoch: envelope.epoch)
 
+        case let .remoteAdjustment(adjustment):
+            replyHandler?([:])
+            handleRemoteAdjustment(adjustment, epoch: envelope.epoch)
+
         default:
             apply(.received(envelope.message, epoch: envelope.epoch), reply: replyHandler)
         }

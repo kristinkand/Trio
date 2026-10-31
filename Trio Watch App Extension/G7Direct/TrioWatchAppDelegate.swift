@@ -199,6 +199,9 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
         let fat: Int?
         let protein: Int?
         let scheduledTime: TimeInterval?
+        let overrideName: String?
+        let target: Int?
+        let duration: Int?
         let returnNotification: ReturnInfo?
 
         enum CodingKeys: String, CodingKey {
@@ -209,6 +212,9 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
             case fat
             case protein
             case scheduledTime = "scheduled_time"
+            case overrideName
+            case target
+            case duration
             case returnNotification = "return_notification"
         }
     }
@@ -280,8 +286,11 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
         let manager = UntetheredWatchManager.shared
         // the phone has the pump and the same command
         guard manager.isActive else { return log("\(payload.commandType): the iPhone has the pump, left to it") }
+        if let action = adjustment(payload) {
+            return await handleAdjustment(payload, action: action)
+        }
         guard payload.commandType == "bolus" || payload.commandType == "meal" else {
-            return log("\(payload.commandType): only boluses and meals are handled on the watch")
+            return log("\(payload.commandType): only boluses, meals, overrides and temp targets are handled on the watch")
         }
         // what only the phone's settings limit; the rest is checked with the treatment
         let state = WatchState.shared
@@ -328,6 +337,52 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
     }
 
     private static let answerWait: TimeInterval = 20
+
+    /// An override or temp target command, as the phone's remote control reads one.
+    private static func adjustment(_ payload: Payload) -> UntetheredRemoteAdjustment.Action? {
+        switch payload.commandType {
+        case "start_override":
+            guard let name = payload.overrideName, !name.isEmpty else { return nil }
+            return .startOverride(name: name)
+        case "cancel_override": return .cancelOverride
+        case "temp_target":
+            guard let target = payload.target, let duration = payload.duration else { return nil }
+            return .startTempTarget(targetMgdl: Decimal(target), minutes: Decimal(duration))
+        case "cancel_temp_target": return .cancelTempTarget
+        default: return nil
+        }
+    }
+
+    private static func handleAdjustment(_ payload: Payload, action: UntetheredRemoteAdjustment.Action) async {
+        let manager = UntetheredWatchManager.shared
+        let adjustment = UntetheredRemoteAdjustment(
+            id: UntetheredRemoteAdjustment.id(
+                sentAt: payload.timestamp,
+                commandType: payload.commandType,
+                overrideName: payload.overrideName,
+                target: payload.target,
+                duration: payload.duration
+            ),
+            sentAt: Date(timeIntervalSince1970: payload.timestamp),
+            action: action
+        )
+        let result: (delivered: Bool, message: String)?? = await withCheckedContinuation { continuation in
+            let once = RemoteCommandOnce(continuation)
+            manager.handleRemoteAdjustment(adjustment, epoch: manager.data.session.epoch) { once.resume(.some($0)) }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(answerWait * 1_000_000_000))
+                once.resume(nil)
+            }
+        }
+        switch result {
+        case let .some(.some(outcome)):
+            await answer(payload, outcome.delivered, outcome.message)
+        case .some(.none):
+            log("already handled through the iPhone")
+        case .none:
+            log("no result within \(Int(answerWait)) s, the sender isn't told")
+        }
+    }
 
     // MARK: Answering the sender
 
