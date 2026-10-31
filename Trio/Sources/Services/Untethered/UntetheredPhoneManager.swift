@@ -512,21 +512,26 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     @MainActor private func apply(_ event: UntetheredSession.PhoneEvent, reply: (([String: Any]) -> Void)? = nil) async {
         let now = Date()
-        let (effects, spanEnded) = UntetheredGate.update { state -> ([UntetheredSession.Effect], Bool) in
+        let (effects, spanEnded, spanStarted) = UntetheredGate.update { state -> ([UntetheredSession.Effect], Bool, Date?) in
             let held = state.session.phase == .active || state.session.phase == .ending
             let effects = state.session.phone(event, now: now)
             let holds = state.session.phase == .active || state.session.phase == .ending
             var ended = false
+            var started: Date?
             if !held, holds {
-                state.spans.append(UntetheredSpan(start: state.session.startStatus?.date ?? now, end: nil, uploaded: false))
+                let start = state.session.startStatus?.date ?? now
+                state.spans.append(UntetheredSpan(start: start, end: nil, uploaded: false))
+                started = start
             } else if held, !holds, let last = state.spans.indices.last, state.spans[last].end == nil {
                 state.spans[last].end = now
                 ended = true
             }
             state.spans.removeAll { ($0.end ?? now) < now.addingTimeInterval(-3 * 24 * 60 * 60) }
-            return (effects, ended)
+            return (effects, ended, started)
         }
         if spanEnded { Task { await self.uploadSpans() } }
+        // followers (LoopFollow) show it as running from now on; the end replaces this entry with its duration
+        if let spanStarted { Task { await self.nightscoutManager.uploadUntetheredSession(from: spanStarted, to: nil) } }
         let epoch = UntetheredGate.state.session.epoch
         publish()
         var reply = reply
