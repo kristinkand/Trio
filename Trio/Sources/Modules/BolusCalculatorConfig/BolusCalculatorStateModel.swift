@@ -13,6 +13,9 @@ extension BolusCalculatorConfig {
         @Published var mealTimeReminderEnabled: Bool = false
         @Published var mealTimeReminderPresets: [Decimal] = [15, 30]
         @Published var displayPresets: Bool = true
+        @Published var showMealTime: Bool = true
+        @Published var showMealNote: Bool = true
+        @Published var showExternalInsulin: Bool = true
         @Published var confirmBolusWhenVeryLowGlucose: Bool = false
 
         override func subscribe() {
@@ -21,6 +24,9 @@ extension BolusCalculatorConfig {
             subscribeSetting(\.overrideFactor, on: $overrideFactor) { overrideFactor = $0 }
             subscribeSetting(\.fattyMeals, on: $fattyMeals) { fattyMeals = $0 }
             subscribeSetting(\.displayPresets, on: $displayPresets) { displayPresets = $0 }
+            subscribeSetting(\.showMealTime, on: $showMealTime) { showMealTime = $0 }
+            subscribeSetting(\.showMealNote, on: $showMealNote) { showMealNote = $0 }
+            subscribeSetting(\.showExternalInsulin, on: $showExternalInsulin) { showExternalInsulin = $0 }
             subscribeSetting(\.fattyMealFactor, on: $fattyMealFactor) { fattyMealFactor = $0 }
             subscribeSetting(\.sweetMeals, on: $sweetMeals) { sweetMeals = $0 }
             subscribeSetting(\.sweetMealFactor, on: $sweetMealFactor) { sweetMealFactor = $0 }
