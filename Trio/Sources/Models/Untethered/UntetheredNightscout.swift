@@ -96,7 +96,18 @@ enum UntetheredNightscout {
     /// (`PumpHistoryStorage.getPumpHistoryNotYetUploadedToNightscout`, `CarbsStorage.getCarbsNotYetUploadedToNightscout`):
     /// the same `created_at` and `eventType`. Nightscout keeps one treatment per `created_at` and `eventType`, so the
     /// phone's upload of the same doses after the hand-back replaces these instead of adding to them.
-    static func treatments(pumpHistory: [PumpHistoryEvent], carbs: [CarbsEntry], since: Date, now: Date) -> [Treatment] {
+    /// The phone's session entry (`NightscoutManager.uploadUntetheredSession`), for followers to show untethered mode.
+    static let sessionEventType = "Untethered Watch"
+
+    /// - Parameter sessionStart: when the watch took the pump; the session goes up as running, without a duration,
+    ///   as the phone uploads it when it knows. The phone's upload with the duration at the end replaces it.
+    static func treatments(
+        pumpHistory: [PumpHistoryEvent],
+        carbs: [CarbsEntry],
+        since: Date,
+        now: Date,
+        sessionStart: Date? = nil
+    ) -> [Treatment] {
         let latest = now.addingTimeInterval(60)
         let events = pumpHistory.filter { $0.timestamp >= since && $0.timestamp <= latest }
         var result: [Treatment] = []
@@ -139,6 +150,9 @@ enum UntetheredNightscout {
                 id: entry.id,
                 fpuID: entry.fpuID
             ))
+        }
+        if let sessionStart {
+            result.append(Treatment(eventType: sessionEventType, created_at: sessionStart, notes: "Untethered on Apple Watch"))
         }
         return result.sorted { $0.created_at < $1.created_at }
     }
