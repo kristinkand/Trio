@@ -359,6 +359,10 @@ import WatchKit
             guard data.session.phase == .active, envelope.epoch == data.session.epoch else { return }
             setDosingMode(mode, notifyPhone: false)
 
+        case let .remoteTreatment(treatment):
+            replyHandler?([:])
+            handleRemoteTreatment(treatment, epoch: envelope.epoch)
+
         default:
             apply(.received(envelope.message, epoch: envelope.epoch), reply: replyHandler)
         }

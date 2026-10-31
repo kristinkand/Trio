@@ -47,6 +47,12 @@ struct UntetheredStatusView: View {
                         }
                     }
                     if manager.isActive { tiles }
+                    if manager.isActive {
+                        // remote commands come through the phone's push: without it online they wait or run out
+                        note(
+                            "Remote boluses and meals (LoopFollow, Nightscout) reach the watch only through the iPhone, while it is online. The watch refuses commands sent more than 10 minutes ago."
+                        )
+                    }
                     if manager.isActive || unsynced > 0 { historyButton }
                     if manager.isActive, let mode = data.grant?.dosingMode { loopModePicker(mode) }
                     alerts(now: context.date)

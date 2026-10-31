@@ -71,7 +71,16 @@ class TrioRemoteControl: Injectable {
         debug(.remote, "Command authenticated, sent \(Int(timeDifference)) s ago")
 
         guard UntetheredGate.state.session.isIdle else {
-            await logError("Command rejected: the Apple Watch is running the loop (untethered).", payload: commandPayload)
+            switch commandPayload.commandType {
+            case .bolus,
+                 .meal:
+                await forwardToWatch(commandPayload)
+            default:
+                await logError(
+                    "Command rejected: the Apple Watch is running the loop (untethered). Only boluses and meals reach it.",
+                    payload: commandPayload
+                )
+            }
             return
         }
 
@@ -97,6 +106,91 @@ class TrioRemoteControl: Injectable {
                 "Command rejected: unsupported command type.",
                 payload: commandPayload,
                 ack: RemoteCommandAck(commandId: commandPayload.commandId, mealId: commandPayload.mealId, result: .rejected)
+            )
+        }
+    }
+}
+
+extension TrioRemoteControl {
+    /// While the Apple Watch has the pump the phone can't dose: a remote bolus or meal goes on to the watch, which checks
+    /// it against its own IOB, history and limits (the phone's are behind) and delivers it. The phone checks what only it
+    /// knows (the fat and protein limits) first. The answer goes back to the sender.
+    func forwardToWatch(_ payload: CommandPayload) async {
+        let carbs = payload.carbs.map { Decimal($0) }
+        let fat = payload.fat.map { Decimal($0) }
+        let protein = payload.protein.map { Decimal($0) }
+        switch payload.commandType {
+        case .bolus:
+            guard let amount = payload.bolusAmount, amount > 0 else {
+                await logError("Command rejected: bolus amount is missing or invalid.", payload: payload)
+                return
+            }
+        default:
+            guard carbs != nil || fat != nil || protein != nil else {
+                await logError("Command rejected: meal data is incomplete or invalid.", payload: payload)
+                return
+            }
+            let limits = settings.settings
+            if let carbs, carbs > limits.maxCarbs {
+                await logError(
+                    "Command rejected: carbs amount (\(carbs)g) exceeds the maximum allowed (\(limits.maxCarbs)g).",
+                    payload: payload
+                )
+                return
+            }
+            if let fat, fat > limits.maxFat {
+                await logError(
+                    "Command rejected: fat amount (\(fat)g) exceeds the maximum allowed (\(limits.maxFat)g).",
+                    payload: payload
+                )
+                return
+            }
+            if let protein, protein > limits.maxProtein {
+                await logError(
+                    "Command rejected: protein amount (\(protein)g) exceeds the maximum allowed (\(limits.maxProtein)g).",
+                    payload: payload
+                )
+                return
+            }
+        }
+        guard let manager = TrioApp.resolver.resolve(UntetheredPhoneManager.self) else {
+            await logError("Command rejected: the Apple Watch is running the loop and can't be reached.", payload: payload)
+            return
+        }
+        let treatment = UntetheredRemoteTreatment(
+            id: UUID(),
+            sentAt: Date(timeIntervalSince1970: payload.timestamp),
+            bolus: payload.bolusAmount,
+            carbs: payload.commandType == .meal ? carbs : nil,
+            fat: payload.commandType == .meal ? fat : nil,
+            protein: payload.commandType == .meal ? protein : nil,
+            carbsDate: payload.scheduledTime.map { Date(timeIntervalSince1970: $0) }
+        )
+        let answer = await manager.forwardRemoteTreatment(treatment) { [weak self] late in
+            Task { await self?.reportWatchAnswer(late, payload: payload, late: true) }
+        }
+        await reportWatchAnswer(answer, payload: payload, late: false)
+    }
+
+    private func reportWatchAnswer(
+        _ answer: UntetheredPhoneManager.RemoteTreatmentAnswer,
+        payload: CommandPayload,
+        late: Bool
+    ) async {
+        switch answer {
+        case let .delivered(message):
+            await logSuccess(
+                "Remote command processed on the Apple Watch\(late ? " (late answer)" : ""). \(payload.humanReadableDescription())",
+                payload: payload,
+                customNotificationMessage: message
+            )
+        case let .refused(message):
+            await logError(message, payload: payload)
+        case .noAnswer:
+            // not a failure: the watch may still get it, and acts on it until the command is 10 minutes old
+            await logError(
+                "No answer from the Apple Watch yet. It may still deliver this within 10 minutes of sending: check IOB before sending again.",
+                payload: payload
             )
         }
     }

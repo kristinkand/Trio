@@ -479,6 +479,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                     try? await Task.sleep(nanoseconds: UInt64(Self.handbackRequestRetryDelay * 1_000_000_000))
                     guard self.state.session.phase == .active, envelope.epoch == self.state.session.epoch else { break }
                 }
+            case let .remoteTreatmentResult(id, delivered, message):
+                replyHandler?([:])
+                self.answerRemoteTreatment(id, delivered ? .delivered(message) : .refused(message))
             case let .dosingModeChanged(mode):
                 replyHandler?([:])
                 guard envelope.epoch >= self.state.session.epoch else { return }
@@ -676,6 +679,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         switch message {
         case .adjustmentCancelled,
              .dosingModeChanged,
+             .remoteTreatment,
              .revoke,
              .statusQuery:
             // queued as well: the watch must hear it whenever it comes back
@@ -710,6 +714,62 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         for part in UntetheredChunks.split(payload) ?? [payload] {
             session.sendMessage(part, replyHandler: replyHandler, errorHandler: errorHandler)
+        }
+    }
+
+    // MARK: - Remote commands
+
+    enum RemoteTreatmentAnswer {
+        case delivered(String)
+        case refused(String)
+        /// Nothing heard within `remoteTreatmentWait`: the watch may still act on it until the command is 10 minutes old.
+        case noAnswer
+    }
+
+    /// Keyed by the treatment's id: the first answer ends the wait (`forwardRemoteTreatment`), one after it goes to
+    /// `late`. Main queue only.
+    private var remoteTreatmentWaits: [UUID: CheckedContinuation<RemoteTreatmentAnswer, Never>] = [:]
+    private var remoteTreatmentLate: [UUID: (RemoteTreatmentAnswer) -> Void] = [:]
+    /// Within the ~30 s iOS gives the app for a push in the background. A later answer wakes the app as it arrives.
+    private static let remoteTreatmentWait: TimeInterval = 25
+
+    /// Passes a remote bolus or meal to the watch, which has the pump, and waits for its answer. Sent interactively and
+    /// queued: a watch away from the phone (on Wi-Fi or cellular) may get the queued copy through Apple's relay later,
+    /// and refuses it once the command is 10 minutes old. An answer after the wait goes to `late`.
+    @MainActor func forwardRemoteTreatment(
+        _ treatment: UntetheredRemoteTreatment,
+        late: @escaping (RemoteTreatmentAnswer) -> Void
+    ) async -> RemoteTreatmentAnswer {
+        guard state.session.phase == .active else {
+            return .refused(String(localized: "Command rejected: the pump is changing hands between the iPhone and the Apple Watch. Try again in a few minutes."))
+        }
+        let id = treatment.id
+        let epoch = state.session.epoch
+        info(.remote, "Untethered: passing a remote command to the watch: \(treatment.summary)")
+        remoteTreatmentLate[id] = late
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(Self.remoteTreatmentWait * 1_000_000_000))
+            self.answerRemoteTreatment(id, .noAnswer)
+            // until the watch would refuse the command anyway
+            try? await Task.sleep(nanoseconds: UInt64(UntetheredRemoteTreatment.window * 1_000_000_000))
+            self.remoteTreatmentLate[id] = nil
+        }
+        return await withCheckedContinuation { continuation in
+            remoteTreatmentWaits[id] = continuation
+            send(.remoteTreatment(treatment), epoch: epoch)
+        }
+    }
+
+    @MainActor private func answerRemoteTreatment(_ id: UUID, _ answer: RemoteTreatmentAnswer) {
+        if let wait = remoteTreatmentWaits.removeValue(forKey: id) {
+            wait.resume(returning: answer)
+            return
+        }
+        if case .noAnswer = answer { return }
+        if let late = remoteTreatmentLate.removeValue(forKey: id) {
+            late(answer)
+        } else {
+            debug(.remote, "Untethered: the watch's answer to a remote command came after its wait ended")
         }
     }
 
