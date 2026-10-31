@@ -11,6 +11,7 @@ import WatchKit
         // the phone link is up at every launch, also the silent background ones
         _ = WatchState.shared
         WatchNotificationHandler.shared.configure()
+        WatchLogger.shared.info(.lifecycle, "App launched")
     }
 
     var body: some Scene {
@@ -26,9 +27,8 @@ import WatchKit
                 WatchG7Reader.shared.appBecameActive()
             }
             if newScenePhase == .background {
-                Task {
-                    await WatchLogger.shared.flushPersistedLogs()
-                }
+                WatchLogger.shared.info(.lifecycle, "App moved to background")
+                WatchLogger.shared.didEnterBackground()
             }
         }
     }

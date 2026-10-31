@@ -454,7 +454,7 @@ extension Home {
                 try controller.performFetch()
                 republish()
             } catch {
-                debug(.default, "\(DebuggingIdentifiers.failed) Failed to re-anchor fetch window for \(T.self): \(error)")
+                warning(.ui, "Moving home fetch window for \(T.self) failed", error: error)
             }
         }
 
@@ -556,7 +556,7 @@ extension Home {
             broadcaster.register(PumpDeactivatedObserver.self, observer: self)
             broadcaster.register(SnoozeObserver.self, observer: self)
 
-            timer.eventHandler = {
+            timer.eventHandler = { [weak self] in
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     self.timerDate = Date()
@@ -664,9 +664,6 @@ extension Home {
                 .receive(on: DispatchQueue.main)
                 .map { [weak self] error in
                     self?.errorDate = error == nil ? nil : Date()
-                    if let error = error {
-                        debug(.default, "APSManager lastError: \(String(describing: error))")
-                    }
                     return error?.localizedDescription
                 }
                 .weakAssign(to: \.errorMessage, on: self)
