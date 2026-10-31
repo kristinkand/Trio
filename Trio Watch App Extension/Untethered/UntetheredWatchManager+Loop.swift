@@ -607,6 +607,9 @@ extension UntetheredWatchManager {
         if let reason = remoteBolusRejection(units, since: treatment.sentAt, grant: grant) {
             return refuse(isMeal ? String(localized: "Meal logged, bolus not given. \(reason)") : reason)
         }
+        if let busy = remoteBolusBusyReason() {
+            return refuse(isMeal ? String(localized: "Meal logged, bolus not given. \(busy)") : busy)
+        }
         bolus(units, source: .remote) { delivered, message in
             DispatchQueue.main.async {
                 answer(delivered, delivered ? String(localized: "Bolus started on the Apple Watch") : message)
@@ -795,6 +798,25 @@ extension UntetheredWatchManager {
             return String(localized: "Command rejected: boluses totaling more than 20% of the requested amount have been delivered since the command was sent.")
         }
         return nil
+    }
+
+    /// The pod takes one bolus at a time: a remote bolus that comes while a bolus or SMB runs is refused with when to
+    /// send it again, rather than failing at the pod with a less clear error. Not delivered later on its own: by then
+    /// the sender may have decided otherwise, and the safety checks would need the newer IOB.
+    private func remoteBolusBusyReason() -> String? {
+        let state = pumpManager?.status.bolusState ?? .noBolus
+        if case let .inProgress(dose) = state {
+            let units = dose.programmedUnits.formatted(.number.precision(.fractionLength(0 ... 2)))
+            let left = Int(dose.endDate.timeIntervalSinceNow.rounded(.up))
+            guard left > 0 else {
+                return String(localized: "A bolus of \(units) U is just finishing. Please send the bolus again in a moment.")
+            }
+            return String(
+                localized: "A bolus of \(units) U is being delivered right now, about \(left) s left. Please send the bolus again once it has finished."
+            )
+        }
+        guard state != .noBolus || isBolusing else { return nil }
+        return String(localized: "A bolus is in progress right now. Please send the bolus again in a moment.")
     }
 
     static let remoteMealNote = "📡"
