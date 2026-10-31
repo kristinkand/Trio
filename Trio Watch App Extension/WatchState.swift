@@ -652,6 +652,10 @@ import WatchConnectivity
             }
         }
 
+        if let secret = message[WatchMessageKeys.remoteControlSecret] as? String {
+            RemoteSecretStore.set(secret)
+        }
+
         if let maxFatValue = message[WatchMessageKeys.maxFat] {
             if let decimalValue = (maxFatValue as? NSNumber)?.decimalValue {
                 maxFat = decimalValue

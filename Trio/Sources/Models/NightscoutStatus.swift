@@ -83,6 +83,10 @@ struct NightscoutProfileStore: JSON {
     let expirationDate: Date?
     /// Remote command types this build accepts; followers hide unsupported actions.
     let remoteCommands: [String]?
+    /// The Apple Watch app's push token and bundle identifier, for a follower to send a remote bolus or meal straight
+    /// to the watch while it runs the loop untethered. Left out without a watch.
+    var watchDeviceToken: String? = nil
+    var watchBundleIdentifier: String? = nil
 }
 
 struct NightscoutPresetOverride: JSON {

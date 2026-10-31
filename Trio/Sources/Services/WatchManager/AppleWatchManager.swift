@@ -592,6 +592,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         if let own = PhoneOwnGlucose.newest {
             dictionary[WatchMessageKeys.phoneOwnGlucoseDate] = own.timeIntervalSince1970
         }
+        dictionary[WatchMessageKeys.remoteControlSecret] = Self.remoteControlSecretForWatch(settingsManager.settings)
 
         var forecastData: [String: Any] = [
             WatchMessageKeys.forecastConeMin: state.forecastConeMin,
@@ -1026,6 +1027,10 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             untethered.receive(userInfo, replyHandler: nil)
             return
         }
+        if let token = userInfo[WatchMessageKeys.watchPushToken] as? String {
+            Self.storeWatchPushToken(token)
+            return
+        }
         if userInfo["watchLogs"] != nil {
             Self.confirmWatchLogs(WatchLogIngest.acceptLegacy(userInfo))
         }
@@ -1037,6 +1042,23 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 await self.notificationsManager.applySnooze(for: TimeInterval(snoozeMinutes * 60))
             }
         }
+    }
+
+    /// Uploaded with the phone's own token (`NightscoutManager.uploadProfiles`), so LoopFollow can send a remote
+    /// command straight to the watch too while it has the pump.
+    static let watchPushTokenKey = "watchDeviceToken"
+
+    private static func storeWatchPushToken(_ token: String) {
+        guard !token.isEmpty, UserDefaults.standard.string(forKey: watchPushTokenKey) != token else { return }
+        UserDefaults.standard.set(token, forKey: watchPushTokenKey)
+        info(.watch, "Watch push token received; uploading it with the profile")
+        Task { try? await TrioApp.resolver.resolve(NightscoutManager.self)?.uploadProfiles() }
+    }
+
+    /// Only with remote control and untethered mode on: the watch needs it only to open commands while it has the pump.
+    private static func remoteControlSecretForWatch(_ settings: TrioSettings) -> String {
+        guard settings.untetheredModeWatch, UserDefaults.standard.bool(forKey: "isTrioRemoteControlEnabled") else { return "" }
+        return UserDefaults.standard.string(forKey: "trioRemoteControlSharedSecret") ?? ""
     }
 
     /// The watch keeps a part of its plain log until the phone confirms it; queued, so the confirmation also reaches a
