@@ -1608,7 +1608,11 @@ extension UntetheredWatchManager {
         let critical = Self.criticalAlarmIDs.contains(id)
             && UserDefaults.standard.bool(forKey: WatchMessageKeys.useCriticalAlertsWatch)
         content.sound = critical ? .defaultCritical : .default
-        // not time-sensitive: the watch app has no entitlement for it; plain, as the reader's alerts that do arrive
+        // Time-sensitive for what asks for action and for the safety alarms that can't be critical: they get through
+        // Focus and stay on the screen (31 October: "Watch Took Over" went by as news). A critical sound is critical.
+        if !critical, asksForAction || Self.criticalAlarmIDs.contains(id) {
+            content.interruptionLevel = .timeSensitive
+        }
         let trigger = delay.flatMap { $0 > 0 ? UNTimeIntervalNotificationTrigger(timeInterval: $0, repeats: false) : nil }
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request) { error in
