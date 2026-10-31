@@ -71,10 +71,13 @@ extension UntetheredWatchManager {
                 guard self.isActive else { return }
             }
             // the pod read is a pod command too: none without background time left (see `enact`)
+            var explained = true
             if enacts, !self.loopHoldExpired {
                 _ = await withCheckedContinuation { (continuation: CheckedContinuation<Date?, Never>) in
                     pump.ensureCurrentPumpData { continuation.resume(returning: $0) }
                 }
+                // before the determination, so its IOB counts what the records miss
+                explained = self.podTotalExplained(pump, grant: grant)
             }
             self.expireAdjustments(now: Date())
             self.checkLinkedOverride()
@@ -133,7 +136,8 @@ extension UntetheredWatchManager {
                             record(enactedAt: nil)
                             return
                         }
-                        if grant.dosingMode.automation == .off {
+                        if grant.dosingMode.automation == .off || !explained {
+                            // with insulin the records don't explain, this loop doses nothing (`podTotalExplained`)
                             record(enactedAt: nil)
                             looped()
                         } else {
@@ -629,6 +633,100 @@ extension UntetheredWatchManager {
             endTempTarget()
             answer(true, String(localized: "Temp target canceled on the Apple Watch"))
         }
+    }
+
+    // MARK: Checks after Elias Maurer's Watch Loop (EJM0/Trio, feat/watch-loop-3/5 to 5/5)
+
+    /// At each loop's pod read: insulin the pod delivered since the last check that the watch's records don't explain
+    /// means another controller dosed (the phone, a second watch, a remote command it didn't see). It is booked as a
+    /// bolus in the watch's history, so IOB errs high and dosing errs low, and this loop doses nothing. The idea and
+    /// its rule come from Elias Maurer's Watch Loop (`pumpTotalIsExplained`, EJM0/Trio feat/watch-loop-5/5); before,
+    /// the watch made this check only when it started from the phone's copy.
+    func podTotalExplained(_ pump: PumpManager, grant: UntetheredGrant) -> Bool {
+        guard let odometer = pump as? PumpDeliveryOdometer, let units = odometer.deliveredUnits?.units else { return true }
+        let now = Date()
+        let start = data.session.startStatus
+        let baseline = podTotalCheck ?? start.flatMap { status in status.deliveredUnits.map { (units: $0, at: status.date) } }
+        podTotalCheck = (units, now)
+        guard let baseline, now > baseline.at, units >= baseline.units else { return true }
+        let expected = UntetheredAudit.expectedDelivery(
+            from: baseline.at,
+            to: now,
+            history: data.tddPumpHistory,
+            basalProfile: grant.basalProfile,
+            bolusDeliveryRate: odometer.bolusDeliveryRate
+        )
+        guard case let .unrecorded(extra) = UntetheredAudit.verdict(delivered: Decimal(units - baseline.units), expected: expected)
+        else { return true }
+        let rounded = extra.rounded(scale: 2)
+        let bolus = PumpHistoryEvent(
+            id: "untethered-unexplained-\(Int(now.timeIntervalSince1970))",
+            type: .bolus,
+            timestamp: now,
+            amount: rounded,
+            duration: 0,
+            isSMB: false,
+            isExternal: false
+        )
+        store.update { $0.upsertPumpEvent(id: bolus.id, history: [bolus], tdd: bolus) }
+        Task {
+            await WatchLogger.shared.log(
+                "⌚️ Untethered: the pod delivered \(rounded) U the watch has no record of since \(baseline.at.formatted(date: .omitted, time: .shortened)); counted as a bolus, this loop doses nothing",
+                force: true
+            )
+        }
+        notify(
+            id: Self.notificationPrefix + "unexplained",
+            title: String(localized: "Insulin From Elsewhere"),
+            body: String(localized: "The pod delivered \(rounded) U the watch didn't give. It counts it and skips this loop's dose. Check that only the watch is dosing.")
+        )
+        return false
+    }
+
+    static let handbackUnconfirmedID = notificationPrefix + "handbackUnconfirmed"
+    static let phoneSilentID = notificationPrefix + "phoneSilent"
+    /// As Elias Maurer's dead man's switches (EJM0/Trio feat/watch-loop-4/5): set ahead and pushed out by each sign of
+    /// life, so they come even with the watch app suspended or ended.
+    static let handbackUnconfirmedAfter: TimeInterval = 2 * 60
+    static let phoneSilentAfter: TimeInterval = 25 * 60
+
+    /// A hand-back the phone hasn't confirmed: a warning 2 min after the offer, withdrawn when the session ends.
+    func updateHandbackWarning() {
+        if data.session.phase == .ending, let offered = data.session.handbackOfferedAt {
+            guard scheduledHandbackWarning != offered else { return }
+            scheduledHandbackWarning = offered
+            notify(
+                id: Self.handbackUnconfirmedID,
+                title: String(localized: "Hand-Back Not Confirmed"),
+                body: String(localized: "The watch offered the pump back to the iPhone, which hasn't confirmed it. Open Trio on the iPhone and keep it near the pod."),
+                after: max(1, offered.addingTimeInterval(Self.handbackUnconfirmedAfter).timeIntervalSinceNow),
+                asksForAction: true
+            )
+        } else if scheduledHandbackWarning != nil {
+            scheduledHandbackWarning = nil
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.handbackUnconfirmedID])
+        }
+        if data.session.phase != .idle {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.phoneSilentID])
+        }
+    }
+
+    /// With the fallback on and no session: each word from the phone pushes a warning 25 min out. It comes when the
+    /// phone went silent and the fallback didn't take over by then (it would after about 10 min).
+    func notePhoneHeardForWarning() {
+        let state = WatchState.shared
+        guard data.session.phase == .idle, state.fallbackLoop, state.untetheredMode, state.allowUntetheredStartWithoutPhone
+        else { return }
+        // about once a minute is enough: the phone's messages come in bursts
+        guard Date().timeIntervalSince(phoneSilentScheduledAt ?? .distantPast) > 60 else { return }
+        phoneSilentScheduledAt = Date()
+        notify(
+            id: Self.phoneSilentID,
+            title: String(localized: "No Word From iPhone"),
+            body: String(localized: "Trio on the iPhone hasn't reached the watch for 25 minutes, and the watch hasn't taken over. Check that Trio on the iPhone is running and looping."),
+            after: Self.phoneSilentAfter,
+            asksForAction: true
+        )
     }
 
     /// `BolusSafetyEvaluator`'s rules (phone only) with the watch's numbers.

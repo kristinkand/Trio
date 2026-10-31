@@ -92,6 +92,11 @@ import WatchKit
     @ObservationIgnored var workoutKeepAlive: UntetheredWorkoutKeepAlive?
     /// The last start had no permission or failed: tried again only with Trio in front, where watchOS can ask.
     @ObservationIgnored var workoutStartFailed = false
+    /// The pod's total at the last loop's check (`podTotalExplained`); the session's start before the first.
+    @ObservationIgnored var podTotalCheck: (units: Double, at: Date)?
+    /// The hand-back offer the warning was set for (`updateHandbackWarning`).
+    @ObservationIgnored var scheduledHandbackWarning: Date?
+    @ObservationIgnored var phoneSilentScheduledAt: Date?
     /// The workout was ended in watchOS during the session: it stays off until the next one.
     @ObservationIgnored var workoutEndedByUser = false
     @ObservationIgnored var workoutStartRequestedAt: Date?
@@ -152,6 +157,9 @@ import WatchKit
     /// Every change reaches the screens at once, with the phone or without it.
     func refresh() {
         data = store.data
+        updateHandbackWarning()
+        // a new session counts from its own start
+        if data.session.phase == .idle { podTotalCheck = nil }
         updateReaderStandAside()
         // the first page marks the reading as the watch's own while this mode reads the sensor
         if WatchState.shared.currentGlucoseIsWatchOwn != isActive { WatchState.shared.currentGlucoseIsWatchOwn = isActive }
@@ -238,6 +246,7 @@ import WatchKit
 
     private func handle(_ envelope: UntetheredEnvelope, replyHandler: (([String: Any]) -> Void)?) {
         lastPhoneContact = Date()
+        notePhoneHeardForWarning()
         if let version = envelope.appVersion, WatchState.shared.phoneAppVersion != version {
             WatchState.shared.phoneAppVersion = version
         }
