@@ -104,6 +104,19 @@ func watchPumpActivatedAt(_ pump: PumpManager?) -> Date? {
     (pump as? OmniPumpManager)?.state.podState?.activatedAt
 }
 
+/// The state the CGM kit's adopt would build from another controller's export, for the session that takes the watch
+/// reader's key instead: built here as a plain state, because building the adopted manager to read its state opens a
+/// Bluetooth central, and a second manager's central under the same restore identifier never came up (1 November,
+/// 20:33). Nil for a kit the reader doesn't serve.
+func watchCGMReaderState(_ configuration: SharedDeviceConfiguration) -> [String: Any]? {
+    guard configuration.managerIdentifier == G7CGMManager.pluginIdentifier else { return nil }
+    var state = configuration.state
+    state["configuredByAnotherController"] = true
+    state["sessionMode"] = G7SessionMode.direct.rawValue
+    state["pairedAt"] = Date()
+    return state
+}
+
 /// When the sensor's session ends, as the phone's home header counts it (into the grace period once expired).
 func watchCGMExpiresAt(_ manager: CGMManager?) -> Date? {
     guard let g7 = manager as? G7CGMManager else { return nil }
