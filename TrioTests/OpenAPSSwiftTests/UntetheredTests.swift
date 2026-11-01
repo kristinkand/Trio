@@ -364,6 +364,24 @@ import Testing
         #expect(watch.isIdle)
     }
 
+    @Test("foreign session: a watch session started after the phone's forced take is adopted, not revoked")
+    func foreignSessionLaterWatchStart() {
+        var phone = UntetheredSession()
+        _ = phone.phone(.foreignSessionDetected(podStatus), now: t0)
+        let deadline = UntetheredSession.statusQueryGrace + UntetheredSession.statusQueryResponseTimeout
+        #expect(phone.phone(.tick, now: t0 + deadline + 1) == [.takePump])
+        #expect(phone.unknownWatchSince != nil)
+
+        // hours later the phone went quiet and the watch's fallback started: nobody else was at the pod
+        var watch = UntetheredSession()
+        _ = watch.watch(.startWithoutPhone, now: t0 + 3 * 3600)
+        _ = watch.watch(.takeoverSucceeded(podStatus), now: t0 + 3 * 3600 + 30)
+        #expect(phone.phone(.watchHoldsPump(epoch: watch.epoch, status: podStatus), now: t0 + 3 * 3600 + 600) == [.releasePump])
+        #expect(phone.phase == .active)
+        #expect(phone.epoch == watch.epoch)
+        #expect(phone.unknownWatchSince == nil)
+    }
+
     @Test("without phone: a pod out of reach for five minutes ends the start") func startWithoutPhoneTimeout() {
         var watch = UntetheredSession()
         _ = watch.watch(.startWithoutPhone, now: t0)
