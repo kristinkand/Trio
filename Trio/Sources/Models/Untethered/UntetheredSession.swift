@@ -109,8 +109,11 @@ struct UntetheredSession: Codable, Equatable {
             return [.send(.prepare(grant))]
 
         // the phone dosed again after the watch stayed silent: the watch ends as after a take-back, never gets the pod
-        // back, and its history comes over
-        case let (.idle, .watchHoldsPump(watchEpoch, _)) where watchEpoch > epoch && unknownWatchSince != nil:
+        // back, and its history comes over. Only a session the watch started by then: one it started later (a
+        // fallback after the phone went quiet) had nobody else at the pod, and the mark of a silence hours ago
+        // revoked it at the phone's relaunch while the phone, Bluetooth off, couldn't take the pod (1 November 15:37)
+        case let (.idle, .watchHoldsPump(watchEpoch, _))
+            where watchEpoch > epoch && unknownWatchSince.map { TimeInterval(watchEpoch) <= $0.timeIntervalSince1970 } == true:
             self = UntetheredSession(phase: .idle, epoch: watchEpoch)
             forced = true
             return [.send(.revoke), .reconcile]

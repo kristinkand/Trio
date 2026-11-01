@@ -335,12 +335,26 @@ import WatchKit
         case .revoke:
             // the answer to this stall's hand-back request: the same note, now saying it's done
             let asked = handbackRequestedAt != nil && data.session.phase == .active
+            let held = data.session.phase != .idle && envelope.epoch == data.session.epoch
             apply(.received(envelope.message, epoch: envelope.epoch), reply: replyHandler)
-            if asked, data.session.phase == .idle {
+            guard held, data.session.phase == .idle else { break }
+            Task {
+                await WatchLogger.shared.log(
+                    "⌚️ Untethered: the iPhone took the pump back (revoke for session \(envelope.epoch)), the watch lets go",
+                    force: true
+                )
+            }
+            if asked {
                 notify(
                     id: Self.notificationPrefix + "handbackRequest",
                     title: String(localized: "Pump Back on iPhone"),
                     body: String(localized: "The iPhone has the pump again and loops. Start untethered mode again when you want.")
+                )
+            } else {
+                notify(
+                    id: Self.notificationPrefix + "phoneTookPod",
+                    title: String(localized: "iPhone Took the Pump"),
+                    body: String(localized: "The iPhone ended untethered mode and doses again. Check that Trio on the iPhone loops.")
                 )
             }
 

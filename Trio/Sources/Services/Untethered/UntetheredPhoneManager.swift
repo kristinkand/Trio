@@ -1071,6 +1071,14 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }) {
             attempts += 1
             debug(.watch, "Untethered: the pump did not answer yet (attempt \(attempts)), retrying")
+            // with Bluetooth off nothing reaches the pod, and the watch has let go: said at once, as nobody doses
+            if !bannerShown, isBluetoothOff {
+                bannerShown = true
+                warning(.watch, "Untethered: the pump comes back to the phone, but the iPhone's Bluetooth is off")
+                setError(String(
+                    localized: "The iPhone's Bluetooth is off, so it can't reach the pump and nothing doses. Turn Bluetooth on."
+                ))
+            }
             // dosing stays held until the pump is read; after a minute the banner says why
             if !bannerShown, Date().timeIntervalSince(started) >= 60 {
                 bannerShown = true
