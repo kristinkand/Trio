@@ -92,8 +92,6 @@ import WatchKit
     @ObservationIgnored var workoutKeepAlive: UntetheredWorkoutKeepAlive?
     /// The last start had no permission or failed: tried again only with Trio in front, where watchOS can ask.
     @ObservationIgnored var workoutStartFailed = false
-    /// The pod's total at the last loop's check (`podTotalExplained`); the session's start before the first.
-    @ObservationIgnored var podTotalCheck: (units: Double, at: Date)?
     /// The hand-back offer the warning was set for (`updateHandbackWarning`).
     @ObservationIgnored var scheduledHandbackWarning: Date?
     @ObservationIgnored var phoneSilentScheduledAt: Date?
@@ -159,7 +157,10 @@ import WatchKit
         data = store.data
         updateHandbackWarning()
         // a new session counts from its own start
-        if data.session.phase == .idle { podTotalCheck = nil }
+        if data.session.phase == .idle, data.podTotalCheck != nil {
+            store.update { $0.podTotalCheck = nil }
+            data = store.data
+        }
         updateReaderStandAside()
         // the first page marks the reading as the watch's own while this mode reads the sensor
         if WatchState.shared.currentGlucoseIsWatchOwn != isActive { WatchState.shared.currentGlucoseIsWatchOwn = isActive }
@@ -414,6 +415,7 @@ import WatchKit
         data.carbs = grant.carbs
         data.tempTargets = grant.tempTargets
         data.activeOverride = grant.activeOverride
+        data.podTotalCheck = nil
         data.activeOverrideKey = grant.activeOverride.map { UntetheredRecord.overrideKey($0.date) }
         // only a temp target still running has an end to report
         data.activeTempTargetKey = grant.tempTargets.max(by: { $0.createdAt < $1.createdAt })
