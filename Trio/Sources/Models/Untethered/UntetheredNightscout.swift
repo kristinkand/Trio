@@ -85,11 +85,56 @@ enum UntetheredNightscout {
         var foodType: String?
         var id: String?
         var fpuID: String?
+        var targetTop: Decimal?
+        var targetBottom: Decimal?
 
-        /// Changes when the treatment does (a bolus finishing, a temp basal cut short): it goes up again then.
+        /// Changes when the treatment does (a bolus finishing, a temp basal, override or temp target cut short): it
+        /// goes up again then.
         var fingerprint: String {
-            "\(eventType)|\(created_at.timeIntervalSince1970)|\(insulin ?? 0)|\(duration ?? 0)|\(rate ?? 0)|\(carbs ?? 0)|\(fat ?? 0)|\(protein ?? 0)"
+            "\(eventType)|\(created_at.timeIntervalSince1970)|\(insulin ?? 0)|\(duration ?? 0)|\(rate ?? 0)|\(carbs ?? 0)|\(fat ?? 0)|\(protein ?? 0)|\(targetTop ?? 0)|\(notes ?? "")"
         }
+    }
+
+    /// An override as Nightscout keeps it (`OverrideStorage`, `NightscoutExercise`): a running one with its planned
+    /// duration, an ended one with the minutes it ran, under the same start, which replaces the first upload.
+    struct OverrideRun: Codable, Equatable {
+        let name: String
+        let start: Date
+        let minutes: Decimal
+    }
+
+    /// The phone's `OverrideStored.EventType.nsExercise`.
+    static let overrideEventType = "Exercise"
+    /// The phone's upload of an indefinite override: 30 days.
+    static let indefiniteMinutes: Decimal = 43200
+
+    /// Temp targets as the phone uploads them (`TempTargetsStorage`): each start with its planned duration, or with
+    /// the minutes it ran (at least 1) when a cancel or a newer temp target ended it early. A cancel isn't uploaded
+    /// on its own.
+    static func tempTargetTreatments(_ tempTargets: [TempTarget], since: Date, latest: Date) -> [Treatment] {
+        let sorted = tempTargets.sorted { $0.createdAt < $1.createdAt }
+        var result: [Treatment] = []
+        for (index, target) in sorted.enumerated() where target.duration > 0 {
+            guard target.createdAt <= latest, let top = target.targetTop ?? target.targetBottom, top > 0 else { continue }
+            let next = index + 1 < sorted.count ? sorted[index + 1].createdAt : nil
+            var minutes = target.duration
+            if let next {
+                minutes = min(minutes, Decimal(max(1, next.timeIntervalSince(target.createdAt) / 60)))
+            }
+            // one from before the session goes up again only if the watch ended it early
+            guard target.createdAt >= since || ((next.map { $0 >= since } ?? false) && minutes < target.duration)
+            else { continue }
+            result.append(Treatment(
+                eventType: EventType.nsTempTarget.rawValue,
+                created_at: target.createdAt,
+                enteredBy: target.enteredBy ?? TempTarget.local,
+                duration: NSDecimalNumber(decimal: minutes).intValue,
+                notes: target.name ?? TempTarget.custom,
+                targetTop: top,
+                targetBottom: target.targetBottom ?? top
+            ))
+        }
+        return result
     }
 
     /// The session's boluses, SMBs, temp basals and carbs from `since`, as the phone uploads them
@@ -106,7 +151,9 @@ enum UntetheredNightscout {
         carbs: [CarbsEntry],
         since: Date,
         now: Date,
-        sessionStart: Date? = nil
+        sessionStart: Date? = nil,
+        tempTargets: [TempTarget] = [],
+        overrides: [OverrideRun] = []
     ) -> [Treatment] {
         let latest = now.addingTimeInterval(60)
         let events = pumpHistory.filter { $0.timestamp >= since && $0.timestamp <= latest }
@@ -153,6 +200,16 @@ enum UntetheredNightscout {
         }
         if let sessionStart {
             result.append(Treatment(eventType: sessionEventType, created_at: sessionStart, notes: "Untethered on Apple Watch"))
+        }
+        // followers (LoopFollow, Nightscout) show the running override and temp target from these
+        result += tempTargetTreatments(tempTargets, since: since, latest: latest)
+        for run in overrides where run.start <= latest {
+            result.append(Treatment(
+                eventType: overrideEventType,
+                created_at: run.start,
+                duration: NSDecimalNumber(decimal: max(1, run.minutes)).intValue,
+                notes: run.name
+            ))
         }
         return result.sorted { $0.created_at < $1.created_at }
     }

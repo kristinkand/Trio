@@ -191,4 +191,51 @@ import Testing
         // its own key: a loop's determination record isn't replaced by the note
         #expect(record.key != UntetheredRecord.determinationKey(deliverAt))
     }
+
+    // MARK: - Overrides and temp targets
+
+    func tempTarget(_ minutesAfterT0: Double, target: Decimal, duration: Decimal) -> TempTarget {
+        TempTarget(
+            name: TempTarget.custom, createdAt: t0.addingTimeInterval(minutesAfterT0 * 60), targetTop: target,
+            targetBottom: target, duration: duration, enteredBy: TempTarget.local, reason: TempTarget.custom,
+            isPreset: false, enabled: true, halfBasalTarget: 160
+        )
+    }
+
+    @Test("temp targets: as the phone uploads them, cut short by a cancel or a newer one, none from before the session")
+    func tempTargets() {
+        let targets = [
+            tempTarget(-60, target: 150, duration: 30), // before the session, ran out: the phone uploaded it
+            tempTarget(10, target: 108, duration: 420),
+            tempTarget(18, target: 108, duration: 10), // replaces the first after 8 min
+            TempTarget.cancel(at: t0.addingTimeInterval(22 * 60)) // ends the second after 4 min
+        ]
+        let treatments = UntetheredNightscout.tempTargetTreatments(targets, since: t0, latest: t0.addingTimeInterval(3600))
+        #expect(treatments.map(\.eventType) == ["Temporary Target", "Temporary Target"])
+        #expect(treatments.map(\.duration) == [8, 4])
+        #expect(treatments.first?.targetTop == 108)
+        #expect(treatments.first?.targetBottom == 108)
+        #expect(treatments.first?.enteredBy == "Trio")
+    }
+
+    @Test("temp targets: one from before the session that the watch cancelled goes up with the minutes it ran")
+    func tempTargetFromBefore() {
+        let targets = [tempTarget(-20, target: 150, duration: 60), TempTarget.cancel(at: t0.addingTimeInterval(5 * 60))]
+        let treatments = UntetheredNightscout.tempTargetTreatments(targets, since: t0, latest: t0.addingTimeInterval(3600))
+        #expect(treatments.map(\.duration) == [25])
+    }
+
+    @Test("overrides: as Exercise with the name in notes, ended ones with the minutes they ran")
+    func overrides() {
+        let runs = [
+            UntetheredNightscout.OverrideRun(name: "Low treatment", start: t0.addingTimeInterval(60), minutes: 1),
+            UntetheredNightscout.OverrideRun(name: "Weaker", start: t0.addingTimeInterval(120), minutes: 43200)
+        ]
+        let treatments = UntetheredNightscout.treatments(
+            pumpHistory: [], carbs: [], since: t0, now: t0.addingTimeInterval(600), overrides: runs
+        )
+        #expect(treatments.map(\.eventType) == ["Exercise", "Exercise"])
+        #expect(treatments.map(\.notes) == ["Low treatment", "Weaker"])
+        #expect(treatments.map(\.duration) == [1, 43200])
+    }
 }
