@@ -148,7 +148,7 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
                     ? manager.state.lastError
                     ?? String(localized: "Checking what the watch delivered before the phone doses again.")
                     : manager.isHandingBack
-                    ? String(localized: "No need to tap again. It goes through at the watch's next wake, at once with Trio open on the watch.")
+                    ? String(localized: "Open Trio on the watch to finish now. Otherwise it can take a few minutes, until the watch picks up the request.")
                     : String(localized: "The phone doesn't dose. Bolus and carbs are entered on the watch."),
                 manager.isWatchInCharge,
                 { showActions = manager.isWatchInCharge }
@@ -299,7 +299,7 @@ struct UntetheredTreatmentGate<Content: View>: View {
                 if manager.isHandingBack {
                     VStack(spacing: 8) {
                         ProgressView()
-                        Text("Asking the watch for the pump… It goes through at the watch's next wake, at once with Trio open on the watch.")
+                        Text("Asking the watch for the pump… Open Trio on the watch to finish now. Otherwise it can take a few minutes, until the watch picks up the request.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
