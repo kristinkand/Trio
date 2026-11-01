@@ -646,15 +646,21 @@ extension UntetheredWatchManager {
     /// its rule come from Elias Maurer's Watch Loop (`pumpTotalIsExplained`, EJM0/Trio feat/watch-loop-5/5); before,
     /// the watch made this check only when it started from the phone's copy.
     func podTotalExplained(_ pump: PumpManager, grant: UntetheredGrant) -> Bool {
-        guard let odometer = pump as? PumpDeliveryOdometer, let units = odometer.deliveredUnits?.units else { return true }
+        guard let odometer = pump as? PumpDeliveryOdometer, let reading = odometer.deliveredUnits else { return true }
         let now = Date()
+        let units = reading.units
         let start = data.session.startStatus
         let baseline = podTotalCheck ?? start.flatMap { status in status.deliveredUnits.map { (units: $0, at: status.date) } }
-        podTotalCheck = (units, now)
-        guard let baseline, now > baseline.at, units >= baseline.units else { return true }
+        // compared by the time the pod gave each count, not the time of the check: a loop that finds the pump data
+        // fresh enough reads no new count, and a dose command's answer brings a newer one after the check. With the
+        // time of the check, an SMB counted in such a later answer looked like insulin from elsewhere (0.67 U,
+        // 2026-11-01 09:23, after a 0.7 U SMB at 09:13)
+        guard let baseline, reading.at > baseline.at else { return true }
+        podTotalCheck = (units, reading.at)
+        guard units >= baseline.units else { return true }
         let expected = UntetheredAudit.expectedDelivery(
             from: baseline.at,
-            to: now,
+            to: reading.at,
             history: data.tddPumpHistory,
             basalProfile: grant.basalProfile,
             bolusDeliveryRate: odometer.bolusDeliveryRate
