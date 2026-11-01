@@ -328,6 +328,16 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     @MainActor func end() async {
         await apply(.end)
+        // a watch app the system has suspended isn't reachable, and the request (repeated every 30 s) only got through
+        // once Trio was in front on the watch (1 November, 11:44 to 11:45:47). Queued as well, it reaches the watch
+        // at its next wake, e.g. the next loop.
+        let session = WCSession.default
+        guard state.session.phase == .ending, WCSession.isSupported(), session.activationState == .activated,
+              !session.isReachable,
+              let payload = try? UntetheredEnvelope(epoch: state.session.epoch, message: .endRequest).payload()
+        else { return }
+        session.transferUserInfo(payload)
+        debug(.watch, "Untethered: hand-back asked with the watch out of reach, queued for its next wake")
     }
 
     /// Reaches for the pod before the watch is told to stop: a phone that can't reach it leaves the watch dosing,
