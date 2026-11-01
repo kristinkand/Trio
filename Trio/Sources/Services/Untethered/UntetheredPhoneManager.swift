@@ -68,6 +68,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     @Injected() private var tddStorage: TDDStorage!
     @Injected() private var pumpHistoryStorage: PumpHistoryStorage!
     @Injected() private var adjustmentManager: AdjustmentManager!
+    @Injected() private var tempTargetsStorage: TempTargetsStorage!
     @Injected() private var determinationStorage: DeterminationStorage!
     @Injected() private var broadcaster: Broadcaster!
     @Injected() private var nightscoutManager: NightscoutManager!
@@ -1615,12 +1616,20 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 try await adjustmentManager.cancelOverride(source: .watch, waitForUpload: false, at: record.date)
             }
         case let .tempTarget(tempTarget):
-            try await adjustmentManager.activateTempTarget(
-                .presetID(tempTarget.id),
-                source: .watch,
-                waitForUpload: false,
-                at: record.date
-            )
+            // a preset by its id; a custom one (a remote command's target) is no preset here: stored first, as the
+            // phone's own remote control does (`handleTempTargetCommand`), once (1 November, 13:38: "Preset … not
+            // found", so the phone neither uploaded it nor knew it after the hand-back)
+            let ref: AdjustmentRef
+            if tempTarget.isPreset == true {
+                ref = .presetID(tempTarget.id)
+            } else {
+                guard await !tempTargetsStorage.existsTempTarget(with: record.date) else { break }
+                var custom = tempTarget
+                custom.createdAt = record.date
+                custom.enabled = false
+                ref = .objectID(try await tempTargetsStorage.storeTempTarget(tempTarget: custom))
+            }
+            try await adjustmentManager.activateTempTarget(ref, source: .watch, waitForUpload: false, at: record.date)
         case let .tempTargetEnded(start):
             if await runningAdjustmentStarted(TempTargetStored.self, predicate: .lastActiveTempTarget) == start.rounded {
                 try await adjustmentManager.cancelTempTarget(source: .watch, waitForUpload: false, at: record.date)

@@ -16,6 +16,9 @@ extension UntetheredPhoneManager {
 }
 
 extension UntetheredPhoneManager {
+    /// The hand-back was asked for and the watch hasn't handed back yet: it may take until the watch's next wake.
+    var isHandingBack: Bool { state.session.phase == .ending }
+
     /// While the pump comes back: reaching it, then waiting for the watch's last records and the audit.
     var pumpReturnTitle: String {
         pumpReturnAnswered ? String(localized: "Checking the watch's records…") : String(localized: "Reaching the pump…")
@@ -133,10 +136,13 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
             banner(
                 manager.state.pumpReturnPending
                     ? manager.pumpReturnTitle
+                    : manager.isHandingBack ? String(localized: "Asking the watch for the pump…")
                     : String(localized: "Untethered on Apple Watch"),
                 manager.state.pumpReturnPending
                     ? manager.state.lastError
                     ?? String(localized: "Checking what the watch delivered before the phone doses again.")
+                    : manager.isHandingBack
+                    ? String(localized: "No need to tap again. It goes through at the watch's next wake, at once with Trio open on the watch.")
                     : String(localized: "The phone doesn't dose. Bolus and carbs are entered on the watch."),
                 manager.isWatchInCharge,
                 { showActions = manager.isWatchInCharge }
@@ -284,7 +290,18 @@ struct UntetheredTreatmentGate<Content: View>: View {
                 }
                 .padding(.horizontal, 8)
 
-                if manager.isWatchInCharge {
+                if manager.isHandingBack {
+                    VStack(spacing: 8) {
+                        ProgressView()
+                        Text("Asking the watch for the pump… It goes through at the watch's next wake, at once with Trio open on the watch.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    gateButton("Take Back the Pump Now", systemImage: "exclamationmark.triangle", tint: .red) {
+                        confirmForce = true
+                    }
+                } else if manager.isWatchInCharge {
                     VStack(spacing: 10) {
                         gateButton("End Untethered Mode", systemImage: "iphone", tint: .untethered) { confirmEnd = true }
                         gateButton("Take Back the Pump Now", systemImage: "exclamationmark.triangle", tint: .red) {
