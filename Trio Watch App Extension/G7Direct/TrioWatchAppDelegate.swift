@@ -37,9 +37,9 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
 
     func didRegisterForRemoteNotifications(withDeviceToken deviceToken: Data) {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
-        // logged at every launch's registration, so a log always carries the current one
         UserDefaults.standard.set(token, forKey: Self.pushTokenKey)
-        Task { await WatchLogger.shared.log("⌚️ Push test: watch push token \(token)", force: true) }
+        // only its end, enough to tell a new token: logs get shared, and the token reaches the phone by its own way
+        Task { await WatchLogger.shared.log("⌚️ Push test: watch push token …\(token.suffix(6))", force: true) }
         WatchRemoteCommands.sendTokenToPhone(token)
     }
 
@@ -399,7 +399,8 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
             commandType: payload.commandType,
             timestamp: Date().timeIntervalSince1970
         )
-        var request = URLRequest(url: url)
+        // well inside the push's wake: a hung request would outlast it
+        var request = URLRequest(url: url, timeoutInterval: 8)
         request.httpMethod = "POST"
         request.httpBody = try? JSONEncoder().encode(body)
         request.setValue("bearer \(jwt)", forHTTPHeaderField: "authorization")

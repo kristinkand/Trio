@@ -776,6 +776,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         guard state.session.phase == .active else {
             return .refused(String(localized: "Command rejected: the pump is changing hands between the iPhone and the Apple Watch. Try again in a few minutes."))
         }
+        // the same command a second time (e.g. its push delivered twice): the first one's wait reports it
+        guard remoteTreatmentWaits[id] == nil, remoteTreatmentLate[id] == nil else { return .delivered("") }
         let epoch = state.session.epoch
         info(.remote, "Untethered: passing a remote command to the watch: \(summary)")
         remoteTreatmentLate[id] = late
