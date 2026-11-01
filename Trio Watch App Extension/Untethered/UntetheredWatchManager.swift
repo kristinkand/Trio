@@ -445,6 +445,7 @@ import WatchKit
         data.tempTargets = grant.tempTargets
         data.activeOverride = grant.activeOverride
         data.podTotalCheck = nil
+        data.endedOverrides = []
         data.activeOverrideKey = grant.activeOverride.map { UntetheredRecord.overrideKey($0.date) }
         // only a temp target still running has an end to report
         data.activeTempTargetKey = grant.tempTargets.max(by: { $0.createdAt < $1.createdAt })
