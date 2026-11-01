@@ -134,11 +134,17 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
     var body: some View {
         if manager.isWatchInCharge || manager.state.pumpReturnPending {
             banner(
-                manager.state.pumpReturnPending
+                manager.isBluetoothOff
+                    ? String(localized: "⚠️ iPhone Bluetooth Off")
+                    : manager.state.pumpReturnPending
                     ? manager.pumpReturnTitle
                     : manager.isHandingBack ? String(localized: "Asking the watch for the pump…")
                     : String(localized: "Untethered on Apple Watch"),
-                manager.state.pumpReturnPending
+                manager.isBluetoothOff
+                    ? (manager.state.pumpReturnPending
+                        ? String(localized: "The phone can't reach the pump and nothing doses. Turn Bluetooth on.")
+                        : String(localized: "The watch doses. Turn Bluetooth on before the pump comes back to the phone."))
+                    : manager.state.pumpReturnPending
                     ? manager.state.lastError
                     ?? String(localized: "Checking what the watch delivered before the phone doses again.")
                     : manager.isHandingBack
