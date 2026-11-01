@@ -26,6 +26,8 @@ struct UntetheredWatchData: Codable {
     var carbs: [CarbsEntry] = []
     var tempTargets: [TempTarget] = []
     var activeOverride: Override?
+    /// Overrides that ended on the watch, with the minutes they ran, for the watch's own Nightscout upload.
+    var endedOverrides: [UntetheredNightscout.OverrideRun] = []
     /// The record keys that started the running override and temp target; their end is a new version.
     var activeOverrideKey: String?
     var activeTempTargetKey: String?
@@ -109,6 +111,8 @@ extension UntetheredWatchData {
         carbs = try container.decodeIfPresent([CarbsEntry].self, forKey: .carbs) ?? defaults.carbs
         tempTargets = try container.decodeIfPresent([TempTarget].self, forKey: .tempTargets) ?? defaults.tempTargets
         activeOverride = try container.decodeIfPresent(Override.self, forKey: .activeOverride)
+        endedOverrides = try container.decodeIfPresent([UntetheredNightscout.OverrideRun].self, forKey: .endedOverrides) ??
+            defaults.endedOverrides
         activeOverrideKey = try container.decodeIfPresent(String.self, forKey: .activeOverrideKey)
         activeTempTargetKey = try container.decodeIfPresent(String.self, forKey: .activeTempTargetKey)
         autosens = try container.decodeIfPresent(Autosens.self, forKey: .autosens)
@@ -190,6 +194,7 @@ final class UntetheredStore {
             $0.smoothedGlucose = $0.smoothedGlucose.filter { kept.contains($0.key) }
             $0.carbs.removeAll { ($0.actualDate ?? $0.createdAt) < dayAgo }
             $0.tempTargets.removeAll { $0.createdAt < dayAgo }
+            $0.endedOverrides.removeAll { $0.start < dayAgo }
         }
     }
 }

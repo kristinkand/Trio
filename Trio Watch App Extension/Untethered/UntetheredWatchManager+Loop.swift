@@ -214,7 +214,9 @@ extension UntetheredWatchManager {
             carbs: data.carbs,
             since: data.session.startStatus?.date ?? now.addingTimeInterval(-6 * 60 * 60),
             now: now,
-            sessionStart: data.session.startStatus?.date
+            sessionStart: data.session.startStatus?.date,
+            tempTargets: data.tempTargets,
+            overrides: data.endedOverrides + (activeOverride(at: now).map { [Self.overrideRun($0, endedAt: nil)] } ?? [])
         )
         let outcome = await WatchNightscoutUploader.shared.upload(glucose: data.glucose, status: status, treatments: treatments)
         if outcome.statusUploaded, let deliverAt = loop?.determination.deliverAt {
@@ -1009,6 +1011,7 @@ extension UntetheredWatchManager {
         store.update {
             $0.activeOverride = nil
             $0.activeOverrideKey = nil
+            $0.endedOverrides.append(Self.overrideRun(override, endedAt: date))
         }
         store.record(
             UntetheredRecord(key: key, date: date, kind: .overrideEnded(start: override.date)),
@@ -1017,6 +1020,14 @@ extension UntetheredWatchManager {
         refresh()
         checkLinkedOverride()
         runLoop(.treatment)
+    }
+
+    /// For Nightscout: the minutes an override ran, or its planned ones while it runs (30 days when indefinite, as
+    /// the phone uploads it).
+    static func overrideRun(_ override: Override, endedAt end: Date?) -> UntetheredNightscout.OverrideRun {
+        let planned = override.indefinite ? UntetheredNightscout.indefiniteMinutes : override.duration
+        let minutes = end.map { min(planned, Decimal(max(1, $0.timeIntervalSince(override.date) / 60))) } ?? planned
+        return UntetheredNightscout.OverrideRun(name: override.name, start: override.date, minutes: minutes)
     }
 
     func activateTempTarget(named name: String) {
@@ -1082,6 +1093,7 @@ extension UntetheredWatchManager {
             store.update {
                 $0.activeOverride = nil
                 $0.activeOverrideKey = nil
+                $0.endedOverrides.append(Self.overrideRun(override, endedAt: end))
             }
             store.record(UntetheredRecord(key: key, date: end, kind: .overrideEnded(start: override.date)), epoch: epoch)
         }
