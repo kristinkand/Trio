@@ -26,6 +26,9 @@ struct UntetheredWatchData: Codable {
     var carbs: [CarbsEntry] = []
     var tempTargets: [TempTarget] = []
     var activeOverride: Override?
+    /// The pod's total at the last check (`podTotalExplained`), kept across relaunches: without it the next check
+    /// would count from the session's start.
+    var podTotalCheck: PodTotalCount?
     /// Overrides that ended on the watch, with the minutes they ran, for the watch's own Nightscout upload.
     var endedOverrides: [UntetheredNightscout.OverrideRun] = []
     /// The record keys that started the running override and temp target; their end is a new version.
@@ -64,6 +67,12 @@ struct UntetheredWatchData: Codable {
     var entries: [Int: [String: UntetheredSyncEntry]] = [:]
     /// Versions not handed to WatchConnectivity yet.
     var unsent: Set<UUID> = []
+
+    /// A pod's delivered total and the time the pod gave it.
+    struct PodTotalCount: Codable, Equatable {
+        let units: Double
+        let at: Date
+    }
 
     struct PendingPumpAlert: Codable, Equatable, Identifiable {
         let managerIdentifier: String
@@ -111,6 +120,7 @@ extension UntetheredWatchData {
         carbs = try container.decodeIfPresent([CarbsEntry].self, forKey: .carbs) ?? defaults.carbs
         tempTargets = try container.decodeIfPresent([TempTarget].self, forKey: .tempTargets) ?? defaults.tempTargets
         activeOverride = try container.decodeIfPresent(Override.self, forKey: .activeOverride)
+        podTotalCheck = try container.decodeIfPresent(PodTotalCount.self, forKey: .podTotalCheck)
         endedOverrides = try container.decodeIfPresent([UntetheredNightscout.OverrideRun].self, forKey: .endedOverrides) ??
             defaults.endedOverrides
         activeOverrideKey = try container.decodeIfPresent(String.self, forKey: .activeOverrideKey)

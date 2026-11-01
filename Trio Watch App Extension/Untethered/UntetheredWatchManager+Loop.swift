@@ -140,7 +140,9 @@ extension UntetheredWatchManager {
                             return
                         }
                         if grant.dosingMode.automation == .off || !explained {
-                            // with insulin the records don't explain, this loop doses nothing (`podTotalExplained`)
+                            // with insulin the records don't explain, this loop doses nothing (`podTotalExplained`),
+                            // and a high temp an earlier loop set doesn't run on
+                            if !explained { await self.cancelHighTemp(pump, grant: grant) }
                             record(enactedAt: nil)
                             looped()
                         } else {
@@ -698,18 +700,23 @@ extension UntetheredWatchManager {
         let now = Date()
         let units = reading.units
         let start = data.session.startStatus
-        let baseline = podTotalCheck ?? start.flatMap { status in status.deliveredUnits.map { (units: $0, at: status.date) } }
+        let baseline = data.podTotalCheck.map { (units: $0.units, at: $0.at) }
+            ?? start.flatMap { status in status.deliveredUnits.map { (units: $0, at: status.date) } }
         // compared by the time the pod gave each count, not the time of the check: a loop that finds the pump data
         // fresh enough reads no new count, and a dose command's answer brings a newer one after the check. With the
         // time of the check, an SMB counted in such a later answer looked like insulin from elsewhere (0.67 U,
         // 2026-11-01 09:23, after a 0.7 U SMB at 09:13)
         guard let baseline, reading.at > baseline.at else { return true }
-        podTotalCheck = (units, reading.at)
+        store.update { $0.podTotalCheck = UntetheredWatchData.PodTotalCount(units: units, at: reading.at) }
         guard units >= baseline.units else { return true }
+        // older than the kept history (trimmed to a day) the records can't explain it: start counting again
+        guard reading.at.timeIntervalSince(baseline.at) < Self.podTotalCheckSpan else { return true }
         let expected = UntetheredAudit.expectedDelivery(
             from: baseline.at,
             to: reading.at,
-            history: data.tddPumpHistory,
+            // a booked unexplained amount isn't expected delivery: it would hide real insulin from elsewhere in the
+            // next check
+            history: data.tddPumpHistory.filter { !$0.id.hasPrefix(Self.unexplainedPrefix) },
             basalProfile: grant.basalProfile,
             bolusDeliveryRate: odometer.bolusDeliveryRate
         )
@@ -717,7 +724,7 @@ extension UntetheredWatchManager {
         else { return true }
         let rounded = extra.rounded(scale: 2)
         let bolus = PumpHistoryEvent(
-            id: "untethered-unexplained-\(Int(now.timeIntervalSince1970))",
+            id: Self.unexplainedPrefix + "\(Int(now.timeIntervalSince1970))",
             type: .bolus,
             timestamp: now,
             amount: rounded,
@@ -739,6 +746,24 @@ extension UntetheredWatchManager {
         )
         return false
     }
+
+    /// Back to the scheduled basal when a temp above it runs: after insulin from elsewhere the watch adds none.
+    func cancelHighTemp(_ pump: PumpManager, grant: UntetheredGrant) async {
+        guard case let .tempBasal(dose) = pump.status.basalDeliveryState else { return }
+        let scheduled = BolusCalculator.scheduleValue(grant.basalProfile.map { ($0.start, $0.rate) }, at: Date())
+        guard Decimal(dose.unitsPerHour) > scheduled else { return }
+        do {
+            try await pump.enactTempBasal(unitsPerHour: 0, for: 0)
+            recordPumpStatus()
+            Task { await WatchLogger.shared.log("⌚️ Untethered: high temp \(dose.unitsPerHour) U/h cancelled after insulin from elsewhere", force: true) }
+        } catch {
+            Task { await WatchLogger.shared.log("⌚️ Untethered: high temp not cancelled: \(error.localizedDescription)", force: true) }
+        }
+    }
+
+    static let unexplainedPrefix = "untethered-unexplained-"
+    /// Shorter than the day of history the watch keeps (`UntetheredStore.trim`).
+    static let podTotalCheckSpan: TimeInterval = 20 * 60 * 60
 
     static let handbackUnconfirmedID = notificationPrefix + "handbackUnconfirmed"
     static let phoneSilentID = notificationPrefix + "phoneSilent"
@@ -791,10 +816,15 @@ extension UntetheredWatchManager {
         if units > grant.maxBolus {
             return String(localized: "Command rejected: bolus amount (\(units) units) exceeds the maximum allowed (\(grant.maxBolus) units).")
         }
-        // the last loop's IOB, while it is recent: the boluses since are counted below
+        // the last loop's IOB, while it is recent, with the boluses since it: the loop's own SMB and anything after
+        // it, which its IOB (calculated before them) doesn't hold
         guard let lastLoop = data.lastLoopDate, Date().timeIntervalSince(lastLoop) < Self.remoteIOBMaxAge,
-              let iob = data.lastDetermination?.iob
+              let loopIOB = data.lastDetermination?.iob
         else { return String(localized: "Command rejected: current IOB is not available.") }
+        let sinceLoop = data.pumpHistory
+            .filter { [.bolus, .smb].contains($0.type) && $0.timestamp >= lastLoop }
+            .reduce(Decimal(0)) { $0 + ($1.amount ?? 0) }
+        let iob = loopIOB + sinceLoop
         let maxIOB = grant.preferences.clamped(for: grant.dosingMode).maxIOB
         if iob + units > maxIOB {
             return String(localized: "Command rejected: bolus amount (\(units) units) would exceed max IOB (\(maxIOB) units). Current IOB: \(iob) units.")
