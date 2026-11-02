@@ -1045,6 +1045,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     private static func remoteControlSecretForWatch(_ settings: TrioSettings) -> String {
         guard settings.untetheredModeWatch, UserDefaults.standard.bool(forKey: "isTrioRemoteControlEnabled") else { return "" }
         return UserDefaults.standard.string(forKey: "trioRemoteControlSharedSecret") ?? ""
+    }
 
     /// The watch keeps a part of its plain log until the phone confirms it; queued, so the confirmation also reaches a
     /// watch that is out of reach right now.
