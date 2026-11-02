@@ -510,7 +510,7 @@ struct UntetheredHistoryView: View {
         if readings.isEmpty { Text("No glucose").foregroundStyle(.secondary) }
         ForEach(readings, id: \.id) { reading in
             let value = reading.glucose ?? reading.sgv ?? reading.mbg ?? 0
-            let shown = Text(units == .mgdL ? "\(value)" : Decimal(value).formattedAsMmolL)
+            let shown = Text(units == .mgdL ? "\(value)" : Decimal(value).formatted(for: .mmolL))
             // a manual BG is marked, as it isn't a sensor reading
             row(reading.dateString, reading.mbg != nil ? Text(Image(systemName: "drop.circle")) + Text(" ") + shown : shown)
                 .swipeActions {
@@ -1074,7 +1074,7 @@ struct ManualGlucoseEntryView: View {
     }
 
     private func display(_ mgdl: Int) -> String {
-        isMmol ? Decimal(mgdl).formattedAsMmolL : "\(mgdl)"
+        isMmol ? Decimal(mgdl).formatted(for: .mmolL) : "\(mgdl)"
     }
 
     var body: some View {

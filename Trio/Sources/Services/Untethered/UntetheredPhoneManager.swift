@@ -155,9 +155,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         broadcaster.register(InsulinSensitivitiesObserver.self, observer: self)
         broadcaster.register(CarbRatiosObserver.self, observer: self)
         broadcaster.register(BGTargetsObserver.self, observer: self)
-        // the home screen's banner warns while the iPhone's Bluetooth is off
-        apsManager.bluetoothManager?.addBluetoothObserver(self, queue: .main)
         Task { @MainActor in
+            // the home screen's banner warns while the iPhone's Bluetooth is off (the state manager is main-actor)
+            self.apsManager.bluetoothManager?.addBluetoothObserver(self, queue: .main)
             await self.forwardCancellations()
             if self.state.pumpReturnPending { await self.finishPumpReturn() }
             await self.uploadSpans()
@@ -378,7 +378,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     }
 
     /// The iPhone's Bluetooth is off, as in flight mode: no pod is in reach.
-    var isBluetoothOff: Bool {
+    @MainActor var isBluetoothOff: Bool {
         apsManager.bluetoothManager?.bluetoothState == .poweredOff
     }
 
@@ -878,7 +878,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 answered = true
                 continuation.resume(returning: result)
             }
-            odometer.refreshDeliveredUnits { answer($0) }
+            Task { answer(await odometer.refreshDeliveredUnits()) }
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.pumpCheckTimeout) { answer(false) }
         }
     }
@@ -1068,9 +1068,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         let started = Date()
         var attempts = 0
         var bannerShown = false
-        while !state.podEndedOnWatch, !(await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-            odometer.refreshDeliveredUnits { continuation.resume(returning: $0) }
-        }) {
+        while !state.podEndedOnWatch, !(await odometer.refreshDeliveredUnits()) {
             attempts += 1
             debug(.watch, "Untethered: the pump did not answer yet (attempt \(attempts)), retrying")
             // with Bluetooth off nothing reaches the pod, and the watch has let go: said at once, as nobody doses
@@ -1324,6 +1322,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             endDate: date,
             value: NSDecimalNumber(decimal: units).doubleValue,
             unit: .units,
+            decisionId: nil,
             deliveredUnits: NSDecimalNumber(decimal: units).doubleValue,
             syncIdentifier: identifier
         )

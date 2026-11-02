@@ -700,7 +700,8 @@ final class BaseAPSManager: APSManager, Injectable {
             error(.bolus, "Bolus of \(roundedAmount) U failed", error: bolusError)
             lastError.send(APSError.pumpError(bolusError))
             // with the iPhone's Bluetooth off the pump reads as "not connected": say why (28 October, flight mode)
-            let reason = bluetoothManager?.bluetoothState == .poweredOff
+            let bluetoothOff = await MainActor.run { self.bluetoothManager?.bluetoothState == .poweredOff }
+            let reason = bluetoothOff
                 ? String(localized: "The iPhone's Bluetooth is off, so it couldn't reach the pump.")
                 : bolusError.localizedDescription
             issueAlertForCategory(
