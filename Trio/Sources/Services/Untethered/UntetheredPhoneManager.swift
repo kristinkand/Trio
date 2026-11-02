@@ -155,9 +155,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         broadcaster.register(InsulinSensitivitiesObserver.self, observer: self)
         broadcaster.register(CarbRatiosObserver.self, observer: self)
         broadcaster.register(BGTargetsObserver.self, observer: self)
-        // the home screen's banner warns while the iPhone's Bluetooth is off
-        apsManager.bluetoothManager?.addBluetoothObserver(self, queue: .main)
         Task { @MainActor in
+            // the home screen's banner warns while the iPhone's Bluetooth is off (the state manager is main-actor)
+            self.apsManager.bluetoothManager?.addBluetoothObserver(self, queue: .main)
             await self.forwardCancellations()
             if self.state.pumpReturnPending { await self.finishPumpReturn() }
             await self.uploadSpans()
@@ -379,7 +379,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     }
 
     /// The iPhone's Bluetooth is off, as in flight mode: no pod is in reach.
-    var isBluetoothOff: Bool {
+    @MainActor var isBluetoothOff: Bool {
         apsManager.bluetoothManager?.bluetoothState == .poweredOff
     }
 
