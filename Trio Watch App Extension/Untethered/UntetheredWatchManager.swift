@@ -15,6 +15,8 @@ import WatchKit
     private(set) var data: UntetheredWatchData
     /// Taking over or handing back.
     private(set) var isBusy = false
+    /// Trio is in front and the watch is looking for a pod it doesn't know yet (`meetNewPodIfNeeded`).
+    private(set) var isMeetingPod = false
     /// When the session's phase last changed: the status page says what a start or a hand-back is waiting for once
     /// it takes longer than it should.
     private(set) var phaseSince = Date()
@@ -40,6 +42,9 @@ import WatchKit
     /// second manager, so the watch never has two bidding for the pod.
     @ObservationIgnored var fallbackTakeoverPump: (pump: PumpManager & ExclusiveDeviceControl, issuedAt: Date?)?
     @ObservationIgnored var isWitnessingPod = false
+    /// The manager a pod meeting reads the pod with, until it lets go (`meetNewPodIfNeeded`).
+    @ObservationIgnored var meetingPump: (PumpManager & ExclusiveDeviceControl)?
+    @ObservationIgnored var podMeetingTriedAt: Date?
     /// No looks at the pod until then, while the phone's newest reading stays this one: a look the phone sees as
     /// another controller's session holds its dosing up to 3 minutes if the watch can't answer it.
     @ObservationIgnored var fallbackLooksPaused: (phoneNewest: Date, until: Date)?
@@ -322,6 +327,7 @@ import WatchKit
                 $0.standingGrantIssuedAt = issuedAt
             }
             refresh()
+            standingGrantArrived()
 
         case .revoke:
             // the answer to this stall's hand-back request: the same note, now saying it's done
@@ -655,6 +661,11 @@ import WatchKit
         // start to a fresh one's search (12:18: 6 s, but not every time).
         let witness = fallbackTakeoverPump
         fallbackTakeoverPump = nil
+        // a pod meeting still bidding for the pod: never two managers of this watch at once
+        if let meeting = meetingPump {
+            meetingPump = nil
+            if !meeting.isControlReleased { meeting.releaseControl() }
+        }
         let pump: PumpManager & ExclusiveDeviceControl
         if let witness, data.session.startedWithoutPhone, data.handover == nil,
            witness.issuedAt != nil, witness.issuedAt == startCopyIssuedAt
@@ -1710,7 +1721,7 @@ extension UntetheredWatchManager {
         // and 20:30 beside a phone that looped every 5 minutes). So the pod decides: a phone that loops makes a
         // session on it every 5 minutes, which the watch's next look at the pod shows. The watch starts only when
         // nobody used the pod between two looks about 5 minutes apart.
-        guard !isWitnessingPod else { return }
+        guard !isWitnessingPod, !isMeetingPod else { return }
         isWitnessingPod = true
         let releaseHold = Self.holdProcess(reason: "Untethered fallback: looking at the pod", upTo: Self.fallbackWitnessHold)
         Task { @MainActor in
@@ -1828,20 +1839,113 @@ extension UntetheredWatchManager {
     }
 
     private static let newPodNoticeKey = "untethered.newPodNoticeAt"
+    /// Whether the pod of the last standing grant was unknown to this watch: the notice goes out when a grant for a
+    /// pod it doesn't know follows one for a pod it knew, that is right after a pod change.
+    private static let grantPodUnknownKey = "untethered.grantPodUnknown"
 
-    /// At most every 12 hours while the watch doesn't know the pod: one session started by hand teaches it.
-    private func askForSessionWithNewPod() {
+    /// At most every 12 hours while the watch doesn't know the pod, and at once after a pod change (`force`).
+    private func askForSessionWithNewPod(force: Bool = false) {
         let last = UserDefaults.standard.object(forKey: Self.newPodNoticeKey) as? Date ?? .distantPast
-        guard Date().timeIntervalSince(last) > 12 * 60 * 60 else { return }
+        guard force || Date().timeIntervalSince(last) > 12 * 60 * 60 else { return }
         UserDefaults.standard.set(Date(), forKey: Self.newPodNoticeKey)
         notify(
             id: Self.notificationPrefix + "newPod",
             title: String(localized: "Watch Doesn't Know the New Pod Yet"),
             body: String(
-                localized: "To take over by itself, the watch has to have used this pod once. Start untethered mode on the watch by hand, with Trio open and the iPhone nearby; a minute is enough, then end it."
+                localized: "To take over by itself, the watch has to have reached this pod once. Open Trio on the watch with the iPhone nearby: it looks for the pod by itself."
             ),
             asksForAction: true
         )
+    }
+
+    // MARK: - Meeting a new pod
+
+    /// The pod of the standing grant has no handle on this watch. Finding it takes a search, which watchOS runs only
+    /// for an app in front, so the fallback can't reach it in the background (2 November: the pod changed at 21:30,
+    /// and the fallback's looks at 05:56 and 05:58 could not search for it; a session started by hand at 06:09
+    /// found it in 4 s). False without a grant.
+    var standingGrantPodUnknown: Bool {
+        guard let grant = data.standingGrant,
+              let configuration = Self.configuration(grant.pumpConfiguration),
+              let type = watchPumpManagers[configuration.managerIdentifier]
+        else { return false }
+        return type.takeControlNeedsSearch(adopting: configuration, localState: localState(for: configuration.managerIdentifier))
+    }
+
+    /// A meeting that didn't find the pod is tried again at the next time Trio comes to the front, at most this often.
+    static let podMeetingInterval: TimeInterval = 60
+    /// How long a meeting keeps trying to reach the pod: the search and a read.
+    static let podMeetingPatience: TimeInterval = 40
+
+    /// A new standing grant: right after a pod change the watch doesn't know the pod. With Trio in front it looks for
+    /// it at once; otherwise it says so now, in the evening of the change, not at the fallback's first look at night.
+    func standingGrantArrived() {
+        let unknown = standingGrantPodUnknown
+        let wasUnknown = UserDefaults.standard.bool(forKey: Self.grantPodUnknownKey)
+        UserDefaults.standard.set(unknown, forKey: Self.grantPodUnknownKey)
+        guard unknown else { return }
+        if WKApplication.shared().applicationState == .active {
+            meetNewPodIfNeeded()
+        } else if !wasUnknown, WatchState.shared.untetheredMode, WatchState.shared.allowUntetheredStartWithoutPhone {
+            Task { await WatchLogger.shared.log("⌚️ Untethered: the phone's copy is for a pod the watch doesn't know yet", force: true) }
+            askForSessionWithNewPod(force: true)
+        }
+    }
+
+    private func isMeeting(_ pump: PumpManager) -> Bool {
+        meetingPump.map { ($0 as AnyObject) === (pump as AnyObject) } ?? false
+    }
+
+    /// With Trio in front the watch can search: a pod of the standing grant it doesn't know yet is looked for once and
+    /// its handle kept, so the fallback reaches it in the background later. It only reads the pod, as the fallback's
+    /// looks do, and doses nothing.
+    func meetNewPodIfNeeded() {
+        guard data.session.phase == .idle, !isBusy, !isWitnessingPod, !isMeetingPod, fallbackWitness == nil,
+              WatchState.shared.untetheredMode, WatchState.shared.allowUntetheredStartWithoutPhone,
+              versionMismatch == nil, WKApplication.shared().applicationState == .active, standingGrantPodUnknown,
+              Date().timeIntervalSince(podMeetingTriedAt ?? .distantPast) > Self.podMeetingInterval,
+              let grant = data.standingGrant,
+              let configuration = Self.configuration(grant.pumpConfiguration),
+              let type = watchPumpManagers[configuration.managerIdentifier],
+              let pump = type.init(adopting: configuration, localState: localState(for: configuration.managerIdentifier))
+        else { return }
+        podMeetingTriedAt = Date()
+        isMeetingPod = true
+        // its link messages reach the log; its events and status are kept apart (isSessionPump)
+        pump.pumpManagerDelegate = self
+        pump.delegateQueue = .main
+        meetingPump = pump
+        Task { await WatchLogger.shared.log("⌚️ Untethered: Trio in front, looking for the pod the watch doesn't know yet", force: true) }
+        let releaseHold = Self.holdProcess(reason: "Untethered: looking for the new pod", upTo: Self.fallbackWitnessHold)
+        Task { @MainActor in
+            defer {
+                self.isMeetingPod = false
+                releaseHold()
+            }
+            pump.takeControl()
+            let started = Date()
+            var read: UntetheredPodStatus?
+            while read == nil {
+                read = await self.readPump(pump)
+                guard read == nil, self.isMeeting(pump), self.data.session.phase == .idle,
+                      Date().timeIntervalSince(started) < Self.podMeetingPatience
+                else { break }
+                try? await Task.sleep(nanoseconds: Self.takeoverReadInterval)
+            }
+            // a takeover took over meanwhile: it already let go of this manager
+            guard self.isMeeting(pump) else { return }
+            self.meetingPump = nil
+            pump.releaseControl()
+            let seconds = Int(Date().timeIntervalSince(started))
+            guard read != nil, let local = Self.plist(pump.localState) else {
+                await WatchLogger.shared.log("⌚️ Untethered: the pod wasn't found in \(seconds) s; tried again when Trio is opened", force: true)
+                return
+            }
+            self.store.update { $0.localStates[pump.pluginIdentifier] = local }
+            UserDefaults.standard.set(false, forKey: Self.grantPodUnknownKey)
+            self.refresh()
+            await WatchLogger.shared.log("⌚️ Untethered: found the new pod in \(seconds) s; the fallback can reach it now", force: true)
+        }
     }
 
     func dropFallbackWitness() {
