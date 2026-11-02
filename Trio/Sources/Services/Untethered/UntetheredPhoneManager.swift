@@ -185,15 +185,27 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         lastWatchWake = Date()
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.watchWakeDelay) { [weak self] in
             guard let self, self.isWatchInCharge else { return }
-            // a wake of the app's own is a draw on its background budget: only for a watch whose readings stopped
-            if let watchReading = self.lastWatchReadingAt,
+            // A session the watch started without the phone goes back by itself once the phone reads the sensor
+            // again, but the watch only learns that from the phone: while it has the pump the phone sends no watch
+            // state, and a watch app in the background never sees the phone come in reach (2 November, 18:15 to
+            // 18:28: the phone was back and read the sensor, the watch kept the pump until the take-back by hand).
+            let ownReading = PhoneOwnGlucose.newest.flatMap { Date().timeIntervalSince($0) < Self.watchReadsFineWithin ? $0 : nil }
+            let phoneBack = self.state.session.startedWithoutPhone ? ownReading : nil
+            // a wake of the app's own is a draw on its background budget: only for a watch whose readings stopped,
+            // or to tell it the phone is back
+            if phoneBack == nil, let watchReading = self.lastWatchReadingAt,
                Date().timeIntervalSince(watchReading) < Self.watchReadsFineWithin
             {
                 return
             }
             let session = WCSession.default
             guard WCSession.isSupported(), session.activationState == .activated, session.isWatchAppInstalled else { return }
-            try? session.updateApplicationContext([WatchMessageKeys.untetheredWake: Date().timeIntervalSince1970])
+            var context: [String: Any] = [WatchMessageKeys.untetheredWake: Date().timeIntervalSince1970]
+            if let phoneBack {
+                context[WatchMessageKeys.phoneOwnGlucoseDate] = phoneBack.timeIntervalSince1970
+                debug(.watch, "Untethered: the phone reads the sensor again, telling the watch at its next wake")
+            }
+            try? session.updateApplicationContext(context)
         }
     }
 
