@@ -1517,6 +1517,10 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         watchCGMAppBecameActive(cgmManager)
         if isPairingSensor { keepTrioInFrontForPairing() }
         updateWorkoutKeepAlive()
+        // Trio in front can search: a pod the watch doesn't know yet is looked for now (opened from a notification,
+        // Trio may count as in front only a moment later)
+        meetNewPodIfNeeded()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.meetNewPodIfNeeded() }
         guard isActive else { return }
         let state = WKApplication.shared().applicationState
         Task { await WatchLogger.shared.log("⌚️ Untethered: Trio in front (state \(state.rawValue))", force: true) }
