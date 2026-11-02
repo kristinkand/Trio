@@ -888,7 +888,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 answered = true
                 continuation.resume(returning: result)
             }
-            odometer.refreshDeliveredUnits { answer($0) }
+            Task { answer(await odometer.refreshDeliveredUnits()) }
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.pumpCheckTimeout) { answer(false) }
         }
     }
@@ -1078,9 +1078,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         let started = Date()
         var attempts = 0
         var bannerShown = false
-        while !state.podEndedOnWatch, !(await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-            odometer.refreshDeliveredUnits { continuation.resume(returning: $0) }
-        }) {
+        while !state.podEndedOnWatch, !(await odometer.refreshDeliveredUnits()) {
             attempts += 1
             debug(.watch, "Untethered: the pump did not answer yet (attempt \(attempts)), retrying")
             // with Bluetooth off nothing reaches the pod, and the watch has let go: said at once, as nobody doses
@@ -1334,6 +1332,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             endDate: date,
             value: NSDecimalNumber(decimal: units).doubleValue,
             unit: .units,
+            decisionId: nil,
             deliveredUnits: NSDecimalNumber(decimal: units).doubleValue,
             syncIdentifier: identifier
         )

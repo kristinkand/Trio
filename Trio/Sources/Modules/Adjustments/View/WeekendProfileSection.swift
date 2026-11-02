@@ -74,11 +74,11 @@ struct WeekendProfileSection: View {
     }
 
     private func displayGlucose(_ value: Decimal) -> String {
-        (units == .mgdL ? value.description : value.formattedAsMmolL) + " " + units.rawValue
+        value.formatted(for: units) + " " + units.rawValue
     }
 
     private func isfLabel(_ value: Decimal) -> String {
-        (units == .mgdL ? value.description : value.formattedAsMmolL) + " " + units.rawValue + "/U"
+        value.formattedISF(for: units) + " " + units.rawValue + "/U"
     }
 
     private func basalLabel(_ value: Decimal) -> String {

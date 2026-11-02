@@ -540,7 +540,6 @@
 		C8E03AC9821A5AD6C3E2389E /* DoubleApproximateMatching.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B5F45B52D6A239000F70982 /* DoubleApproximateMatching.swift */; };
 		CB3DBDBC1D06884B40C7BD0F /* Basal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B5CD2912D4AEA3C00CE213C /* Basal.swift */; };
 		CC832AEC357717199C9F22E3 /* UntetheredWatchViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 039044F1D8050D3841425B70 /* UntetheredWatchViews.swift */; };
-		CCCC143363B5C20FCD9BA866 /* LoopAlgorithm in Frameworks */ = {isa = PBXBuildFile; productRef = DEBB04F76534B4F5670EAF5F /* LoopAlgorithm */; };
 		CD309632375A21F9F42F0B4F /* Profile+TherapySettingGetter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD30BA112E07763E00DA677C /* Profile+TherapySettingGetter.swift */; };
 		CD3E39A4847F26816F0D87C7 /* JSONBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B5CD1EA2D4912A600CE213C /* JSONBridge.swift */; };
 		D5AFC61DDE67CE41E7CE9695 /* TimeExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B1C5C322D68E233004E9273 /* TimeExtensions.swift */; };
@@ -2729,7 +2728,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				D359FE186C1ABD15FE6244C1 /* CryptoSwift in Frameworks */,
-				CCCC143363B5C20FCD9BA866 /* LoopAlgorithm in Frameworks */,
 				4F6DEEA00A753C4322AA232D /* G7SensorKit.framework in Frameworks */,
 				388650C8AE7294CBA939B67A /* RileyLinkKit.framework in Frameworks */,
 				E00D940D746ED9458F4711A7 /* RileyLinkBLEKit.framework in Frameworks */,
@@ -5863,7 +5861,6 @@
 			productType = "com.apple.product-type.application";
 			packageProductDependencies = (
 				1734161747FAD0C7802255FC /* CryptoSwift */,
-				DEBB04F76534B4F5670EAF5F /* LoopAlgorithm */,
 			);
 		};
 		BDFF798A2D25AA890016C40C /* Trio Watch AppTests */ = {
@@ -8120,11 +8117,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5E12FE112EBC0000000000B0 /* XCLocalSwiftPackageReference "RoundWhiteDiscKit" */;
 			productName = RoundWhiteDiscKit;
-		};
-		DEBB04F76534B4F5670EAF5F /* LoopAlgorithm */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 5E12FE112EBC0000000000A0 /* XCLocalSwiftPackageReference "LoopAlgorithm" */;
-			productName = LoopAlgorithm;
 		};
 		1734161747FAD0C7802255FC /* CryptoSwift */ = {
 			isa = XCSwiftPackageProductDependency;
