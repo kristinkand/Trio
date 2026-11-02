@@ -351,7 +351,9 @@ import WatchConnectivity
     /// send what is left. Any other context is a watch state.
     func session(_: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         if applicationContext[WatchMessageKeys.untetheredWake] != nil {
-            DispatchQueue.main.async { UntetheredWatchManager.shared.phoneWake() }
+            let phoneReading = (applicationContext[WatchMessageKeys.phoneOwnGlucoseDate] as? TimeInterval)
+                .map { Date(timeIntervalSince1970: $0) }
+            DispatchQueue.main.async { UntetheredWatchManager.shared.phoneWake(phoneReadingAt: phoneReading) }
             return
         }
         handleIncomingWatchStatePayload(applicationContext)
