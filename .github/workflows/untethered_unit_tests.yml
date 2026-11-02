@@ -10,7 +10,11 @@ on:
     branches:
       - feature/untethered-fallback
       - feature/untethered-fallback-ns
+      - feature/untethered-fallback-ns-g7next
       - feature/untethered-pr-plus
+      - feature/untethered-pr-plus-next
+      - feature/untethered-pr-plus-ns
+      - feature/untethered-pr-plus-ns-snick
     paths:
       - 'Trio/Sources/**'
       - 'TrioTests/OpenAPSSwiftTests/**'
