@@ -1042,6 +1042,9 @@ struct UntetheredGlanceView: View {
 
     private func number(_ value: Decimal, places: Int) -> String {
         NSDecimalNumber(decimal: value).doubleValue.formatted(.number.precision(.fractionLength(0 ... places)))
+    }
+}
+
 /// A meter's blood glucose, picked with the crown (or − / +) in the phone's units and saved as a manual reading:
 /// the loop takes it into account from the next sensor reading on, and the phone files it as a manual entry.
 struct ManualGlucoseEntryView: View {
