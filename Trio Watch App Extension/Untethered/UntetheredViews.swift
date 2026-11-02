@@ -400,7 +400,19 @@ struct UntetheredStatusView: View {
     /// Whether a copy from the phone is stored to start without it, and how old, or why not.
     @ViewBuilder private var copyNote: some View {
         if WatchState.shared.allowUntetheredStartWithoutPhone {
-            if let age = manager.standingGrantAge {
+            if manager.standingGrantAge != nil, manager.isMeetingPod {
+                Label("Looking for the new pod…", systemImage: "antenna.radiowaves.left.and.right")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else if manager.standingGrantAge != nil, manager.standingGrantPodUnknown {
+                Label {
+                    Text("The watch doesn't know the new pod yet, so it can't take over by itself. Keep Trio open here with the iPhone nearby; it looks for the pod.")
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle")
+                }
+                .font(.caption2)
+                .foregroundStyle(.orange)
+            } else if let age = manager.standingGrantAge {
                 Label(
                     "The iPhone's copy of \(Int(age / 60)) min ago is ready to start without it",
                     systemImage: "checkmark.circle"
