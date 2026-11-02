@@ -841,11 +841,21 @@ import WatchKit
     }
 
     /// The phone's wake after its reading: the sensor is re-checked and the history goes, the phone being in reach.
-    func phoneWake() {
+    func phoneWake(phoneReadingAt phoneReading: Date? = nil) {
         DispatchQueue.main.async {
             guard self.isActive else { return }
             self.recheckCGM()
             self.streamRecords()
+            // the phone reads the sensor again: a session the fallback started goes back to it
+            if let phoneReading, Date().timeIntervalSince(phoneReading) < 10 * 60, self.isFallbackSession {
+                Task {
+                    await WatchLogger.shared.log(
+                        "⌚️ Untethered: fallback — the phone reads the sensor again (\(phoneReading.formatted(date: .omitted, time: .shortened)))",
+                        force: true
+                    )
+                }
+                self.scheduleFallbackHandback()
+            }
         }
     }
 
