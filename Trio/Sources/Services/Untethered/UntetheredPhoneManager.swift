@@ -974,7 +974,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             tddHours: UntetheredTDDHour.hours(tddRows),
             tddPumpHistory: try await pumpHistoryStorage.getPumpHistory(),
             autosens: storage.retrieve(OpenAPS.Settings.autosense, as: Autosens.self),
-            reservoir: storage.retrieve(OpenAPS.Monitor.reservoir, as: Decimal.self),
+            reservoir: apsManager.pumpManager?.currentReservoir,
             maxBolus: settingsManager.pumpSettings.maxBolus,
             maxCarbs: settings.maxCarbs,
             bolusCalculator: UntetheredBolusCalculatorSettings(
