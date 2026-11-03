@@ -678,6 +678,10 @@ import WatchKit
             Task { await WatchLogger.shared.log("⌚️ Untethered: the takeover goes on with the look's pod manager", force: true) }
         } else {
             if let witness, !witness.pump.isControlReleased { witness.pump.releaseControl() }
+            // A look's manager is kept between two looks; a start by hand meanwhile made its own beside it, which never
+            // reached the pod (3 November, 11:49 and 11:52: a minute after the 11:48 look, both starts timed out and
+            // the phone took the pump back).
+            dropFallbackWitness()
             guard let grant = data.grant,
                   let configuration = Self.configuration(data.handover?.pumpConfiguration ?? grant.pumpConfiguration),
                   let type = watchPumpManagers[configuration.managerIdentifier],
