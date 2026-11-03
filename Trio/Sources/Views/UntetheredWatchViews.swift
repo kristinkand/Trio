@@ -139,6 +139,7 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
                     : manager.state.pumpReturnPending
                     ? manager.pumpReturnTitle
                     : manager.isHandingBack ? String(localized: "Asking the watch for the pump…")
+                    : manager.state.session.isCheckingForeignSession ? String(localized: "Checking with the Watch…")
                     : String(localized: "Untethered on Apple Watch"),
                 manager.isBluetoothOff
                     ? (manager.state.pumpReturnPending
@@ -149,6 +150,8 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
                     ?? String(localized: "Checking what the watch delivered before the phone doses again.")
                     : manager.isHandingBack
                     ? String(localized: "Open Trio on the watch to finish now. Otherwise it can take a few minutes, until the watch picks up the request.")
+                    : manager.state.session.isCheckingForeignSession
+                    ? String(localized: "Another controller used the pod. Dosing waits until the watch says whether it has the pump, at most 3 minutes; opening Trio on the watch answers at once.")
                     : String(localized: "The phone doesn't dose. Bolus and carbs are entered on the watch."),
                 manager.isWatchInCharge,
                 { showActions = manager.isWatchInCharge }
