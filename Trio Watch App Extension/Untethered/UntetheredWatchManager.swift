@@ -248,6 +248,7 @@ import WatchKit
     private func handle(_ envelope: UntetheredEnvelope, replyHandler: (([String: Any]) -> Void)?) {
         lastPhoneContact = Date()
         notePhoneHeardForWarning()
+        pauseLooksIfPhoneAtPod(envelope.message)
         if let version = envelope.appVersion, WatchState.shared.phoneAppVersion != version {
             WatchState.shared.phoneAppVersion = version
         }
@@ -1860,6 +1861,25 @@ extension UntetheredWatchManager {
             ),
             asksForAction: true
         )
+    }
+
+    /// The phone's ownership question and its take-back come from a phone that has just been at the pod: no look for a
+    /// while. A look is a session on the pod the phone has to refuse and ask about, with its dosing held meanwhile; one
+    /// 9 s after the phone took the pump back left it refusing for 10 minutes, a bolus with it (3 November, second
+    /// tester, 14:28:52). Its phone readings reach a sleeping watch late, so they alone don't stop the looks.
+    private func pauseLooksIfPhoneAtPod(_ message: UntetheredMessage) {
+        switch message {
+        case .revoke,
+             .statusQuery:
+            break
+        default:
+            return
+        }
+        guard data.session.phase == .idle || message == .revoke else { return }
+        dropFallbackWitness()
+        let phoneNewest = WatchG7Reader.shared.phoneGlucoseDate ?? .distantPast
+        fallbackLooksPaused = (phoneNewest, Date().addingTimeInterval(Self.fallbackLookPause))
+        Task { await WatchLogger.shared.log("⌚️ Untethered: fallback — the phone was just at the pod, no look for 9 min", force: true) }
     }
 
     func dropFallbackWitness() {
