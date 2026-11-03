@@ -45,7 +45,7 @@ struct UntetheredSettingsSection: View {
                     ProgressView()
                 } else {
                     Toggle("", isOn: Binding(
-                        get: { manager.isWatchInCharge },
+                        get: { manager.isWatchShownInCharge },
                         set: { on in
                             if on {
                                 Task { await manager.start() }
@@ -89,9 +89,9 @@ struct UntetheredOverrideButton: View {
             if manager.isBusy {
                 ProgressView()
             } else {
-                Image(systemName: manager.isWatchInCharge ? "applewatch" : "applewatch.slash")
+                Image(systemName: manager.isWatchShownInCharge ? "applewatch" : "applewatch.slash")
                     .font(.title2)
-                    .foregroundStyle(manager.isWatchInCharge ? Color.untethered : Color.secondary)
+                    .foregroundStyle(manager.isWatchShownInCharge ? Color.untethered : Color.secondary)
                     .onTapGesture {
                         if manager.isWatchInCharge {
                             confirmEnd = true
@@ -206,7 +206,7 @@ struct UntetheredPumpGate<Content: View>: View {
     static var recent: TimeInterval { 15 * 60 }
 
     var body: some View {
-        if !manager.isWatchInCharge {
+        if !manager.isWatchShownInCharge {
             content(.phone)
         } else if let status = manager.state.watchPump, now.timeIntervalSince(status.date) < Self.recent {
             content(.watch(status))
@@ -280,7 +280,9 @@ struct UntetheredTreatmentGate<Content: View>: View {
                 VStack(spacing: 8) {
                     Text(
                         manager.state.pumpReturnPending ? manager
-                            .pumpReturnTitle : String(localized: "The Apple Watch is looping")
+                            .pumpReturnTitle
+                            : manager.state.session.isCheckingForeignSession ? String(localized: "Checking with the Watch")
+                            : String(localized: "The Apple Watch is looping")
                     )
                     .font(.title3).fontWeight(.semibold)
                     Text(
@@ -288,6 +290,10 @@ struct UntetheredTreatmentGate<Content: View>: View {
                             ? manager.pumpReturnAnswered
                             ? String(localized: "The phone doses again once it has checked the watch's records.")
                             : String(localized: "The phone doses again once it has read the pump.")
+                            : manager.state.session.isCheckingForeignSession
+                            ? String(
+                                localized: "Another controller used the pod. Boluses wait until the watch says whether it has the pump, at most 3 minutes; opening Trio on the watch answers at once."
+                            )
                             :
                             String(
                                 localized: "Enter carbs and boluses on the watch. They come back to the phone with the watch's history."
@@ -310,7 +316,7 @@ struct UntetheredTreatmentGate<Content: View>: View {
                     gateButton("Take Back the Pump Now", systemImage: "exclamationmark.triangle", tint: .red) {
                         confirmForce = true
                     }
-                } else if manager.isWatchInCharge {
+                } else if manager.isWatchShownInCharge {
                     VStack(spacing: 10) {
                         gateButton("End Untethered Mode", systemImage: "iphone", tint: .untethered) { confirmEnd = true }
                         gateButton("Take Back the Pump Now", systemImage: "exclamationmark.triangle", tint: .red) {
