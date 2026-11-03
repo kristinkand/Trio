@@ -1112,6 +1112,9 @@ import WatchKit
 
     func requestStart() {
         guard WatchState.shared.untetheredMode, data.session.phase == .idle, !isBusy else { return }
+        // a start by hand shows in the log: on 3 November at 18:04:55 one went out 6 s after Trio opened from the
+        // new-pod notice, and nothing showed whether it was tapped
+        Task { await WatchLogger.shared.log("⌚️ Untethered: Start Untethered tapped on the watch", force: true) }
         if let reason = versionMismatch {
             setError(reason)
             return
