@@ -715,6 +715,17 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
              .statusQuery:
             // queued as well: the watch must hear it whenever it comes back
             session.transferUserInfo(payload)
+            // The ownership question after a foreign pod session: the phone doesn't dose until it has the answer, and
+            // a queued message waits for the watch's next wake (2 November, 19:49 to 19:53: the watch had only looked
+            // at the pod, and the phone's SMB waited 4.5 minutes). With Trio on the watch face, a complication
+            // transfer wakes the watch app at once; rare, so well within its daily budget.
+            if case .statusQuery = message, session.isComplicationEnabled, session.remainingComplicationUserInfoTransfers > 0 {
+                session.transferCurrentComplicationUserInfo(payload)
+                debug(
+                    .watch,
+                    "Untethered: ownership question also sent as a complication transfer (\(session.remainingComplicationUserInfoTransfers) left today)"
+                )
+            }
         case .recordsStored:
             session.transferUserInfo(payload)
             return

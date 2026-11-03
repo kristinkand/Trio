@@ -500,6 +500,10 @@ import WatchKit
                 if let replyHandler = reply {
                     self.reply(message, epoch: epoch, via: replyHandler)
                     reply = nil
+                } else if case .statusReport = message {
+                    // the answer to the phone's ownership question: the phone doesn't dose until it has it, so it is
+                    // queued too when the phone can't be reached this moment (the phone ignores it once it decided)
+                    send(message, epoch: epoch, queueing: true)
                 } else {
                     send(message, epoch: epoch)
                 }
