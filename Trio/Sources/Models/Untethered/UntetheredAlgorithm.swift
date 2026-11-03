@@ -86,7 +86,6 @@ enum UntetheredAlgorithm {
             autosens: autosens,
             meal: meal,
             microBolusAllowed: true,
-            reservoir: inputs.reservoir,
             preferences: preferences,
             trioCustomOrefVariables: OrefPipeline.customOrefVariables(
                 override: inputs.override,
