@@ -858,7 +858,8 @@ import WatchKit
                         force: true
                     )
                 }
-                self.scheduleFallbackHandback()
+                // at once: woken in the background, the app is frozen again long before a minute's grace is up
+                self.scheduleFallbackHandback(grace: 0)
             }
         }
     }
@@ -1978,10 +1979,10 @@ extension UntetheredWatchManager {
     /// session goes back to it, by the queued request a stall uses, as the watch is rarely in reach in the background
     /// (2026-10-21: the walk's request reached the phone on its own). The status goes first, so the phone knows the
     /// session the request names.
-    func scheduleFallbackHandback() {
+    func scheduleFallbackHandback(grace: TimeInterval = UntetheredWatchManager.fallbackHandbackGrace) {
         guard isFallbackSession, data.session.phase == .active, !fallbackHandbackPending else { return }
         fallbackHandbackPending = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.fallbackHandbackGrace) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + grace) { [weak self] in
             guard let self else { return }
             self.fallbackHandbackPending = false
             // The fallback's own request goes again every 5 minutes while the phone shows up, not every 30 as a
