@@ -25,10 +25,7 @@ import WatchKit
     @ObservationIgnored var podQuietUntil: Date?
 
     @ObservationIgnored var pumpManager: (PumpManager & ExclusiveDeviceControl)?
-    @ObservationIgnored var cgmManager: CGMManager? {
-        // every pod command waits for the sensor's link, not only the loop's (OmniPumpManager.commandConnectDelay)
-        didSet { watchGatePodCommands(on: cgmManager) }
-    }
+    @ObservationIgnored var cgmManager: CGMManager?
     @ObservationIgnored var isLooping = false
     /// The phone's standing grant as a fallback try started from it: a start seeds from it and drops it, and a try that
     /// never reached the pod dosed nothing, so the next try starts from it again.
