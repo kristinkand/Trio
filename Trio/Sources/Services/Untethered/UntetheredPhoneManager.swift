@@ -148,6 +148,22 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in Task { @MainActor in await self?.checkForeignSession() } }
             .store(in: &subscriptions)
+        // A refusal outside a loop raises neither: opening Trio fetches the pod's status, and a loop that changes
+        // nothing sends no command. On 3 November (second tester) the status fetches at 14:35 and 14:37 were refused
+        // after a look of the watch's, nobody asked the watch, and the bolus at 14:38 was refused too. Checked a few
+        // seconds after Trio comes to the front, when that fetch is done, and at every reading.
+        Foundation.NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+                    Task { @MainActor in await self?.checkForeignSession() }
+                }
+            }
+            .store(in: &subscriptions)
+        glucoseStorage.updatePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in Task { @MainActor in await self?.checkForeignSession() } }
+            .store(in: &subscriptions)
         broadcaster.register(SettingsObserver.self, observer: self)
         broadcaster.register(PreferencesObserver.self, observer: self)
         broadcaster.register(PumpSettingsObserver.self, observer: self)
