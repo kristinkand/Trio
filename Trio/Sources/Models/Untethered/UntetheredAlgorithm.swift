@@ -18,7 +18,6 @@ enum UntetheredAlgorithm {
         let hasSufficientTDD: Bool
         let currentTemp: TempBasal
         let supportedBasalRates: [Decimal]
-        let reservoir: Decimal
         let now: Date
     }
 
