@@ -679,6 +679,8 @@ import WatchKit
         if let meeting = meetingPump {
             meetingPump = nil
             if !meeting.isControlReleased { meeting.releaseControl() }
+            // 3 November, 18:04:55: a takeover beside a search for the new pod didn't find it in 2 minutes
+            Task { await WatchLogger.shared.log("⌚️ Untethered: the takeover let go of the new-pod search's manager and searches with its own", force: true) }
         }
         let pump: PumpManager & ExclusiveDeviceControl
         if let witness, data.session.startedWithoutPhone, data.handover == nil,
