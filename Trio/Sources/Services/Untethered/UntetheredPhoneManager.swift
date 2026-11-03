@@ -182,32 +182,55 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     /// its sensor and sends its history: a lost Bluetooth callback otherwise left it without readings until it was
     /// opened (2026-10-18, 09:24 to 10:39). As LoopKit/Loop#2545 does with every phone cycle.
     private func scheduleWatchWake() {
-        guard isWatchInCharge, Date().timeIntervalSince(lastWatchWake ?? .distantPast) >= Self.watchWakeInterval else { return }
+        guard isWatchInCharge else { return }
+        if tellWatchPhoneIsBack() { return }
+        guard Date().timeIntervalSince(lastWatchWake ?? .distantPast) >= Self.watchWakeInterval else { return }
         lastWatchWake = Date()
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.watchWakeDelay) { [weak self] in
             guard let self, self.isWatchInCharge else { return }
-            // A session the watch started without the phone goes back by itself once the phone reads the sensor
-            // again, but the watch only learns that from the phone: while it has the pump the phone sends no watch
-            // state, and a watch app in the background never sees the phone come in reach (2 November, 18:15 to
-            // 18:28: the phone was back and read the sensor, the watch kept the pump until the take-back by hand).
-            let ownReading = PhoneOwnGlucose.newest.flatMap { Date().timeIntervalSince($0) < Self.watchReadsFineWithin ? $0 : nil }
-            let phoneBack = self.state.session.startedWithoutPhone ? ownReading : nil
-            // a wake of the app's own is a draw on its background budget: only for a watch whose readings stopped,
-            // or to tell it the phone is back
-            if phoneBack == nil, let watchReading = self.lastWatchReadingAt,
-               Date().timeIntervalSince(watchReading) < Self.watchReadsFineWithin
-            {
+            // a wake of the app's own is a draw on its background budget: only for a watch whose readings stopped
+            if let watchReading = self.lastWatchReadingAt, Date().timeIntervalSince(watchReading) < Self.watchReadsFineWithin {
                 return
             }
             let session = WCSession.default
             guard WCSession.isSupported(), session.activationState == .activated, session.isWatchAppInstalled else { return }
-            var context: [String: Any] = [WatchMessageKeys.untetheredWake: Date().timeIntervalSince1970]
-            if let phoneBack {
-                context[WatchMessageKeys.phoneOwnGlucoseDate] = phoneBack.timeIntervalSince1970
-                debug(.watch, "Untethered: the phone reads the sensor again, telling the watch at its next wake")
-            }
-            try? session.updateApplicationContext(context)
+            try? session.updateApplicationContext([WatchMessageKeys.untetheredWake: Date().timeIntervalSince1970])
         }
+    }
+
+    /// The phone's own reading the watch was last told about.
+    private var phoneBackToldFor: Date?
+
+    /// A session the watch started without the phone goes back by itself once the phone reads the sensor again, but the
+    /// watch only learns that from the phone: while it has the pump the phone sends no watch state, and a watch app in
+    /// the background never sees the phone come in reach (2 November, 18:15 to 18:28). Told at once after each of the
+    /// phone's own readings, not after the wake's delay: in the background the phone is suspended seconds after its
+    /// reading, so the delayed word went out only when Trio was next opened on the phone, and as an application
+    /// context it waited on the watch until Trio ran there (3 November, back and reading from 11:19, the watch heard
+    /// at 11:34). A complication transfer wakes the watch app in the background.
+    private func tellWatchPhoneIsBack() -> Bool {
+        guard state.session.startedWithoutPhone, let own = PhoneOwnGlucose.newest,
+              Date().timeIntervalSince(own) < Self.watchReadsFineWithin
+        else { return false }
+        guard own > (phoneBackToldFor ?? .distantPast) else { return true }
+        let session = WCSession.default
+        guard WCSession.isSupported(), session.activationState == .activated, session.isWatchAppInstalled else { return true }
+        phoneBackToldFor = own
+        let context: [String: Any] = [
+            WatchMessageKeys.untetheredWake: Date().timeIntervalSince1970,
+            WatchMessageKeys.phoneOwnGlucoseDate: own.timeIntervalSince1970
+        ]
+        try? session.updateApplicationContext(context)
+        if session.isComplicationEnabled, session.remainingComplicationUserInfoTransfers > 0 {
+            session.transferCurrentComplicationUserInfo(context)
+            debug(
+                .watch,
+                "Untethered: the phone reads the sensor again, told the watch now (complication transfer, \(session.remainingComplicationUserInfoTransfers) left today)"
+            )
+        } else {
+            debug(.watch, "Untethered: the phone reads the sensor again, telling the watch at its next wake (no complication on the watch face)")
+        }
+        return true
     }
 
     // MARK: - Standing grant
