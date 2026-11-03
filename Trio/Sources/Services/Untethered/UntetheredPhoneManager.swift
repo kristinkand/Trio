@@ -182,6 +182,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     }
 
     var isWatchInCharge: Bool { !state.session.isIdle }
+    /// For what the screens show: not while the phone only asks the watch about the pod after another controller
+    /// used it (`isCheckingForeignSession`); dosing is held then all the same.
+    var isWatchShownInCharge: Bool { isWatchInCharge && !state.session.isCheckingForeignSession }
 
     /// After the phone's own reading, clear of the watch's: the two read the same sensor, and the watch's link to it
     /// comes up around the reading and stays some 40 s.
