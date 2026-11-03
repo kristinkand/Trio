@@ -71,7 +71,6 @@ import Testing
             autosens: autosens,
             meal: meal,
             microBolusAllowed: true,
-            reservoir: scenario.reservoir,
             preferences: preferences,
             trioCustomOrefVariables: OrefPipeline.customOrefVariables(
                 override: override,
