@@ -324,6 +324,14 @@ struct UntetheredStatusView: View {
                 Text(phase == .ending ? "Handing back…" : "Starting…").font(.footnote)
             }
             .padding(.top, 4)
+        } else if phase == .idle, manager.isMeetingPod {
+            // no Start while the watch looks for a new pod: a start then made a second manager search beside it, which
+            // didn't find the pod in 2 minutes (3 November, 18:04:55; the watch's own search found it in 9 s at 18:11)
+            HStack(spacing: 8) {
+                ProgressView().frame(width: 20)
+                Text("Looking for the new pod…").font(.footnote)
+            }
+            .padding(.top, 4)
         } else {
             switch phase {
             case .idle:
