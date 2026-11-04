@@ -57,6 +57,9 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
     /// is `@MainActor` (its `MPVolumeView` + `Timer` members require main),
     /// but `BaseTrioAlertManager.init` runs on the Swinject resolve thread.
     @MainActor private var criticalAudioPlayer: CriticalAlertAudioPlayer?
+    /// The alert `criticalAudioPlayer` is sounding for. Retracting or
+    /// acknowledging any other alert must leave the audio running.
+    @MainActor private var criticalAudioOwner: Alert.Identifier?
     /// Preferred audible channel on iOS 26+. Falls back to `criticalAudioPlayer`
     /// when AlarmKit is unavailable or the user hasn't authorized it.
     @MainActor private var alarmScheduler: CriticalAlertAlarmScheduler?
@@ -211,18 +214,33 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
             if alarmScheduler == nil { alarmScheduler = CriticalAlertAlarmScheduler() }
             let scheduled = alarmScheduler?.scheduleAlarm(for: alert) { [weak self] in
                 Task { @MainActor in
-                    self?.playAudioFallback(soundNamed: soundName, onVolumeButtonPressed: volumeSnoozeCallback)
+                    self?.playAudioFallback(
+                        soundNamed: soundName,
+                        for: alert.identifier,
+                        onVolumeButtonPressed: volumeSnoozeCallback
+                    )
                 }
             } ?? false
             guard !scheduled else { return }
             // Fallback: in-process audio. Only sounds while Trio is running.
-            playAudioFallback(soundNamed: soundName, onVolumeButtonPressed: volumeSnoozeCallback)
+            playAudioFallback(soundNamed: soundName, for: alert.identifier, onVolumeButtonPressed: volumeSnoozeCallback)
         }
     }
 
-    @MainActor private func playAudioFallback(soundNamed soundName: String, onVolumeButtonPressed: (() -> Void)? = nil) {
+    @MainActor private func playAudioFallback(
+        soundNamed soundName: String,
+        for identifier: Alert.Identifier,
+        onVolumeButtonPressed: (() -> Void)? = nil
+    ) {
         if criticalAudioPlayer == nil { criticalAudioPlayer = CriticalAlertAudioPlayer() }
+        criticalAudioOwner = identifier
         criticalAudioPlayer?.play(soundNamed: soundName, onVolumeButtonPressed: onVolumeButtonPressed)
+    }
+
+    @MainActor private func stopCriticalAudio(for identifier: Alert.Identifier) {
+        guard criticalAudioOwner == identifier else { return }
+        criticalAudioOwner = nil
+        criticalAudioPlayer?.stop()
     }
 
     // MARK: - Issue / Retract
@@ -346,7 +364,7 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
         userNotificationScheduler.unschedule(identifier: identifier)
         throttler.reset(identifier: identifier)
         Task { @MainActor in
-            criticalAudioPlayer?.stop()
+            stopCriticalAudio(for: identifier)
             alarmScheduler?.cancelAlarm(for: identifier)
         }
         alertHistoryStorage.removeAlert(identifier: identifier.alertIdentifier)
@@ -387,7 +405,7 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
         modalScheduler.unschedule(identifier: identifier)
         userNotificationScheduler.unschedule(identifier: identifier)
         Task { @MainActor in
-            criticalAudioPlayer?.stop()
+            stopCriticalAudio(for: identifier)
             alarmScheduler?.cancelAlarm(for: identifier)
         }
         // All matching entries — replay + a genuine re-issue can coexist.
