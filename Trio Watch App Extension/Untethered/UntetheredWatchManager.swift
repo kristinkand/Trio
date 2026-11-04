@@ -185,6 +185,28 @@ import WatchKit
         }
     }
 
+    /// Encryption timeouts on the sensor's link since its last reading (see `deviceManager(_:logEventForDeviceIdentifier:)`).
+    @ObservationIgnored var sensorEncryptTimeouts = 0
+
+    static var sensorRefusalMessage: String {
+        String(
+            localized: "The sensor refuses this watch's Bluetooth pairing. On the watch, open Settings › Bluetooth and forget the DXCM device, then tap Pair Again here and keep Trio open until a glucose value shows; accept the pairing request."
+        )
+    }
+
+    /// The untethered page offers Pair Again: the sensor refuses the watch's pairing, or a pairing is under way and its
+    /// request may not have come.
+    var offersSensorPairAgain: Bool { data.lastError == Self.sensorRefusalMessage || isPairingSensor }
+
+    /// The watch forgets its own pairing with the sensor, as the sensor page's Pair Again does; the next connection
+    /// pairs again.
+    func pairSensorAgain() {
+        Task { await WatchLogger.shared.log("⌚️ Untethered: Pair Again tapped", force: true) }
+        WatchG7Reader.shared.resetWatchPairing()
+        sensorEncryptTimeouts = 0
+        if data.lastError == Self.sensorRefusalMessage { setError(nil) }
+    }
+
     func setError(_ message: String?) {
         if let message { Task { await WatchLogger.shared.log("⌚️ Untethered: \(message)", force: true) } }
         store.update { $0.lastError = message }
