@@ -8,12 +8,19 @@ import OmnipodKit
 // ponytail: Omnipod Eros needs a RileyLink the watch doesn't have; its takeover fails within the lease
 // and the phone keeps the pod.
 
+/// The kits' `pluginIdentifier`s. On LoopKit next-dev it is an instance property only, so the names are written out;
+/// they have to match the kits' (OmniPumpManager: "Omni", G7CGMManager: "G7CGMManager").
+enum WatchPluginIdentifier {
+    static let omnipod = "Omni"
+    static let g7 = "G7CGMManager"
+}
+
 let watchPumpManagers: [String: (PumpManager & ExclusiveDeviceControl).Type] = [
-    OmniPumpManager.pluginIdentifier: OmniPumpManager.self
+    WatchPluginIdentifier.omnipod: OmniPumpManager.self
 ]
 
 let watchCGMManagers: [String: (CGMManager & DeviceConfigurationSharing).Type] = [
-    G7CGMManager.pluginIdentifier: G7CGMManager.self
+    WatchPluginIdentifier.g7: G7CGMManager.self
 ]
 
 /// Why the sensor's newest message brought no reading the loop can use, when the sensor itself says so: the watch is
@@ -81,7 +88,7 @@ func watchPumpActivatedAt(_ pump: PumpManager?) -> Date? {
 /// Bluetooth central, and a second manager's central under the same restore identifier never came up (1 November,
 /// 20:33). Nil for a kit the reader doesn't serve.
 func watchCGMReaderState(_ configuration: SharedDeviceConfiguration) -> [String: Any]? {
-    guard configuration.managerIdentifier == G7CGMManager.pluginIdentifier else { return nil }
+    guard configuration.managerIdentifier == WatchPluginIdentifier.g7 else { return nil }
     var state = configuration.state
     state["configuredByAnotherController"] = true
     state["sessionMode"] = G7SessionMode.direct.rawValue

@@ -198,7 +198,7 @@ extension PumpManager {
     /// Cancels whatever temp basal the pod runs, one this controller set or another's.
     func cancelTempBasal() async -> PumpManagerError? {
         await withCheckedContinuation { continuation in
-            enactTempBasal(unitsPerHour: 0, for: 0) { continuation.resume(returning: $0) }
+            enactTempBasal(decisionId: nil, unitsPerHour: 0, for: 0) { continuation.resume(returning: $0) }
         }
     }
 
@@ -208,7 +208,7 @@ extension PumpManager {
               let duration = temp.remainingDuration(at: Date(), supportedDurations: durations)
         else { return nil }
         return await withCheckedContinuation { continuation in
-            enactTempBasal(unitsPerHour: temp.unitsPerHour, for: duration) { continuation.resume(returning: $0) }
+            enactTempBasal(decisionId: nil, unitsPerHour: temp.unitsPerHour, for: duration) { continuation.resume(returning: $0) }
         }
     }
 }

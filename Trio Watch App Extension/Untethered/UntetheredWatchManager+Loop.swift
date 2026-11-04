@@ -219,7 +219,6 @@ extension UntetheredWatchManager {
             hasSufficientTDD: UntetheredAlgorithm.hasSufficientTDD(hours: data.tddHours, now: now) ?? grant.hasSufficientTDD,
             currentTemp: currentTemp,
             supportedBasalRates: pump.supportedBasalRates.map { Decimal($0) },
-            reservoir: data.reservoir ?? 100,
             now: now
         )
     }
@@ -336,7 +335,7 @@ enum UntetheredWatchError: LocalizedError {
 extension PumpManager {
     func enactTempBasal(unitsPerHour: Double, for duration: TimeInterval) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            enactTempBasal(unitsPerHour: unitsPerHour, for: duration) { error in
+            enactTempBasal(decisionId: nil, unitsPerHour: unitsPerHour, for: duration) { error in
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
             }
         }
@@ -344,7 +343,7 @@ extension PumpManager {
 
     func enactBolus(units: Double, automatic: Bool) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            enactBolus(units: units, activationType: automatic ? .automatic : .manualRecommendationAccepted) { error in
+            enactBolus(decisionId: nil, units: units, activationType: automatic ? .automatic : .manualRecommendationAccepted) { error in
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
             }
         }
@@ -1080,7 +1079,8 @@ extension UntetheredWatchManager {
     }
 
     func acknowledgePumpAlert(_ alert: UntetheredWatchData.PendingPumpAlert) {
-        pumpManager?.acknowledgeAlert(alertIdentifier: alert.alertIdentifier) { _ in }
+        let manager = pumpManager
+        Task { try? await manager?.acknowledgeAlert(alertIdentifier: alert.alertIdentifier) }
         store.update { $0.pendingPumpAlerts.removeAll { $0.id == alert.id } }
         refresh()
     }
@@ -1220,6 +1220,9 @@ extension UntetheredWatchManager: PumpManagerDelegate {
 
     var automaticDosingEnabled: Bool { data.grant.map { $0.dosingMode.automation != .off } ?? false }
 
+    // Display-only hint for pump UIs; the watch shows none.
+    var automatedTreatmentState: AutomatedTreatmentState? { nil }
+
     func pumpManager(_ manager: PumpManager, didUpdate status: PumpManagerStatus, oldStatus _: PumpManagerStatus) {
         guard isSessionPump(manager as AnyObject) else { return }
         updateBolusState(status)
@@ -1326,25 +1329,15 @@ extension UntetheredWatchManager: PumpManagerDelegate {
         refresh()
     }
 
-    func doesIssuedAlertExist(identifier: LoopKit.Alert.Identifier, completion: @escaping (Result<Bool, Error>) -> Void) {
-        completion(.success(
-            data.pendingPumpAlerts
-                .contains { $0.id == identifier.managerIdentifier + "." + identifier.alertIdentifier }
-        ))
+    func doesIssuedAlertExist(identifier: LoopKit.Alert.Identifier) async throws -> Bool {
+        data.pendingPumpAlerts.contains { $0.id == identifier.managerIdentifier + "." + identifier.alertIdentifier }
     }
 
-    func lookupAllUnretracted(managerIdentifier _: String, completion: @escaping (Result<[PersistedAlert], Error>) -> Void) {
-        completion(.success([]))
-    }
+    func lookupAllUnretracted(managerIdentifier _: String) async throws -> [PersistedAlert] { [] }
 
-    func lookupAllUnacknowledgedUnretracted(
-        managerIdentifier _: String,
-        completion: @escaping (Result<[PersistedAlert], Error>) -> Void
-    ) {
-        completion(.success([]))
-    }
+    func lookupAllUnacknowledgedUnretracted(managerIdentifier _: String) async throws -> [PersistedAlert] { [] }
 
-    func recordRetractedAlert(_: LoopKit.Alert, at _: Date) {}
+    func recordRetractedAlert(_: LoopKit.Alert, at _: Date) async throws {}
 }
 
 // MARK: - CGM
@@ -1765,7 +1758,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         takeReadings(samples.filter { !$0.wasUserEntered }.map {
             SessionReading(
                 date: $0.date,
-                mgdl: Int($0.quantity.doubleValue(for: HKUnit(from: "mg/dL"))),
+                mgdl: Int($0.quantity.doubleValue(for: .milligramsPerDeciliter)),
                 direction: .untethered($0.trend)
             )
         })
@@ -2102,7 +2095,7 @@ extension UntetheredWatchManager {
             .compactMap { reading in (reading.glucose ?? reading.sgv).map { (reading.dateString, $0) } }
         state.glucoseValues = readings.map { (date: $0.0, glucose: display($0.1), color: color($0.1)) }
         if let latest = readings.last {
-            state.currentGlucose = units == .mgdL ? "\(latest.1)" : Decimal(latest.1).formattedAsMmolL
+            state.currentGlucose = units == .mgdL ? "\(latest.1)" : Decimal(latest.1).formatted(for: .mmolL)
             let inRange = Decimal(latest.1) > grant.lowGlucose && Decimal(latest.1) < grant.highGlucose
             state
                 .currentGlucoseColorString = inRange ? "#ffffff" : color(latest.1).toHexString()
