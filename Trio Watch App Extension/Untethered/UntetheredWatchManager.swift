@@ -749,9 +749,7 @@ import WatchKit
     /// Reads the pump; nil when it doesn't answer.
     func readPump(_ pump: PumpManager) async -> UntetheredPodStatus? {
         if let odometer = pump as? PumpDeliveryOdometer {
-            let answered = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-                odometer.refreshDeliveredUnits { continuation.resume(returning: $0) }
-            }
+            let answered = await odometer.refreshDeliveredUnits()
             guard answered else { return nil }
             return UntetheredPodStatus(
                 date: Date(),

@@ -6,10 +6,8 @@ import UIKit
 @MainActor
 final class CriticalAlertAudioPlayer {
     private var player: AVAudioPlayer?
+    private var stopTimer: Timer?
     private var vibrationTimer: Timer?
-    private var volumeObservation: NSKeyValueObservation?
-    private var onVolumeButtonPressed: (() -> Void)?
-    private var hasTriggeredVolumeSnooze = false
 
     private let vibrationInterval: TimeInterval = 2.0
     /// System volume floor for critical alarms. The alarm has to be audible
@@ -21,28 +19,50 @@ final class CriticalAlertAudioPlayer {
 
     var isPlaying: Bool { player?.isPlaying ?? false }
 
-    /// Start (or restart) looping playback of a bundled critical alert sound.
-    /// Loops until `stop()` is called from `retractAlert` /
-    /// `handleAcknowledgement` in `BaseTrioAlertManager` — modeled on the
-    /// LoopFollow / Jonas loop-failure alarm. `.playback` audio session gives
-    /// the app a privileged background state so the alarm continues even if
-    /// the user has the screen locked.
-    ///
-    /// - Parameter onVolumeButtonPressed: Invoked (once per playback, on the
-    ///   main thread) if a hardware volume-button press is detected while
-    ///   this alarm is sounding — see `startVolumeButtonObservation`.
-    func play(soundNamed soundName: String = "critical.caf", onVolumeButtonPressed: (() -> Void)? = nil) {
-        stop()
+    /// Shortest an alarm rings. A floor, not a cap: whole passes of the sound
+    /// run until it is reached, so a short tone repeats and a long one plays
+    /// through once rather than being cut off mid-phrase.
+    nonisolated static let minBurstDuration: TimeInterval = 6
 
-        self.onVolumeButtonPressed = onVolumeButtonPressed
-        hasTriggeredVolumeSnooze = false
-        startVibration()
+    /// Longest an alarm rings, so an unexpectedly long sound can't run on.
+    nonisolated static let maxBurstDuration: TimeInterval = 30
 
+    /// Whole passes of `duration`, enough to reach `minBurstDuration`, capped.
+    nonisolated static func burstDuration(forSoundOfDuration duration: TimeInterval) -> TimeInterval {
+        guard duration > 0 else { return minBurstDuration }
+        let passes = max(1, Int((minBurstDuration / duration).rounded(.up)))
+        return min(maxBurstDuration, duration * Double(passes))
+    }
+
+    /// Burst length for a bundled sound, or the floor if it can't be read.
+    nonisolated static func burstDuration(forSoundNamed soundName: String) -> TimeInterval {
+        guard let url = soundURL(named: soundName), let p = try? AVAudioPlayer(contentsOf: url) else {
+            return minBurstDuration
+        }
+        return burstDuration(forSoundOfDuration: p.duration)
+    }
+
+    nonisolated private static func soundURL(named soundName: String) -> URL? {
         let resource = (soundName as NSString).deletingPathExtension
         let ext = (soundName as NSString).pathExtension.isEmpty ? "caf" : (soundName as NSString).pathExtension
-        let url = Bundle.main.url(forResource: resource, withExtension: ext)
+        return Bundle.main.url(forResource: resource, withExtension: ext)
             ?? Bundle.main.url(forResource: "critical", withExtension: "caf")
-        guard let url else {
+    }
+
+    /// Play one burst of a bundled critical alert sound (see
+    /// `burstDuration`), then stop on its own. `retractAlert` /
+    /// `handleAcknowledgement` in `BaseTrioAlertManager` can end it sooner.
+    /// `.playback` audio session gives the app a privileged background state
+    /// so the alarm plays even if the user has the screen locked.
+    func play(soundNamed soundName: String = "critical.caf") {
+        stop()
+
+        startVibration()
+        // Bounds vibration if the audio setup below fails; re-armed to the
+        // sound's burst length once it is known.
+        scheduleStop(after: Self.minBurstDuration)
+
+        guard let url = Self.soundURL(named: soundName) else {
             error(.alerts, "Critical alert sound \(soundName) and fallback sound missing, audio fallback unavailable")
             return
         }
@@ -60,7 +80,6 @@ final class CriticalAlertAudioPlayer {
             try session.setCategory(.playback, mode: .default, options: [.duckOthers, .mixWithOthers])
             try session.setActive(true, options: [])
             volumeBooster.boost(to: minimumSystemVolume)
-            startVolumeButtonObservation(session: session)
 
             let p = try AVAudioPlayer(contentsOf: url)
             p.numberOfLoops = -1
@@ -72,9 +91,21 @@ final class CriticalAlertAudioPlayer {
                 return
             }
             player = p
-            info(.alerts, "Critical alert audio started, sound length \(String(format: "%.2f", p.duration)) s")
+            let burst = Self.burstDuration(forSoundOfDuration: p.duration)
+            scheduleStop(after: burst)
+            info(
+                .alerts,
+                "Critical alert audio started, sound length \(String(format: "%.2f", p.duration)) s, burst \(String(format: "%.2f", burst)) s"
+            )
         } catch let playbackError {
             error(.alerts, "Critical alert audio playback failed", error: playbackError)
+        }
+    }
+
+    private func scheduleStop(after interval: TimeInterval) {
+        stopTimer?.invalidate()
+        stopTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.stop() }
         }
     }
 
@@ -85,44 +116,15 @@ final class CriticalAlertAudioPlayer {
         }
     }
 
-    /// Lets the user snooze the currently-sounding alarm with a hardware
-    /// volume button instead of unlocking the phone and opening Trio.
-    /// `AVAudioSession.outputVolume` only delivers KVO changes to an app
-    /// holding an active audio session, so this observation is only ever
-    /// live while our own critical audio is actually playing — it's torn
-    /// down again in `stop()`.
-    ///
-    /// Two caveats worth knowing: `SystemVolumeBooster` already pushes the
-    /// system volume to max the moment this alarm starts, so a volume-UP
-    /// press has no headroom left to register a change — in practice only
-    /// volume-DOWN reliably triggers this. And there's no public API to
-    /// intercept the button without also moving the real system volume, so
-    /// the press will audibly/visibly change it as a side effect.
-    private func startVolumeButtonObservation(session: AVAudioSession) {
-        volumeObservation = session.observe(\.outputVolume, options: [.new]) { [weak self] _, _ in
-            DispatchQueue.main.async {
-                self?.handleVolumeButtonPress()
-            }
-        }
-    }
-
-    private func handleVolumeButtonPress() {
-        guard !hasTriggeredVolumeSnooze else { return }
-        hasTriggeredVolumeSnooze = true
-        info(.alerts, "Volume button pressed during critical alarm playback — triggering snooze")
-        onVolumeButtonPressed?()
-    }
-
     /// Stop playback if any. Safe to call when not playing.
     func stop() {
-        guard player != nil || vibrationTimer != nil else { return }
+        guard player != nil || stopTimer != nil || vibrationTimer != nil else { return }
         player?.stop()
         player = nil
+        stopTimer?.invalidate()
+        stopTimer = nil
         vibrationTimer?.invalidate()
         vibrationTimer = nil
-        volumeObservation?.invalidate()
-        volumeObservation = nil
-        onVolumeButtonPressed = nil
         volumeBooster.restore()
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         debug(.alerts, "Critical alert audio stopped")
