@@ -1,6 +1,5 @@
 import Foundation
 import HealthKit
-import LoopAlgorithm
 import LoopKit
 import SwiftUI
 import UserNotifications
