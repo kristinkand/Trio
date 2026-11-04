@@ -19,6 +19,7 @@ struct UntetheredStatusView: View {
     @State private var confirmStop = false
     @State private var confirmDeactivate = false
     @State private var confirmDiscard = false
+    @State private var confirmPairAgain = false
     @State private var isDeactivating = false
     @State private var deactivateError: String?
 
@@ -47,6 +48,14 @@ struct UntetheredStatusView: View {
                                 .font(.footnote)
                         }
                     }
+                    if manager.offersSensorPairAgain {
+                        // here, not only on the sensor page: where the warning is, and Trio has to stay in front
+                        // for the pairing request
+                        Button(role: .destructive) { confirmPairAgain = true } label: {
+                            Label("Pair Again", systemImage: "arrow.triangle.2.circlepath")
+                                .font(.footnote)
+                        }
+                    }
                     if manager.isActive { tiles }
                     if manager.isActive {
                         // remote commands come through the phone's push: without it online they wait or run out
@@ -69,6 +78,9 @@ struct UntetheredStatusView: View {
         }
         .sheet(isPresented: $showLog) {
             WatchG7DetailsView()
+        }
+        .confirmationDialog("Pair the watch with the sensor again?", isPresented: $confirmPairAgain) {
+            Button("Pair Again", role: .destructive) { manager.pairSensorAgain() }
         }
         .confirmationDialog("Hand the pump back to the phone?", isPresented: $confirmEnd) {
             Button("Hand Back") { manager.end() }
