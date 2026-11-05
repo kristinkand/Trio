@@ -880,8 +880,9 @@ import WatchKit
         Task { await WatchLogger.shared.log("⌚️ Untethered: letting go of the sensor", force: true) }
         saveCGMState()
         cgm.cgmManagerDelegate = nil
-        // an adopted manager only lets go of the sensor: the phone owns its lifecycle and records
-        cgm.delete {}
+        // an adopted manager only lets go of the sensor: the phone owns its lifecycle and records. Async since
+        // LoopKit#685; without a delegate it only stops the sensor link.
+        Task { @MainActor in await cgm.delete() }
         cgmManager = nil
     }
 
