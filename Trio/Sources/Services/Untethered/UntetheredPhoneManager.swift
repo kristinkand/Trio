@@ -202,6 +202,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     /// opened (2026-10-18, 09:24 to 10:39). As LoopKit/Loop#2545 does with every phone cycle.
     private func scheduleWatchWake() {
         guard isWatchInCharge else { return }
+        sendPhoneReading()
         if tellWatchPhoneIsBack() { return }
         guard Date().timeIntervalSince(lastWatchWake ?? .distantPast) >= Self.watchWakeInterval else { return }
         lastWatchWake = Date()
@@ -219,6 +220,39 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     /// The phone's own reading the watch was last told about.
     private var phoneBackToldFor: Date?
+
+    /// The phone's own reading last sent to the watch.
+    private var phoneReadingSentFor: Date?
+    /// A reading older than this is no use to the watch's loop.
+    private static let phoneReadingMaxAge: TimeInterval = 6 * 60
+
+    /// While the watch has the pump, the phone's own reading goes to the watch the moment it is stored: a watch whose
+    /// own sensor link fails loops on it instead of handing the pump back (5 November, 02:53 to 03:18: the phone read
+    /// every 5 minutes, the watch nothing, and after 25 minutes without a loop it gave the pump back). As userInfo:
+    /// queued, delivered at the watch app's next wake, and no draw on the complication transfers. The watch takes it
+    /// only when it has no reading of its own for that cycle.
+    private func sendPhoneReading() {
+        guard let own = PhoneOwnGlucose.newest, own > (phoneReadingSentFor ?? .distantPast),
+              Date().timeIntervalSince(own) < Self.phoneReadingMaxAge,
+              let reading = PhoneOwnGlucose.newestReading
+        else { return }
+        let session = WCSession.default
+        guard WCSession.isSupported(), session.activationState == .activated, session.isWatchAppInstalled else { return }
+        phoneReadingSentFor = own
+        // only the newest is of use
+        for transfer in session.outstandingUserInfoTransfers
+            where transfer.userInfo[WatchMessageKeys.untetheredPhoneReading] != nil
+        {
+            transfer.cancel()
+        }
+        session.transferUserInfo([
+            WatchMessageKeys.untetheredPhoneReading: [
+                "date": own.timeIntervalSince1970,
+                "mgdl": reading.mgdl,
+                "direction": reading.direction
+            ]
+        ])
+    }
 
     /// A session the watch started without the phone goes back by itself once the phone reads the sensor again, but the
     /// watch only learns that from the phone: while it has the pump the phone sends no watch state, and a watch app in
