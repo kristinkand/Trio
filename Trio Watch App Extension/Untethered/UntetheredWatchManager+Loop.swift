@@ -1105,9 +1105,12 @@ extension UntetheredWatchManager: PumpManagerDelegate {
 
     func pumpManagerMustProvideBLEHeartbeat(_: PumpManager) -> Bool { false }
 
-    func pumpManagerWillDeactivate(_ manager: PumpManager) {
-        guard isSessionPump(manager as AnyObject) else { return }
-        setError(String(localized: "The pod was deactivated. Pair a new one on the phone."))
+    /// LoopKit#685: the old `pumpManagerWillDeactivate`, now awaited by the pump manager's `delete()`.
+    func pumpManagerWantsDeletion(_ manager: PumpManager) async {
+        await MainActor.run {
+            guard self.isSessionPump(manager as AnyObject) else { return }
+            self.setError(String(localized: "The pod was deactivated. Pair a new one on the phone."))
+        }
     }
 
     func pumpManagerPumpWasReplaced(_: PumpManager) {}
