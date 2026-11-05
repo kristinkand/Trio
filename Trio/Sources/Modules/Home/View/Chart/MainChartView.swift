@@ -24,6 +24,8 @@ private let scrubPointHaptic = UISelectionFeedbackGenerator()
 /// include the pan position; SwiftUI therefore skips its body while panning, so the chart
 /// content is never re-evaluated mid-gesture.
 struct MainChartView: View {
+    /// The G7's unreliable readings, drawn as hollow dots.
+    @ObservedObject var unsureStore = UnsureGlucoseStore.shared
     var geo: GeometryProxy
     /// Height allocated to the chart stack by the Home layout (the flexible
     /// remainder after the fixed zones).
@@ -982,7 +984,8 @@ extension MainChartCanvas {
                 lowGlucose: state.lowGlucose,
                 currentGlucoseTarget: state.currentGlucoseTarget,
                 isSmoothingEnabled: state.isSmoothingEnabled,
-                glucoseColorScheme: state.glucoseColorScheme
+                glucoseColorScheme: state.glucoseColorScheme,
+                unsureData: unsureStore.readings
             )
         }
         .frame(width: canvasWidth, height: mainHeight)
