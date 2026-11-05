@@ -117,25 +117,106 @@ struct AlarmSnoozeUntilView: View {
     let state: WatchState
     var onDismiss: () -> Void
 
-    @State private var until = Date().addingTimeInterval(8 * 60 * 60)
+    /// Days from today, the hour and the minute (in 5-minute steps), each chosen on its own screen with the crown,
+    /// as the watch's own Alarms app does: the system date picker squashed the date on a watch screen.
+    @State private var day: Int
+    @State private var hour: Int
+    @State private var minute: Int
+
+    /// How far ahead the day can be.
+    static let days = 14
+
+    init(state: WatchState, onDismiss: @escaping () -> Void) {
+        self.state = state
+        self.onDismiss = onDismiss
+        // 8 hours ahead, on the next 5 minutes
+        let ahead = Date().addingTimeInterval(8 * 60 * 60).timeIntervalSinceReferenceDate
+        let start = Date(timeIntervalSinceReferenceDate: (ahead / 300).rounded(.up) * 300)
+        let calendar = Calendar.current
+        _day = State(initialValue: min(calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: Date()),
+            to: calendar.startOfDay(for: start)
+        ).day ?? 0, Self.days - 1))
+        let parts = calendar.dateComponents([.hour, .minute], from: start)
+        _hour = State(initialValue: parts.hour ?? 0)
+        _minute = State(initialValue: (parts.minute ?? 0) / 5 * 5)
+    }
+
+    private var until: Date {
+        let calendar = Calendar.current
+        let date = calendar.date(byAdding: .day, value: day, to: calendar.startOfDay(for: Date())) ?? Date()
+        return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date) ?? date
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                DatePicker("Day", selection: $until, in: Date()..., displayedComponents: .date)
-                DatePicker("Time", selection: $until, displayedComponents: .hourAndMinute)
-                Button {
-                    let minutes = Int(ceil(until.timeIntervalSinceNow / 60))
-                    guard minutes > 0 else { return }
-                    state.sendSnoozeRequest(minutes: minutes)
-                    onDismiss()
-                } label: {
-                    Text(String(format: String(localized: "Snooze until %@"), Self.untilText(until)))
+        List {
+            NavigationLink {
+                Picker("Day", selection: $day) {
+                    ForEach(0 ..< Self.days, id: \.self) { offset in
+                        Text(Self.dayLabel(offset)).tag(offset)
+                    }
                 }
-                .disabled(until <= Date())
+                .pickerStyle(.wheel)
+                .navigationTitle("Day")
+            } label: {
+                LabeledContent("Day", value: Self.dayLabel(day))
             }
+
+            NavigationLink {
+                // tap the hours or the minutes, then turn the crown
+                HStack(spacing: 4) {
+                    Picker("Hour", selection: $hour) {
+                        ForEach(0 ..< 24, id: \.self) { value in
+                            Text(Self.hourLabel(value)).tag(value)
+                        }
+                    }
+                    Text(":").font(.title2)
+                    Picker("Minute", selection: $minute) {
+                        ForEach(Array(stride(from: 0, to: 60, by: 5)), id: \.self) { value in
+                            Text(String(format: "%02d", value)).tag(value)
+                        }
+                    }
+                }
+                .pickerStyle(.wheel)
+                .labelsHidden()
+                .navigationTitle("Time")
+            } label: {
+                LabeledContent("Time", value: until.formatted(date: .omitted, time: .shortened))
+            }
+
+            Button {
+                let minutes = Int(ceil(until.timeIntervalSinceNow / 60))
+                guard minutes > 0 else { return }
+                state.sendSnoozeRequest(minutes: minutes)
+                onDismiss()
+            } label: {
+                Text(
+                    until > Date()
+                        ? String(format: String(localized: "Snooze until %@"), Self.untilText(until))
+                        : String(localized: "That time has passed")
+                )
+            }
+            .disabled(until <= Date())
         }
         .navigationTitle("Until")
+    }
+
+    static func dayLabel(_ offset: Int) -> String {
+        let calendar = Calendar.current
+        switch offset {
+        case 0: return String(localized: "Today")
+        case 1: return String(localized: "Tomorrow")
+        default:
+            let date = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: Date())) ?? Date()
+            return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        }
+    }
+
+    /// In the watch's own clock style: "07" or "7 AM".
+    static func hourLabel(_ hour: Int) -> String {
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
+        return date.formatted(.dateTime.hour())
     }
 
     /// The time alone today, with the date on another day.
