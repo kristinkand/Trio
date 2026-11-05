@@ -372,7 +372,7 @@ extension PluginSource {
 /// for the third tester, with values that followed the trend). Never stored, looped on, alarmed on, uploaded or sent
 /// to Health: Home shows it greyed with a warning sign and the chart as hollow orange dots, so a workout isn't spent
 /// without any idea where glucose is going. Asked for by the first tester.
-struct UnsureGlucose: Equatable {
+struct UnsureGlucose: Codable, Equatable {
     let date: Date
     let mgdl: Int
 }
@@ -385,8 +385,23 @@ final class UnsureGlucoseStore: ObservableObject {
     /// Shown on Home and the watch while this fresh, as a reliable reading would be.
     static let freshFor: TimeInterval = 12 * 60
 
-    /// The flagged readings, oldest first.
-    @Published private(set) var readings: [UnsureGlucose] = []
+    /// The flagged readings, oldest first; kept across restarts and new builds.
+    @Published private(set) var readings: [UnsureGlucose] = [] {
+        didSet {
+            if let data = try? JSONEncoder().encode(readings) { UserDefaults.standard.set(data, forKey: Self.storageKey) }
+        }
+    }
+
+    private static let storageKey = "trio.unsureGlucose"
+
+    init() {
+        if let data = UserDefaults.standard.data(forKey: Self.storageKey),
+           let saved = try? JSONDecoder().decode([UnsureGlucose].self, from: data)
+        {
+            let now = Date()
+            readings = saved.filter { now.timeIntervalSince($0.date) < Self.keep }
+        }
+    }
 
     var latest: UnsureGlucose? { readings.last }
 
