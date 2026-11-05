@@ -164,7 +164,8 @@ extension Home.RootView {
                     HStack(spacing: 5) {
                         Image(systemName: "bell.slash.fill")
                             .font(.callout)
-                        Text("\(remainingMinutes) m")
+                        // a snooze until tomorrow reads in hours
+                        Text(remainingMinutes < 120 ? "\(remainingMinutes) m" : "\((remainingMinutes + 30) / 60) h")
                             .font(.callout).fontWeight(.bold).fontDesign(.rounded)
                     }
                     .padding(.vertical, 5)

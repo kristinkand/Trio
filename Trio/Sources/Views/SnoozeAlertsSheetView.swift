@@ -9,6 +9,8 @@ struct SnoozeAlertsSheetView: View {
     @Binding var isPresented: Bool
 
     @State private var snoozeUntilDate: Date = .distantPast
+    /// "Until": a chosen end, as LoopFollow's snooze offers, beyond the fixed durations.
+    @State private var untilPick = Date().addingTimeInterval(8 * 60 * 60)
 
     @Environment(\.colorScheme) var colorScheme
     @Environment(AppState.self) var appState
@@ -22,7 +24,7 @@ struct SnoozeAlertsSheetView: View {
                             Image(systemName: "moon.zzz.fill").foregroundStyle(.tint)
                             Text(String(
                                 format: String(localized: "Snoozed until %@"),
-                                snoozeUntilDate.formatted(date: .omitted, time: .shortened)
+                                Self.untilText(snoozeUntilDate)
                             ))
                                 .font(.headline)
                         }
@@ -54,6 +56,20 @@ struct SnoozeAlertsSheetView: View {
                         }
                     }
                 }.listRowBackground(Color.chart)
+                Section(footer: Text("Snooze every Trio alarm until the time you choose, also on another day.")) {
+                    DatePicker(
+                        "Until",
+                        selection: $untilPick,
+                        in: Date().addingTimeInterval(60)...,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    Button {
+                        applySnooze(untilPick.timeIntervalSinceNow)
+                    } label: {
+                        Text(String(format: String(localized: "Snooze until %@"), Self.untilText(untilPick)))
+                    }
+                    .disabled(untilPick <= Date())
+                }.listRowBackground(Color.chart)
             }
             .scrollContentBackground(.hidden)
             .background(appState.trioBackgroundColor(for: colorScheme))
@@ -69,6 +85,13 @@ struct SnoozeAlertsSheetView: View {
                     .object(forKey: "UserNotificationsManager.snoozeUntilDate") as? Date ?? .distantPast
             }
         }
+    }
+
+    /// The time alone today, with the date on another day.
+    static func untilText(_ date: Date) -> String {
+        Calendar.current.isDateInToday(date)
+            ? date.formatted(date: .omitted, time: .shortened)
+            : date.formatted(date: .abbreviated, time: .shortened)
     }
 
     private var endSnoozeAction: some View {

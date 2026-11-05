@@ -21,7 +21,7 @@ struct AlarmSnoozeView: View {
                         Image(systemName: isSnoozed ? "bell.slash.fill" : "bell.fill")
                             .font(.title2)
                         if isSnoozed {
-                            Text("\(remainingMinutes) m")
+                            Text(remainingMinutes < 120 ? "\(remainingMinutes) m" : "\((remainingMinutes + 30) / 60) h")
                                 .font(.headline).fontWeight(.bold).fontDesign(.rounded)
                         }
                     }
@@ -40,7 +40,7 @@ struct AlarmSnoozeView: View {
                     isSnoozed
                         ? String(
                             format: String(localized: "Snoozed until %@"),
-                            state.snoozeUntilDate.formatted(date: .omitted, time: .shortened)
+                            AlarmSnoozeUntilView.untilText(state.snoozeUntilDate)
                         )
                         : String(localized: "Alarms active")
                 )
@@ -102,8 +102,46 @@ struct AlarmSnoozeOptionsView: View {
                         onDismiss()
                     }
                 }
+
+                NavigationLink("Until…") {
+                    AlarmSnoozeUntilView(state: state, onDismiss: onDismiss)
+                }
             }
             .navigationTitle("Snooze Alerts")
         }
+    }
+}
+
+/// A chosen end for the snooze, as LoopFollow offers: sent as the minutes until then, which the phone already takes.
+struct AlarmSnoozeUntilView: View {
+    let state: WatchState
+    var onDismiss: () -> Void
+
+    @State private var until = Date().addingTimeInterval(8 * 60 * 60)
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                DatePicker("Day", selection: $until, in: Date()..., displayedComponents: .date)
+                DatePicker("Time", selection: $until, displayedComponents: .hourAndMinute)
+                Button {
+                    let minutes = Int(ceil(until.timeIntervalSinceNow / 60))
+                    guard minutes > 0 else { return }
+                    state.sendSnoozeRequest(minutes: minutes)
+                    onDismiss()
+                } label: {
+                    Text(String(format: String(localized: "Snooze until %@"), Self.untilText(until)))
+                }
+                .disabled(until <= Date())
+            }
+        }
+        .navigationTitle("Until")
+    }
+
+    /// The time alone today, with the date on another day.
+    static func untilText(_ date: Date) -> String {
+        Calendar.current.isDateInToday(date)
+            ? date.formatted(date: .omitted, time: .shortened)
+            : date.formatted(date: .abbreviated, time: .shortened)
     }
 }
