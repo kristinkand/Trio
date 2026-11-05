@@ -24,8 +24,6 @@ private let scrubPointHaptic = UISelectionFeedbackGenerator()
 /// include the pan position; SwiftUI therefore skips its body while panning, so the chart
 /// content is never re-evaluated mid-gesture.
 struct MainChartView: View {
-    /// The G7's unreliable readings, drawn as hollow dots.
-    @ObservedObject var unsureStore = UnsureGlucoseStore.shared
     var geo: GeometryProxy
     /// Height allocated to the chart stack by the Home layout (the flexible
     /// remainder after the fixed zones).
@@ -828,6 +826,9 @@ struct MainChartCanvas: View {
 
     @State var basalProfiles: [BasalProfile] = []
     @State var preparedTempBasals: [PreparedTempBasal] = []
+    /// The G7's unreliable readings, drawn as hollow dots. Observed here, in the canvas that draws them: its
+    /// `.equatable()` skips updates from the parent, while this object's changes still redraw it.
+    @ObservedObject var unsureStore = UnsureGlucoseStore.shared
     /// Cached, not computed: Swift Charts reads this once per mark, so rescanning both series per read is quadratic.
     @State var basalDomainMax: Double = 0.1
 
