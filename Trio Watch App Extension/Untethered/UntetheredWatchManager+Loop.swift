@@ -1846,8 +1846,11 @@ extension UntetheredWatchManager: CGMManagerDelegate {
 
     /// A phone reading older than this is no use to the loop.
     static let phoneReadingMaxAge: TimeInterval = 6 * 60
-    /// The watch's own reading comes within some 40 s of the sensor's burst: the phone's waits this long behind it.
-    static let ownReadingFirst: TimeInterval = 75
+    /// The watch's own reading comes within seconds of the phone's when the sensor reaches it at all (5 November:
+    /// within 2 s, every time): the phone's waits this long behind it, with the app held awake. At 75 s the watch
+    /// went back to sleep first (5 November, 08:53, 09:33, 10:33: awake when the phone's reading came, no link of
+    /// its own, and the phone's reading used only at the next burst, 5 min late).
+    static let ownReadingFirst: TimeInterval = 20
 
     /// The phone's own reading, sent after each one while the watch has the pump: a session whose own sensor link
     /// failed loops on it instead of handing the pump back (5 November, 02:53 to 03:18: the phone read every
@@ -1882,7 +1885,17 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         }
         let wait = reading.date.addingTimeInterval(Self.ownReadingFirst).timeIntervalSince(now)
         guard wait <= 0 else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in self?.takePendingPhoneReading() }
+            if phoneReadingHold == nil {
+                phoneReadingHold = Self.holdProcess(reason: "Untethered: the iPhone's reading waits on the watch's own", upTo: wait + 5)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in
+                self?.takePendingPhoneReading()
+                // a loop the reading started holds the app itself by then
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                    self?.phoneReadingHold?()
+                    self?.phoneReadingHold = nil
+                }
+            }
             return
         }
         pendingPhoneReading = nil

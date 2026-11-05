@@ -47,6 +47,8 @@ import WatchKit
     @ObservationIgnored var fallbackLooksPaused: (phoneNewest: Date, until: Date)?
     /// The phone's own newest reading, held until the watch's own reading of that cycle had its chance.
     @ObservationIgnored var pendingPhoneReading: SessionReading?
+    /// Keeps the app awake while the phone's reading waits on the watch's own.
+    @ObservationIgnored var phoneReadingHold: (() -> Void)?
     /// The session loops on the phone's readings: when the first was taken since the watch's own last one. Shown on
     /// the first page and the status page, and warned about after 20 minutes.
     var readingsFromPhoneSince: Date?
