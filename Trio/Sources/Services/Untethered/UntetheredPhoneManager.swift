@@ -1328,7 +1328,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     }
 
     /// Judges the span between the pump's two readings against the history as it is now.
-    @MainActor private func judge(_ point: UntetheredAuditPoint, historyComplete: Bool) async {
+    @MainActor private func judge(_ point: UntetheredAuditPoint, historyComplete: Bool, cause: String? = nil) async {
         // A pod's delivery counter only counts up. Lower at the end, the pod read isn't one to judge by: the pod
         // faulted or reset (2026-10-23 22:23, a pod past its 80 hours read 10.1 U below its start and the audit
         // warned of 10.8 U too many in the records).
@@ -1353,9 +1353,12 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 basalProfile: storage.retrieve(OpenAPS.Settings.basalProfile, as: [BasalProfileEntry].self) ?? [],
                 bolusDeliveryRate: (apsManager.pumpManager as? PumpDeliveryOdometer)?.bolusDeliveryRate ?? 0
             )
+            // to the hundredth: the records' sum came out as 0.000050868113835652676 U after a look at the pod
+            let rounded = { (value: Decimal) in value.formatted(.number.precision(.fractionLength(0 ... 2))) }
+            let notes = [cause, historyComplete ? nil : "watch history incomplete"].compactMap { $0 }
             debug(
                 .watch,
-                "Untethered: audit\(historyComplete ? "" : " (watch history incomplete)") — pump \(point.delivered) U, records \(expected) U"
+                "Untethered: audit\(notes.isEmpty ? "" : " (\(notes.joined(separator: ", ")))") — pump \(rounded(point.delivered)) U, records \(rounded(expected)) U"
             )
             let verdict = UntetheredAudit.verdict(delivered: point.delivered, expected: expected)
             // insulin no record explains counts at once, whatever the history still lacks: dosing must not go over it
@@ -1411,11 +1414,12 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             end: current.at,
             endUnits: current.units
         )
-        debug(
-            .watch,
-            "Untethered: \(Int(current.at.timeIntervalSince(previous.at) / 60)) min between pod readings, checking"
+        // one line, not two: the watch's fallback looks at the pod make one of these every 5 to 30 minutes
+        await judge(
+            point,
+            historyComplete: true,
+            cause: "\(Int(current.at.timeIntervalSince(previous.at) / 60)) min between pod readings"
         )
-        await judge(point, historyComplete: true)
     }
 
     private static func gapIdentifier(_ epoch: Int) -> String { "untethered-gap-\(epoch)" }
