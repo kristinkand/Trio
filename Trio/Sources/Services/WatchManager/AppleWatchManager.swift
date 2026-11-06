@@ -603,6 +603,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         if let own = PhoneOwnGlucose.newest {
             dictionary[WatchMessageKeys.phoneOwnGlucoseDate] = own.timeIntervalSince1970
         }
+        dictionary[WatchMessageKeys.showUnreliableG7] = UnsureGlucoseStore.isEnabled
         if let unsure = UnsureGlucoseStore.shared.latest,
            Date().timeIntervalSince(unsure.date) < UnsureGlucoseStore.freshFor
         {

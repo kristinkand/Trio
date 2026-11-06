@@ -70,6 +70,8 @@ enum WatchMessageKeys {
     /// The newest G7 reading the sensor marked unreliable (mg/dL and date): shown greyed with a warning, never used.
     static let unsureGlucoseMgdl = "unsureGlucoseMgdl"
     static let unsureGlucoseDate = "unsureGlucoseDate"
+    /// Whether the phone's "Show Unreliable G7 Readings" is on: the watch shows its own only then.
+    static let showUnreliableG7 = "showUnreliableG7"
     /// The watch app's push token, from the watch: the phone uploads it with its own so a remote command can also go
     /// straight to the watch while it has the pump.
     static let watchPushToken = "watchPushToken"

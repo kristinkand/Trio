@@ -157,9 +157,21 @@ import WatchKit
     var unsureGlucoseMgdl: Int?
     var unsureGlucoseDate: Date?
 
+    /// The phone's "Show Unreliable G7 Readings"; kept, so the watch's own reader and untethered mode follow it
+    /// while the phone is away. Off unless the phone said otherwise.
+    var showsUnreliableG7 = UserDefaults.standard.bool(forKey: WatchMessageKeys.showUnreliableG7) {
+        didSet {
+            UserDefaults.standard.set(showsUnreliableG7, forKey: WatchMessageKeys.showUnreliableG7)
+            if !showsUnreliableG7 {
+                unsureGlucoseMgdl = nil
+                unsureGlucoseDate = nil
+            }
+        }
+    }
+
     func noteUnsureGlucose(mgdl: Int, date: Date) {
         DispatchQueue.main.async {
-            guard date > (self.unsureGlucoseDate ?? .distantPast) else { return }
+            guard self.showsUnreliableG7, date > (self.unsureGlucoseDate ?? .distantPast) else { return }
             self.unsureGlucoseMgdl = mgdl
             self.unsureGlucoseDate = date
         }
@@ -636,6 +648,9 @@ import WatchKit
             .sorted { $0.date < $1.date }
         }
 
+        if let show = message[WatchMessageKeys.showUnreliableG7] as? Bool, show != showsUnreliableG7 {
+            showsUnreliableG7 = show
+        }
         if let at = message[WatchMessageKeys.unsureGlucoseDate] as? TimeInterval,
            let mgdl = (message[WatchMessageKeys.unsureGlucoseMgdl] as? NSNumber)?.intValue
         {
