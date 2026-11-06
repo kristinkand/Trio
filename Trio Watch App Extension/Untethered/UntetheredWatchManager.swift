@@ -939,6 +939,8 @@ import WatchKit
 
     func recheckCGM() {
         watchCGMRecheckAcquisition(cgmManager)
+        // on a wake with the phone away, too: the phone takes it once it is back
+        WatchState.shared.reportBatteryIfChanged()
         takePendingPhoneReading()
         checkAlarms()
         checkPodLink()
