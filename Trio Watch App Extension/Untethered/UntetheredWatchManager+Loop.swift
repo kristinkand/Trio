@@ -1562,7 +1562,12 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         {
             sensorPairingDue()
         } else if message.contains("expect the system pairing prompt") {
-            WKInterfaceDevice.current().play(.notification)
+            // felt only when the request can show; behind the watch face the "Pair the Sensor" notice asks instead
+            if WKApplication.shared().applicationState == .active {
+                WKInterfaceDevice.current().play(.notification)
+            } else {
+                sensorPairingDue()
+            }
         } else if message.contains("dropped the link after the bond request") {
             // Not always the end: the sensor may take the key without the system's Bluetooth pairing, as G7SensorKit
             // reports a moment later (30 October, 20:58:41: dropped, then "authenticated directly" in the same second,
