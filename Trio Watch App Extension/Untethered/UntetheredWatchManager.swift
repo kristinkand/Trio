@@ -653,8 +653,12 @@ import WatchKit
         // what must reach the phone even if it is away right now; the rest is resent by its own retry
         let queued: Bool
         switch message {
+        // the answer to the phone's ownership question too: the phone holds its dosing until it comes (6 November,
+        // 07:36: the question woke the watch, the phone was out of reach for that second, the answer was dropped, and
+        // the phone held its dosing for 7 minutes with "Checking with the Watch", a loop with it)
         case .records,
              .released,
+             .statusReport,
              .syncDone,
              .takeoverComplete,
              .takeoverFailed: queued = queueing ?? true
