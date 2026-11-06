@@ -155,6 +155,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         Foundation.NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                Task { @MainActor in await self?.tickWhileWaiting() }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
                     Task { @MainActor in await self?.checkForeignSession() }
                 }
@@ -162,7 +163,12 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             .store(in: &subscriptions)
         glucoseStorage.updatePublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in Task { @MainActor in await self?.checkForeignSession() } }
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    await self?.checkForeignSession()
+                    await self?.tickWhileWaiting()
+                }
+            }
             .store(in: &subscriptions)
         broadcaster.register(SettingsObserver.self, observer: self)
         broadcaster.register(PreferencesObserver.self, observer: self)
@@ -718,6 +724,15 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             endRequestTimer = nil
         }
         Task { await scheduleLinkedOverrideCheck() }
+    }
+
+    /// The ticker is a timer, and a timer stands still while Trio is in the background: the wait for the watch's answer
+    /// ran 7 minutes instead of 3 (6 November, 07:36 to 07:43, until Trio was opened). Each reading and each return to
+    /// the front gives it its tick as well.
+    @MainActor private func tickWhileWaiting() async {
+        let phase = state.session.phase
+        guard phase == .preparing || phase == .starting else { return }
+        await apply(.tick)
     }
 
     /// A refused pod command exposes the watch's newer EAP session before WatchConnectivity
