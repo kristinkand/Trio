@@ -131,8 +131,14 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
     @State private var showActions = false
     @State private var confirmForce = false
 
+    /// The ownership check after a look of the watch's at the pod, and its pump read, run unseen on Home; Bluetooth off
+    /// still shows.
+    private var isQuiet: Bool {
+        manager.state.session.isQuietForeignSessionCheck && !manager.isBluetoothOff
+    }
+
     var body: some View {
-        if manager.isWatchInCharge || manager.state.pumpReturnPending {
+        if manager.isWatchInCharge || manager.state.pumpReturnPending, !isQuiet {
             banner(
                 manager.isBluetoothOff
                     ? String(localized: "⚠️ iPhone Bluetooth Off")
