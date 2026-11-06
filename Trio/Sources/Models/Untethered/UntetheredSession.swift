@@ -103,6 +103,13 @@ struct UntetheredSession: Codable, Equatable {
     /// while the watch had nothing, and again after a refused bolus.
     var isCheckingForeignSession: Bool { phase == .starting && checkingForeignSession == true }
 
+    /// That check and the pump read that follows its answer: a safety check of seconds the home screen doesn't show
+    /// (6 November, 07:36: "Checking with the Watch" without untethered mode on, after a look of the watch's at the
+    /// pod). The treatment screens still say why a bolus waits.
+    var isQuietForeignSessionCheck: Bool {
+        checkingForeignSession == true && (phase == .starting || phase == .idle)
+    }
+
     // MARK: - Phone
 
     mutating func phone(_ event: PhoneEvent, now: Date) -> [Effect] {
