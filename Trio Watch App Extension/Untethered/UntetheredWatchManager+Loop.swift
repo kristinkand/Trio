@@ -920,7 +920,7 @@ extension UntetheredWatchManager {
         let glucose = BloodGlucose(
             id: UUID().uuidString,
             mbg: mgdl,
-            date: Decimal(Int(now.timeIntervalSince1970 * 1000)),
+            date: Decimal(Int64(now.timeIntervalSince1970 * 1000)), // Int64: see takeReadings
             dateString: now,
             glucose: mgdl,
             type: "mbg"
@@ -1909,7 +1909,9 @@ extension UntetheredWatchManager: CGMManagerDelegate {
                 id: UUID().uuidString,
                 sgv: value,
                 direction: sample.direction,
-                date: Decimal(Int(sample.date.timeIntervalSince1970 * 1000)),
+                // Int64: on a watch with 32-bit Int (arm64_32: Apple Watch SE, Series 4 to 8) milliseconds since 1970
+                // overflow Int, and the app crashed at every reading (third tester, 3 and 4 November, Watch6,10)
+                date: Decimal(Int64(sample.date.timeIntervalSince1970 * 1000)),
                 dateString: sample.date,
                 unfiltered: Decimal(value),
                 glucose: value,
