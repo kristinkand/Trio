@@ -1128,7 +1128,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             override: OpenAPS.weekendProfileOverride(now: now),
             basalProfile: WeekendProfileStore.basalProfile,
             insulinSensitivities: WeekendProfileStore.insulinSensitivities,
-            endsAt: WeekendProfileStore.activeEndDate
+            endsAt: WeekendProfileStore.activeEndDate,
+            startedAt: WeekendProfileStore.activeStartDate
         )
     }
 

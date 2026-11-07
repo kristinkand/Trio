@@ -92,6 +92,9 @@ import WatchKit
         didSet { UserDefaults.standard.set(mealTimeReminderPresets, forKey: WatchMessageKeys.mealTimeReminderPresets) }
     }
 
+    /// The phone's profile runs (Adjustments › Profile) over the last day and the running one, for the bar on the graph.
+    var profileRuns: [WatchProfileRun] = []
+
     /// This meal's reminder on the bolus page, in minutes; 0 is off. Off each time the page opens, as on the phone.
     var mealTimeReminderMinutes = 0
 
@@ -762,6 +765,10 @@ import WatchKit
         if let presets = message[WatchMessageKeys.mealTimeReminderPresets] as? [Int], presets != mealTimeReminderPresets {
             mealTimeReminderPresets = presets
         }
+        if let runs = message[WatchMessageKeys.profileRuns] as? [[String: Any]] {
+            let parsed = runs.compactMap(WatchProfileRun.init)
+            if parsed != profileRuns { profileRuns = parsed }
+        }
 
         if let reduced = message[WatchMessageKeys.reducedBolusOption] as? Bool {
             reducedBolusOption = reduced
@@ -949,4 +956,29 @@ extension WatchState {
             ]
         ])
     }
+}
+
+/// One run of the phone's profile, for the bar on the graph. `end` nil: it runs until stopped.
+struct WatchProfileRun: Equatable, Identifiable {
+    let name: String
+    let start: Date
+    let end: Date?
+    var id: Date { start }
+
+    init(name: String, start: Date, end: Date?) {
+        self.name = name
+        self.start = start
+        self.end = end
+    }
+
+    init?(_ dictionary: [String: Any]) {
+        guard let name = dictionary["name"] as? String, let start = dictionary["start"] as? TimeInterval else { return nil }
+        self.init(
+            name: name,
+            start: Date(timeIntervalSince1970: start),
+            end: (dictionary["end"] as? TimeInterval).map(Date.init(timeIntervalSince1970:))
+        )
+    }
+
+    func contains(_ date: Date) -> Bool { start <= date && end.map { date < $0 } ?? true }
 }

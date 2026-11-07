@@ -102,6 +102,15 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             }
             .store(in: &subscriptions)
 
+        // the profile started or stopped: the bar on the watch's graph follows at once
+        Foundation.NotificationCenter.default.publisher(for: .didUpdateWeekendProfileConfiguration)
+            .receive(on: DispatchQueue.global(qos: .background))
+            .sink { [weak self] _ in
+                guard let self = self, let session = self.session, self.watchNeedsState(session) else { return }
+                self.pushWatchState()
+            }
+            .store(in: &subscriptions)
+
         iobService.iobPublisher
             .receive(on: DispatchQueue.global(qos: .background))
             .sink { [weak self] _ in
@@ -613,6 +622,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             dictionary[WatchMessageKeys.phoneOwnGlucoseDate] = own.timeIntervalSince1970
         }
         dictionary[WatchMessageKeys.showUnreliableG7] = UnsureGlucoseStore.isEnabled
+        dictionary[WatchMessageKeys.profileRuns] = Self.profileRunsForWatch()
         if let unsure = UnsureGlucoseStore.shared.latest,
            Date().timeIntervalSince(unsure.date) < UnsureGlucoseStore.freshFor
         {
@@ -751,6 +761,20 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
 
     /// Sends the state of type WatchState to the connected Watch
     /// - Parameter state: Current WatchState containing glucose data to be sent
+    /// The profile's runs that ended within the last day, and the running one (no "end" while it runs until stopped;
+    /// one past its end time counts as ended then), for the bar on the watch's graph.
+    static func profileRunsForWatch(now: Date = Date()) -> [[String: Any]] {
+        var runs: [[String: Any]] = WeekendProfileStore.runHistory
+            .filter { $0.endDate > now.addingTimeInterval(-24 * 3600) }
+            .map { ["name": $0.name, "start": $0.startDate.timeIntervalSince1970, "end": $0.endDate.timeIntervalSince1970] }
+        if WeekendProfileStore.isActive, let start = WeekendProfileStore.activeStartDate {
+            var run: [String: Any] = ["name": WeekendProfileStore.name, "start": start.timeIntervalSince1970]
+            if let end = WeekendProfileStore.activeEndDate { run["end"] = end.timeIntervalSince1970 }
+            runs.append(run)
+        }
+        return runs
+    }
+
     @MainActor func sendDataToWatch(_ state: WatchState) async {
         guard let session = session else { return }
         // an untethered watch shows its own data

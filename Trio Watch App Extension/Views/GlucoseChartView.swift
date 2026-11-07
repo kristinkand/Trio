@@ -206,6 +206,63 @@ struct GlucoseChartView: View {
         return pts
     }
 
+    // MARK: - Profile bar
+
+    /// The profile's runs as the bar shows them: the phone's, and while the watch holds the pod the one it loops on.
+    private var profileRuns: [WatchProfileRun] {
+        let untethered = UntetheredWatchManager.shared
+        guard untethered.isActive else { return state.profileRuns }
+        let now = Date()
+        // the phone's runs up to the session; the running one is the watch's own copy (it may have ended since)
+        var runs = state.profileRuns.filter { $0.end.map { $0 <= now } ?? false }
+        if let profile = untethered.data.grant?.profile {
+            let phoneStart = state.profileRuns.last { $0.name == profile.name && $0.contains(now) }?.start
+            // from a phone build without the start: the phone's own run, else the session's start (its epoch)
+            let start = profile.startedAt ?? phoneStart
+                ?? Date(timeIntervalSince1970: TimeInterval(untethered.data.session.epoch))
+            runs.removeAll { $0.start == start }
+            runs.append(WatchProfileRun(name: profile.name, start: start, end: profile.endsAt))
+        }
+        return runs
+    }
+
+    /// An override or temp target runs now: the loop leaves the profile aside, and its bar is faded meanwhile.
+    private var profileSteppedAside: Bool {
+        let untethered = UntetheredWatchManager.shared
+        if untethered.isActive {
+            let now = Date()
+            return untethered.activeOverride(at: now) != nil || untethered.activeTempTarget(at: now) != nil
+        }
+        return state.overridePresets.contains(where: \.isEnabled) || state.tempTargetPresets.contains(where: \.isEnabled)
+    }
+
+    private struct ProfileBand: Identifiable {
+        let id: Date
+        let start: Date
+        let end: Date
+        let isRunning: Bool
+    }
+
+    /// The runs within the window, cut to it; one without an end reaches the window's right edge.
+    private var profileBands: [ProfileBand] {
+        let domain = xAxisDomain
+        let now = Date()
+        return profileRuns.compactMap { run in
+            let start = max(run.start, domain.lowerBound)
+            let end = min(run.end ?? domain.upperBound, domain.upperBound)
+            guard start < end else { return nil }
+            return ProfileBand(id: run.start, start: start, end: end, isRunning: run.contains(now))
+        }
+    }
+
+    /// The run at the scrub line, for the scrub box.
+    private var scrubProfileRun: WatchProfileRun? {
+        profileRuns.last { $0.contains(scrubDate) }
+    }
+
+    /// The phone's profile color (its button and chart band): mint.
+    private static let profileColor = Color.mint
+
     var glucosePointSize: CGFloat {
         switch timeWindow {
         case .oneHour: return 24
@@ -236,6 +293,11 @@ struct GlucoseChartView: View {
         // only, and in mmol/L left the readings squeezed into a band in the middle
         let padding = WatchG7Reader.shared.isMmol ? 0.5 : 10
         return (bounds.min - padding) ... (bounds.max + padding)
+    }
+
+    /// About 5 % of the graph's height, in its units.
+    private var profileBarHeight: Double {
+        (yAxisDomain.upperBound - yAxisDomain.lowerBound) * 0.05
     }
 
     private var yAxisValues: [Double] {
@@ -280,6 +342,19 @@ struct GlucoseChartView: View {
                         RuleMark(y: .value("Target", targetLine))
                             .foregroundStyle(Color.loopGreen.opacity(0.6))
                             .lineStyle(StrokeStyle(lineWidth: 1))
+                    }
+
+                    // the profile's runs: a thin bar along the bottom, faded while an override or temp target runs
+                    ForEach(profileBands) { band in
+                        RectangleMark(
+                            xStart: .value("Profile start", band.start),
+                            xEnd: .value("Profile end", band.end),
+                            yStart: .value("Profile bottom", yAxisDomain.lowerBound),
+                            yEnd: .value("Profile top", yAxisDomain.lowerBound + profileBarHeight)
+                        )
+                        .foregroundStyle(
+                            Self.profileColor.opacity(band.isRunning ? (profileSteppedAside ? 0.35 : 0.9) : 0.5)
+                        )
                     }
 
                     if isScrubbing {
@@ -444,6 +519,18 @@ struct GlucoseChartView: View {
                 }
                 .font(Self.scrubFont)
                 .labelStyle(CompactLabelStyle())
+            }
+            // the profile that ran at that time, and until when
+            if let run = scrubProfileRun {
+                HStack(spacing: 3) {
+                    Text(run.name).lineLimit(1)
+                    if let end = run.end {
+                        Text("until")
+                        Text(end, style: .time)
+                    }
+                }
+                .font(Self.scrubFont)
+                .foregroundStyle(Self.profileColor)
             }
         }
         .monospacedDigit()

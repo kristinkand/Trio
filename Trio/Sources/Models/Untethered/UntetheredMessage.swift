@@ -294,6 +294,8 @@ struct UntetheredProfile: Codable, Equatable {
     let insulinSensitivities: InsulinSensitivities?
     /// Nil: until stopped.
     let endsAt: Date?
+    /// When it started, for the bar on the watch's graph. Nil from a phone build before it.
+    var startedAt: Date? = nil
 
     func isRunning(at now: Date) -> Bool { endsAt.map { now < $0 } ?? true }
 }
