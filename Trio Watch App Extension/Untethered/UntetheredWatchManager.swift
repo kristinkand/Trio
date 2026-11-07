@@ -805,6 +805,10 @@ import WatchKit
         lastPodLinkNotice = nil
         lastPodLinkReset = nil
         podLinkNoticeCount = 0
+        // the pump is back: "Watch Took Over" isn't asked again (`ActionNotice`)
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: ActionNotice.reminderDelays.indices.map { Self.tookOverID + ".again\($0 + 1)" }
+        )
         if let pump = pumpManager {
             pump.releaseControl()
             savePumpState()
@@ -2090,13 +2094,16 @@ extension UntetheredWatchManager {
         }
         UserDefaults.standard.set(data.session.epoch, forKey: Self.fallbackEpochKey)
         guard attempt == 1 else { return }
-        // not "took over" yet: that comes when the pod answered (`fallbackTookOver`)
+        // not "took over" yet: that comes when the pod answered (`fallbackTookOver`), usually within seconds, and
+        // cancels this one before it shows. Only a takeover that takes longer says so first (7 November: both came
+        // within 4 s, one tap, and neither was seen).
         notify(
             id: Self.notificationPrefix + "fallback",
             title: String(localized: "iPhone Out of Reach"),
             body: String(
                 localized: "The iPhone has been silent for \(minutes) minutes. The watch is trying to take over the pump and tells you when it has."
-            )
+            ),
+            after: 60
         )
     }
 
@@ -2119,18 +2126,22 @@ extension UntetheredWatchManager {
             )
         } ?? String(localized: "The watch runs the pump until the iPhone is back, then hands it back by itself."))
             + profileNote
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.notificationPrefix + "fallback"])
         // watchOS starts Extended Untethered Mode's workout only with Trio in front
         let opensForWorkout = WatchState.shared.untetheredWorkout && WKApplication.shared().applicationState != .active
-        // with the workout to start the user has something to do: said in the title, felt and asked again
+        // who doses changed: felt twice and asked again at 2 and 5 minutes until Trio is opened (7 November: a single
+        // tap, and the notice wasn't seen); with the workout to start, the title says so too
         notify(
-            id: Self.notificationPrefix + "fallback",
+            id: Self.tookOverID,
             title: opensForWorkout ? String(localized: "Watch Took Over: Open Trio") : String(localized: "Watch Took Over"),
             body: opensForWorkout
                 ? body + " " + String(localized: "Open Trio on the watch once, so it starts the workout that keeps it awake.")
                 : body,
-            asksForAction: opensForWorkout
+            asksForAction: WKApplication.shared().applicationState != .active
         )
     }
+
+    static let tookOverID = notificationPrefix + "tookOver"
 
     /// The running profile, for the takeover notice: the watch loops on it as the phone did.
     private var profileNote: String {

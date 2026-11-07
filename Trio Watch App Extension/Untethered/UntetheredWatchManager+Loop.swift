@@ -2273,7 +2273,7 @@ extension UntetheredWatchManager {
     ]
     /// Who doses changed: through Focus and kept on the screen, and the log says it was booked (7 November: two
     /// takeovers, and neither "Watch Took Over" was noticed).
-    static let takeoverNoticeIDs: Set<String> = [notificationPrefix + "fallback"]
+    static let takeoverNoticeIDs: Set<String> = [tookOverID]
 
     /// - Parameter asksForAction: the user has to do something (open Trio, pair the sensor): felt at once and asked
     ///   again (`ActionNotice`)
