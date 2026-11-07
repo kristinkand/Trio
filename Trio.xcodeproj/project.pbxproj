@@ -1260,7 +1260,6 @@
 		D7C0FFEE0000000000000026 /* G7PeripheralManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C0FFEE0000000000000025 /* G7PeripheralManager.swift */; };
 		D7C0FFEE0000000000000028 /* G7SensorIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C0FFEE0000000000000027 /* G7SensorIdentity.swift */; };
 		D7C0FFEE000000000000002A /* G7WatchAcquisition.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C0FFEE0000000000000029 /* G7WatchAcquisition.swift */; };
-		D7C0FFEE000000000000002C /* GlucoseLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C0FFEE000000000000002B /* GlucoseLimits.swift */; };
 		D7C0FFEE000000000000002E /* Locked.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C0FFEE000000000000002D /* Locked.swift */; };
 		D7C0FFEE0000000000000030 /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C0FFEE000000000000002F /* OSLog.swift */; };
 		D7C0FFEE0000000000000032 /* SensorMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C0FFEE0000000000000031 /* SensorMessage.swift */; };
@@ -2537,7 +2536,6 @@
 		D7C0FFEE0000000000000025 /* G7PeripheralManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "G7PeripheralManager.swift"; sourceTree = "<group>"; };
 		D7C0FFEE0000000000000027 /* G7SensorIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "G7SensorIdentity.swift"; sourceTree = "<group>"; };
 		D7C0FFEE0000000000000029 /* G7WatchAcquisition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "G7WatchAcquisition.swift"; sourceTree = "<group>"; };
-		D7C0FFEE000000000000002B /* GlucoseLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GlucoseLimits.swift"; sourceTree = "<group>"; };
 		D7C0FFEE000000000000002D /* Locked.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Locked.swift"; sourceTree = "<group>"; };
 		D7C0FFEE000000000000002F /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OSLog.swift"; sourceTree = "<group>"; };
 		D7C0FFEE0000000000000031 /* SensorMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SensorMessage.swift"; sourceTree = "<group>"; };
@@ -5563,7 +5561,6 @@
 				D7C0FFEE0000000000000025 /* G7PeripheralManager.swift */,
 				D7C0FFEE0000000000000027 /* G7SensorIdentity.swift */,
 				D7C0FFEE0000000000000029 /* G7WatchAcquisition.swift */,
-				D7C0FFEE000000000000002B /* GlucoseLimits.swift */,
 				D7C0FFEE000000000000002D /* Locked.swift */,
 				D7C0FFEE000000000000002F /* OSLog.swift */,
 				D7C0FFEE0000000000000031 /* SensorMessage.swift */,
@@ -7025,7 +7022,6 @@
 				D7C0FFEE0000000000000026 /* G7PeripheralManager.swift in Sources */,
 				D7C0FFEE0000000000000028 /* G7SensorIdentity.swift in Sources */,
 				D7C0FFEE000000000000002A /* G7WatchAcquisition.swift in Sources */,
-				D7C0FFEE000000000000002C /* GlucoseLimits.swift in Sources */,
 				D7C0FFEE000000000000002E /* Locked.swift in Sources */,
 				D7C0FFEE0000000000000030 /* OSLog.swift in Sources */,
 				D7C0FFEE0000000000000032 /* SensorMessage.swift in Sources */,

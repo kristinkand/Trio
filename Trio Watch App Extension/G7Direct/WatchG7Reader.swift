@@ -41,7 +41,6 @@ import WatchKit
     private(set) var isStandingAside = false
     /// Back from untethered mode, until the first reading arrives.
     private(set) var isReconnecting = false
-    private(set) var needsCodeForSensor: String? = nil
     /// The sensor's state when it last answered without a usable reading (warm-up, failed, ...).
     private(set) var sensorProblem: String? = nil
     /// The same as a few words for the first page, so a missing reading is put down to the sensor, not the watch.
@@ -777,11 +776,13 @@ import WatchKit
 
     private func sensorStateRecovered() {
         temporaryIssueCount = 0
-        guard sensorProblemLabel != nil else { return }
-        sensorProblemLabel = nil
+        // before the guard: the label doesn't survive a relaunch, the flags do, and a flag left from a failed sensor
+        // would keep the next sensor's failure or end silent
         for alert in [SensorAlert.failed, .ended, .issue] {
             defaults.removeObject(forKey: Key.lastAlert + alert.rawValue)
         }
+        guard sensorProblemLabel != nil else { return }
+        sensorProblemLabel = nil
         UNUserNotificationCenter.current().removeDeliveredNotifications(
             withIdentifiers: [SensorAlert.issue].map { Self.notificationIdentifierPrefix + $0.rawValue }
         )
@@ -980,6 +981,8 @@ import WatchKit
     func sessionDidInvalidateSharedKey(_: WatchG7Session) {
         DispatchQueue.main.async {
             self.setSharedKey(nil)
+            // the next connection pairs again: asked for now, not only once the system's prompt appears
+            self.pairingBecameDue()
         }
     }
 
@@ -1008,7 +1011,6 @@ import WatchKit
     private func notePairingStep(_ line: String) {
         if line.contains("Running the certificate exchange")
             || line.contains("Pairing: running the key exchange")
-            || line.contains("the sensor no longer accepts the saved key")
         {
             keepInFrontForPairing()
         } else if line.contains("expect the system pairing prompt") {
@@ -1095,11 +1097,7 @@ import WatchKit
 
     func sessionStatusDidChange(_ session: WatchG7Session) {
         let searching = session.isSearchingForSensor
-        let needsCode = session.needsCodeForSensor
-        DispatchQueue.main.async {
-            self.isSearching = searching
-            self.needsCodeForSensor = needsCode
-        }
+        DispatchQueue.main.async { self.isSearching = searching }
     }
 }
 
