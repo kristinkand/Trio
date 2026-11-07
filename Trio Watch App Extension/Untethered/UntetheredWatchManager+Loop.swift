@@ -445,10 +445,10 @@ extension UntetheredWatchManager {
         let now = Date()
         let settings = grant.bolusCalculator
         // the profile's basal and ISF while it runs, as the loop takes them
-        let schedules = grant.withProfile(
-            at: now,
-            overrideOrTempTargetActive: activeOverride(at: now) != nil || activeTempTarget(at: now) != nil
-        )
+        let overrideOrTempTargetActive = activeOverride(at: now) != nil || activeTempTarget(at: now) != nil
+        let schedules = grant.withProfile(at: now, overrideOrTempTargetActive: overrideOrTempTargetActive)
+        let profileTarget = overrideOrTempTargetActive ? nil
+            : grant.profile.flatMap { $0.isRunning(at: now) ? $0.override.target : nil }
         let useReducedBolus = useReducedBolus && settings.fattyMeals
         let useSuperBolus = !useReducedBolus && useSuperBolus && settings.sweetMeals
         let determination = data.lastDetermination
@@ -480,7 +480,7 @@ extension UntetheredWatchManager {
             carbs: Decimal(carbs),
             currentBG: glucose.currentBG,
             deltaBG: glucose.deltaBG,
-            target: determination?.current_target ?? current(grant.bgTargets.targets.map { ($0.start, $0.low) }),
+            target: determination?.current_target ?? profileTarget ?? current(grant.bgTargets.targets.map { ($0.start, $0.low) }),
             isf: determination?.isf ?? current(schedules.insulinSensitivities.sensitivities.map { ($0.start, $0.sensitivity) }),
             carbRatio: determination?.carbRatio ?? current(grant.carbRatios.schedule.map { ($0.start, $0.ratio) }),
             iob: determination?.iob ?? 0,
