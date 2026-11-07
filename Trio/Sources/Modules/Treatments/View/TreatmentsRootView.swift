@@ -125,34 +125,41 @@ extension Treatments {
 
         private var reminderMinutesBinding: Binding<Int> {
             Binding(
-                get: { min(max(Int(state.mealTimeReminderMinutes), 0), 60) },
+                get: { min(max(Int(state.mealTimeReminderMinutes), 1), 60) },
                 set: { state.mealTimeReminderMinutes = Decimal($0) }
             )
         }
 
-        /// Checking the box arms the reminder at the first preset; unchecking it is the "off"
-        /// state (minutes = 0), which all the downstream scheduling logic keys off.
-        private var remindMeToEatBinding: Binding<Bool> {
+        /// The switch is the reminder: on arms it with the first preset (the wheel or a preset changes it), off clears it.
+        private var reminderIsOn: Binding<Bool> {
             Binding(
                 get: { state.mealTimeReminderMinutes > 0 },
                 set: { isOn in
-                    if isOn, state.mealTimeReminderMinutes <= 0 {
-                        state.mealTimeReminderMinutes = state.mealTimeReminderPresets.first ?? 15
-                    } else if !isOn {
-                        state.mealTimeReminderMinutes = 0
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        state.mealTimeReminderMinutes = isOn ? (state.mealTimeReminderPresets.first ?? 15) : 0
                     }
                 }
             )
         }
 
-        /// "Remind Me to Eat" row: a checkbox that reveals preset buttons (the values configured
-        /// in settings) on the left and a minutes wheel for fine control on the right.
-        /// The checkbox starts unchecked every time the calculator opens.
+        private var reminderValueString: String {
+            let minutes = Int(state.mealTimeReminderMinutes)
+            guard minutes > 0 else { return String(localized: "Off", comment: "Meal-time reminder disabled") }
+            return "\(minutes) " + String(localized: "min", comment: "Units for meal-time reminder lead time")
+        }
+
+        /// "Remind Me to Eat": a switch, off every time the calculator opens. Switched on, the two presets from
+        /// settings and a minutes wheel for fine control unfold below it; switched off, they fold away again.
         @ViewBuilder private func mealTimeReminderRow() -> some View {
-            HStack {
-                Text("Remind Me to Eat")
-                Spacer()
-                Toggle("", isOn: remindMeToEatBinding).toggleStyle(CheckboxToggleStyle())
+            Toggle(isOn: reminderIsOn) {
+                HStack {
+                    Text("Remind Me to Eat")
+                    Spacer()
+                    if state.mealTimeReminderMinutes > 0 {
+                        Text(reminderValueString)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
             .onChange(of: state.mealTimeReminderMinutes) {
                 // Ask for the alarm permission only when the user actually arms a reminder.
@@ -167,8 +174,7 @@ extension Treatments {
                         ForEach(state.mealTimeReminderPresets, id: \.self) { preset in
                             reminderPresetPill(
                                 minutes: Int(preset),
-                                label: "\(Int(preset)) " +
-                                    String(localized: "min", comment: "Units for meal-time reminder lead time")
+                                label: "\(Int(preset)) " + String(localized: "min", comment: "Units for meal-time reminder lead time")
                             )
                         }
                     }
@@ -186,6 +192,7 @@ extension Treatments {
                     .frame(maxWidth: .infinity)
                     .clipped()
                 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
 
