@@ -119,6 +119,12 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in Task { await self?.forwardCancellations() } }
             .store(in: &subscriptions)
+        // the profile started or stopped: the watch's copy carries it at once, not after the next loop (7 November:
+        // started at 09:47:53, the app closed 5 s later, and the watch took over at 09:56 without it)
+        Foundation.NotificationCenter.default.publisher(for: .didUpdateWeekendProfileConfiguration)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.scheduleStandingGrant(settingsChanged: true, immediately: true) }
+            .store(in: &subscriptions)
         glucoseStorage.updatePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.scheduleWatchWake() }
@@ -977,12 +983,6 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         guard !apsManager.isManualTempBasal else {
             throw UntetheredError.unavailable(String(localized: "Cancel the manual temp basal first."))
-        }
-        // The watch doses from the regular therapy settings; it doesn't know this fork's Weekend Profile.
-        guard !WeekendProfileStore.isActive || WeekendProfileStore.isExpired else {
-            throw UntetheredError.unavailable(
-                String(localized: "Turn off the Weekend Profile first. The watch can't run it yet.")
-            )
         }
         if let inoperable = pump.localizedInoperableDescription {
             throw UntetheredError.unavailable(inoperable)

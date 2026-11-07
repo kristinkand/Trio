@@ -2113,11 +2113,12 @@ extension UntetheredWatchManager {
         UserDefaults.standard.set(Self.fallbackTries, forKey: Self.fallbackTriesKey)
         Task { await WatchLogger.shared.log("⌚️ Untethered: fallback — the watch has the pod", force: true) }
         let minutes = (WatchG7Reader.shared.phoneGlucoseDate).map { Int(Date().timeIntervalSince($0) / 60) }
-        let body = minutes.map {
+        let body = (minutes.map {
             String(
                 localized: "The iPhone has been silent for \($0) minutes and is out of reach. The watch runs the pump until it's back, then hands it back by itself."
             )
-        } ?? String(localized: "The watch runs the pump until the iPhone is back, then hands it back by itself.")
+        } ?? String(localized: "The watch runs the pump until the iPhone is back, then hands it back by itself."))
+            + profileNote
         // watchOS starts Extended Untethered Mode's workout only with Trio in front
         let opensForWorkout = WatchState.shared.untetheredWorkout && WKApplication.shared().applicationState != .active
         // with the workout to start the user has something to do: said in the title, felt and asked again
@@ -2128,6 +2129,21 @@ extension UntetheredWatchManager {
                 ? body + " " + String(localized: "Open Trio on the watch once, so it starts the workout that keeps it awake.")
                 : body,
             asksForAction: opensForWorkout
+        )
+    }
+
+    /// The running profile, for the takeover notice: the watch loops on it as the phone did.
+    private var profileNote: String {
+        let now = Date()
+        // as the loop takes it: an override or temp target goes first
+        guard let profile = data.grant?.profile, profile.isRunning(at: now),
+              activeOverride(at: now) == nil, activeTempTarget(at: now) == nil
+        else { return "" }
+        guard let end = profile.endsAt else {
+            return " " + String(localized: "It loops on the profile \(profile.name).")
+        }
+        return " " + String(
+            localized: "It loops on the profile \(profile.name) until \(end.formatted(date: .omitted, time: .shortened))."
         )
     }
 
