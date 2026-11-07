@@ -260,6 +260,11 @@ extension UntetheredWatchManager {
         default:
             currentTemp = UntetheredAlgorithm.historyTempBasal(data.pumpHistory, now: now)
         }
+        let tempTarget = activeTempTarget(at: now)
+        let override = activeOverride(at: now)
+        let grant = grant.withProfile(at: now, overrideOrTempTargetActive: override != nil || tempTarget != nil)
+        let profile = override == nil && tempTarget == nil ? grant.profile.flatMap { $0.isRunning(at: now) ? $0 : nil } : nil
+        noteProfile(profile)
         return UntetheredAlgorithm.Inputs(
             grant: grant,
             pumpHistory: UntetheredAlgorithm.withoutOrphanedResumes(data.pumpHistory).sorted { $0.timestamp > $1.timestamp },
@@ -270,8 +275,9 @@ extension UntetheredWatchManager {
             ),
             carbs: data.carbs,
             tempTargets: data.tempTargets,
-            activeTempTarget: activeTempTarget(at: now),
-            override: activeOverride(at: now),
+            activeTempTarget: tempTarget,
+            // the profile reaches oref as the phone's loop gives it: an override with its target and SMB/UAM minutes
+            override: override ?? profile?.override,
             autosens: data.autosens,
             tdd: UntetheredAlgorithm.tddSummary(rows: data.tddRows, hours: data.tddHours, now: now) ?? grant.tdd,
             hasSufficientTDD: UntetheredAlgorithm.hasSufficientTDD(hours: data.tddHours, now: now) ?? grant.hasSufficientTDD,
@@ -351,6 +357,26 @@ extension UntetheredWatchManager {
         }
     }
 
+    /// Says when the loop starts or stops taking the phone's profile.
+    private func noteProfile(_ profile: UntetheredProfile?) {
+        let name = profile?.name
+        guard name != Self.loggedProfile else { return }
+        let wasOnProfile = Self.loggedProfile != nil
+        Self.loggedProfile = name
+        let line: String
+        if let profile {
+            let until = profile.endsAt.map { " until \($0.formatted(date: .abbreviated, time: .shortened))" } ?? ""
+            line = "⌚️ Untethered: loops on the profile \"\(profile.name)\"\(until): its basal, ISF, target and SMB/UAM minutes"
+        } else if wasOnProfile {
+            line = "⌚️ Untethered: loops on the regular schedules again (the profile ended, or an override or temp target runs)"
+        } else {
+            return
+        }
+        Task { await WatchLogger.shared.log(line, force: true) }
+    }
+
+    private static var loggedProfile: String?
+
     func activeOverride(at date: Date) -> Override? {
         guard let override = store.data.activeOverride, override.enabled else { return nil }
         if override.indefinite { return override }
@@ -418,6 +444,11 @@ extension UntetheredWatchManager {
         guard let grant = data.grant, let pump = pumpManager else { return 0 }
         let now = Date()
         let settings = grant.bolusCalculator
+        // the profile's basal and ISF while it runs, as the loop takes them
+        let schedules = grant.withProfile(
+            at: now,
+            overrideOrTempTargetActive: activeOverride(at: now) != nil || activeTempTarget(at: now) != nil
+        )
         let useReducedBolus = useReducedBolus && settings.fattyMeals
         let useSuperBolus = !useReducedBolus && useSuperBolus && settings.sweetMeals
         let determination = data.lastDetermination
@@ -450,7 +481,7 @@ extension UntetheredWatchManager {
             currentBG: glucose.currentBG,
             deltaBG: glucose.deltaBG,
             target: determination?.current_target ?? current(grant.bgTargets.targets.map { ($0.start, $0.low) }),
-            isf: determination?.isf ?? current(grant.insulinSensitivities.sensitivities.map { ($0.start, $0.sensitivity) }),
+            isf: determination?.isf ?? current(schedules.insulinSensitivities.sensitivities.map { ($0.start, $0.sensitivity) }),
             carbRatio: determination?.carbRatio ?? current(grant.carbRatios.schedule.map { ($0.start, $0.ratio) }),
             iob: determination?.iob ?? 0,
             cob: Int16(truncatingIfNeeded: NSDecimalNumber(
@@ -461,7 +492,7 @@ extension UntetheredWatchManager {
             fattyMealFactor: settings.fattyMealFactor,
             useSuperBolus: useSuperBolus,
             sweetMealFactor: settings.sweetMealFactor,
-            basal: current(grant.basalProfile.map { ($0.start, $0.rate) }),
+            basal: current(schedules.basalProfile.map { ($0.start, $0.rate) }),
             fraction: settings.fraction,
             maxBolus: grant.pumpSettings.maxBolus,
             // the dosing mode's limit, as the phone's calculator reads it
