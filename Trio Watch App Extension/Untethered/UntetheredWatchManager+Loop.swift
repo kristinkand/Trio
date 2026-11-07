@@ -741,7 +741,46 @@ extension UntetheredWatchManager {
         case .cancelTempTarget:
             endTempTarget()
             answer(true, String(localized: "Temp target canceled on the Apple Watch"))
+        case .startProfile:
+            let now = Date()
+            if let running = grant.profile, running.isRunning(at: now) {
+                // already the state asked for, as on the phone
+                return answer(true, String(localized: "\(running.name) was already active"))
+            }
+            guard let setup = grant.profileSetup else {
+                return answer(
+                    false,
+                    String(localized: "Command rejected: no profile is set up on the iPhone, or its build can't send it to the watch.")
+                )
+            }
+            // as the phone's remote start: until stopped
+            setProfile(setup, startedAt: now, endsAt: nil)
+            send(.profileChanged(UntetheredProfileChange(name: setup.name, startedAt: now, stoppedAt: nil)), epoch: epoch, queueing: true)
+            answer(true, String(localized: "\(setup.name) started on the Apple Watch"))
+        case .stopProfile:
+            let now = Date()
+            guard let running = grant.profile, running.isRunning(at: now) else {
+                return answer(true, String(localized: "The profile was already inactive"))
+            }
+            setProfile(running, startedAt: running.startedAt, endsAt: now)
+            send(.profileChanged(UntetheredProfileChange(name: running.name, startedAt: nil, stoppedAt: now)), epoch: epoch, queueing: true)
+            answer(true, String(localized: "\(running.name) stopped on the Apple Watch"))
         }
+    }
+
+    /// The profile the loop takes (`UntetheredGrant.effective`), started or ended on the watch; the next loop uses it.
+    private func setProfile(_ profile: UntetheredProfile, startedAt: Date?, endsAt: Date?) {
+        let changed = UntetheredProfile(
+            name: profile.name,
+            override: profile.override,
+            basalProfile: profile.basalProfile,
+            insulinSensitivities: profile.insulinSensitivities,
+            endsAt: endsAt,
+            startedAt: startedAt
+        )
+        store.update { $0.grant?.profile = changed }
+        refresh()
+        runLoop(.treatment)
     }
 
     // MARK: Checks after Elias Maurer's Watch Loop (EJM0/Trio, feat/watch-loop-3/5 to 5/5)

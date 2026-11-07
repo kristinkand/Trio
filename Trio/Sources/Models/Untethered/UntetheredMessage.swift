@@ -49,6 +49,16 @@ enum UntetheredMessage: Codable, Equatable {
     case remoteTreatmentResult(id: UUID, delivered: Bool, message: String)
     /// A remote override or temp target (start or cancel) while the watch has the pump.
     case remoteAdjustment(UntetheredRemoteAdjustment)
+    /// The watch started or stopped the profile (a remote command while it had the pump): the phone does the same,
+    /// with the watch's times. Queued: it may arrive only once the phone is back.
+    case profileChanged(UntetheredProfileChange)
+}
+
+/// The profile started or stopped on the watch, for the phone's own profile state and its History.
+struct UntetheredProfileChange: Codable, Equatable {
+    let name: String
+    let startedAt: Date?
+    let stoppedAt: Date?
 }
 
 /// A remote override or temp target, started or cancelled from LoopFollow or Nightscout while the watch has the pump:
@@ -61,6 +71,9 @@ struct UntetheredRemoteAdjustment: Codable, Equatable {
         /// A custom target in mg/dL for its minutes, as the phone's remote control sets one.
         case startTempTarget(targetMgdl: Decimal, minutes: Decimal)
         case cancelTempTarget
+        /// The phone's profile (Adjustments › Profile), started until stopped, as the phone's remote control does.
+        case startProfile
+        case stopProfile
     }
 
     let id: UUID
@@ -73,6 +86,8 @@ struct UntetheredRemoteAdjustment: Codable, Equatable {
         case .cancelOverride: return "cancel override"
         case let .startTempTarget(target, minutes): return "temp target \(target) mg/dL for \(minutes) min"
         case .cancelTempTarget: return "cancel temp target"
+        case .startProfile: return "start profile"
+        case .stopProfile: return "stop profile"
         }
     }
 
@@ -269,6 +284,9 @@ struct UntetheredGrant: Codable, Equatable {
     /// The phone's profile (Adjustments › Profile), when it runs as the watch takes over. Nil from a phone without
     /// it, or with it off.
     var profile: UntetheredProfile? = nil
+    /// The phone's profile as set up, whether it runs or not, so the watch can start it on a remote command while it
+    /// has the pump (`endsAt` and `startedAt` nil). Nil from a phone without it, or with no profile saved.
+    var profileSetup: UntetheredProfile? = nil
 
     /// The copy as the loop takes it at `now`: while the profile runs and neither an override nor a temp target
     /// does, its basal and ISF schedules in place of the regular ones, as the phone's `OpenAPS.createProfiles`

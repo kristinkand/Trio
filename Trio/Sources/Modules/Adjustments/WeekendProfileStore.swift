@@ -298,7 +298,8 @@ extension WeekendProfileStore {
     /// directly from its `Toggle` binding, then calling `Adjustments.StateModel.startWeekendProfile()`
     /// for the timing/Nightscout side effects -- rather than going through this helper, but both
     /// paths leave Weekend Profile in the identical state.
-    static func activate(nightscoutManager: NightscoutManager) {
+    /// `start`: when it began; earlier than now when the watch started it while it had the pump.
+    static func activate(nightscoutManager: NightscoutManager, at start: Date = Date()) {
         guard !isActive else {
             debug(.treatments, "Profile remote start ignored, already running: \(logDescription)")
             return
@@ -309,7 +310,6 @@ extension WeekendProfileStore {
         indefinite = true
         useSpecificDate = false
         isActive = true
-        let start = Date()
         activeStartDate = start
         debug(.treatments, "Profile started (remote): \(logDescription)")
         Task {
@@ -330,14 +330,15 @@ extension WeekendProfileStore {
     /// there's no recorded start time to close out (e.g. Weekend Profile was active before this
     /// version's start-tracking existed) -- see the counterpart in `Adjustments.StateModel
     /// .stopWeekendProfile()` for the same guard.
-    static func deactivate(nightscoutManager: NightscoutManager, reason: String = "remote") {
+    /// `stoppedAt`: when it ended; earlier than now when the watch stopped it while it had the pump.
+    static func deactivate(nightscoutManager: NightscoutManager, reason: String = "remote", at stoppedAt: Date? = nil) {
         guard isActive else {
             debug(.treatments, "Profile stop (\(reason)) ignored, not running: \(logDescription)")
             return
         }
         // a run that expired while Trio wasn't running ended at its end time, not when Trio next looked (7 November:
         // a run to 10:52 was recorded until 11:21, when the app was opened again)
-        let end = min(Date(), activeEndDate ?? .distantFuture)
+        let end = min(stoppedAt ?? Date(), activeEndDate ?? .distantFuture)
         isActive = false
         let runName = name
         guard let start = activeStartDate else {

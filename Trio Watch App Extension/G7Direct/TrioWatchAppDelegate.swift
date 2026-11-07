@@ -345,6 +345,8 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
             guard let target = payload.target, let duration = payload.duration else { return nil }
             return .startTempTarget(targetMgdl: Decimal(target), minutes: Decimal(duration))
         case "cancel_temp_target": return .cancelTempTarget
+        case "start_weekend_profile": return .startProfile
+        case "stop_weekend_profile": return .stopProfile
         default: return nil
         }
     }

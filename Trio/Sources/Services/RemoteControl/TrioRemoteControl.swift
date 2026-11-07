@@ -78,11 +78,13 @@ class TrioRemoteControl: Injectable {
             case .startOverride,
                  .cancelOverride,
                  .tempTarget,
-                 .cancelTempTarget:
+                 .cancelTempTarget,
+                 .startWeekendProfile,
+                 .stopWeekendProfile:
                 await forwardAdjustmentToWatch(commandPayload)
             default:
                 await logError(
-                    "Command rejected: the Apple Watch is running the loop (untethered). Boluses, meals, overrides and temp targets reach it; this command doesn't.",
+                    "Command rejected: the Apple Watch is running the loop (untethered). Boluses, meals, overrides, temp targets and the profile reach it; this command doesn't.",
                     payload: commandPayload
                 )
             }
@@ -207,6 +209,10 @@ extension TrioRemoteControl {
             action = .startTempTarget(targetMgdl: Decimal(target), minutes: Decimal(duration))
         case .cancelOverride:
             action = .cancelOverride
+        case .startWeekendProfile:
+            action = .startProfile
+        case .stopWeekendProfile:
+            action = .stopProfile
         default:
             action = .cancelTempTarget
         }

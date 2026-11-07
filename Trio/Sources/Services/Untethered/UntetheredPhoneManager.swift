@@ -598,6 +598,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             case let .remoteTreatmentResult(id, delivered, message):
                 replyHandler?([:])
                 self.answerRemoteTreatment(id, delivered ? .delivered(message) : .refused(message))
+            case let .profileChanged(change):
+                replyHandler?([:])
+                self.applyWatchProfileChange(change)
             case let .dosingModeChanged(mode):
                 replyHandler?([:])
                 guard envelope.epoch >= self.state.session.epoch else { return }
@@ -861,6 +864,28 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     // MARK: - Remote commands
 
+    /// The watch started or stopped the profile on a remote command while it had the pump: the phone's own profile
+    /// follows with the watch's times, so its loop, History and Nightscout agree once it has the pump back.
+    @MainActor private func applyWatchProfileChange(_ change: UntetheredProfileChange) {
+        if let start = change.startedAt {
+            guard !WeekendProfileStore.isActive else {
+                debug(.watch, "Untethered: the watch started the profile, already running here")
+                return
+            }
+            WeekendProfileStore.activate(nightscoutManager: nightscoutManager, at: start)
+            info(.watch, "Untethered: the watch started the profile \(change.name) at \(start)")
+        }
+        if let stop = change.stoppedAt {
+            guard WeekendProfileStore.isActive else {
+                debug(.watch, "Untethered: the watch stopped the profile, not running here")
+                return
+            }
+            WeekendProfileStore.deactivate(nightscoutManager: nightscoutManager, reason: "the watch", at: stop)
+            info(.watch, "Untethered: the watch stopped the profile \(change.name) at \(stop)")
+        }
+        Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
+    }
+
     enum RemoteTreatmentAnswer {
         case delivered(String)
         case refused(String)
@@ -1116,7 +1141,20 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             overridePresets: overridePresets,
             tempTargetPresets: tempTargetPresets,
             linkedOverrideID: linkedOverrideID,
-            profile: Self.runningProfile(now: now)
+            profile: Self.runningProfile(now: now),
+            profileSetup: Self.profileSetup(now: now)
+        )
+    }
+
+    /// The profile as set up, running or not, for the watch to start on a remote command while it has the pump.
+    private static func profileSetup(now: Date) -> UntetheredProfile? {
+        guard WeekendProfileStore.isConfigured else { return nil }
+        return UntetheredProfile(
+            name: WeekendProfileStore.name,
+            override: OpenAPS.weekendProfileOverride(now: now),
+            basalProfile: WeekendProfileStore.basalProfile,
+            insulinSensitivities: WeekendProfileStore.insulinSensitivities,
+            endsAt: nil
         )
     }
 
