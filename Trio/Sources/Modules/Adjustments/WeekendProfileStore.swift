@@ -335,8 +335,10 @@ extension WeekendProfileStore {
             debug(.treatments, "Profile stop (\(reason)) ignored, not running: \(logDescription)")
             return
         }
+        // a run that expired while Trio wasn't running ended at its end time, not when Trio next looked (7 November:
+        // a run to 10:52 was recorded until 11:21, when the app was opened again)
+        let end = min(Date(), activeEndDate ?? .distantFuture)
         isActive = false
-        let end = Date()
         let runName = name
         guard let start = activeStartDate else {
             debug(.treatments, "Profile stopped (\(reason)) but its start time was missing -- nothing to record or correct")
