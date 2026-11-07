@@ -58,6 +58,12 @@ enum WatchMessageKeys {
     static let maxProtein = "maxProtein"
     static let bolusIncrement = "bolusIncrement"
     static let confirmBolusFaster = "confirmBolusFaster"
+    /// Settings › Bolus Calculator › Enable Reduced Bolus Option / Enable Super Bolus Option, for the watch's calculator.
+    static let reducedBolusOption = "reducedBolusOption"
+    static let superBolusOption = "superBolusOption"
+    /// A bolus recommendation asked for with a reduced or a super bolus.
+    static let useReducedBolus = "useReducedBolus"
+    static let useSuperBolus = "useSuperBolus"
 
     // Notification Actions
     static let snoozeDuration = "snoozeDuration"
