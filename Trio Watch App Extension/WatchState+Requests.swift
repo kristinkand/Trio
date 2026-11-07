@@ -185,16 +185,15 @@ extension WatchState {
     }
 
     /// Sends a request to calculate a bolus recommendation based on the current carbs amount
-    func requestBolusRecommendation() {
+    func requestBolusRecommendation(reducedBolus: Bool = false, superBolus: Bool = false) {
         if UntetheredWatchManager.shared.isActive {
             showBolusCalculationProgress = true
-            // this watch app has no reduced or super bolus switch
             let carbs = carbsAmount
             Task { @MainActor in
                 self.recommendedBolus = await UntetheredWatchManager.shared.recommendBolus(
                     carbs: carbs,
-                    useReducedBolus: false,
-                    useSuperBolus: false
+                    useReducedBolus: reducedBolus,
+                    useSuperBolus: superBolus
                 )
                 self.showBolusCalculationProgress = false
             }
@@ -205,7 +204,10 @@ extension WatchState {
             return
         }
 
-        WatchLogger.shared.debug(.bolus, "Bolus recommendation requested for \(carbsAmount) g carbs")
+        WatchLogger.shared.debug(
+            .bolus,
+            "Bolus recommendation requested for \(carbsAmount) g carbs\(reducedBolus ? ", reduced" : "")\(superBolus ? ", super" : "")"
+        )
 
         // Show a progress indicator until the phone replies. This keeps the user from
         // tapping the (0 U) "Log Carbs" button before the recommendation has landed.
@@ -224,7 +226,9 @@ extension WatchState {
 
         let message: [String: Any] = [
             WatchMessageKeys.requestBolusRecommendation: true,
-            WatchMessageKeys.carbs: carbsAmount
+            WatchMessageKeys.carbs: carbsAmount,
+            WatchMessageKeys.useReducedBolus: reducedBolus,
+            WatchMessageKeys.useSuperBolus: superBolus
         ]
 
         session.sendMessage(message, replyHandler: nil) { error in

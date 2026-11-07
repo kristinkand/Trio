@@ -68,6 +68,26 @@ import WatchKit
     var bolusIncrement: Decimal = 0.05
     var confirmBolusFaster: Bool = false
 
+    /// The phone's Enable Reduced Bolus Option / Enable Super Bolus Option, as it last sent them.
+    var reducedBolusOption = false
+    var superBolusOption = false
+
+    /// Whether the bolus page offers a reduced or a super bolus: while the watch has the pump from the copy it took,
+    /// else from the phone's last state.
+    var offersReducedBolus: Bool {
+        if UntetheredWatchManager.shared.isActive {
+            return UntetheredWatchManager.shared.data.grant?.bolusCalculator.fattyMeals ?? false
+        }
+        return reducedBolusOption
+    }
+
+    var offersSuperBolus: Bool {
+        if UntetheredWatchManager.shared.isActive {
+            return UntetheredWatchManager.shared.data.grant?.bolusCalculator.sweetMeals ?? false
+        }
+        return superBolusOption
+    }
+
     /// Settings › Apple Watch › Untethered Mode, as the phone last sent it; kept, so it holds while the phone is away.
     /// On until the phone says otherwise.
     var untetheredMode: Bool = UserDefaults.standard.object(forKey: WatchMessageKeys.untetheredModeWatch) as? Bool ?? true {
@@ -720,6 +740,13 @@ import WatchKit
                 // limit minimum to 0.05 to avoid dealing with 0.025 increments
                 self.bolusIncrement = max(decimalValue, 0.05)
             }
+        }
+
+        if let reduced = message[WatchMessageKeys.reducedBolusOption] as? Bool {
+            reducedBolusOption = reduced
+        }
+        if let superBolus = message[WatchMessageKeys.superBolusOption] as? Bool {
+            superBolusOption = superBolus
         }
 
         if let confirmBolusFaster = message[WatchMessageKeys.confirmBolusFaster] {
