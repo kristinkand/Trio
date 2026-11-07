@@ -113,10 +113,10 @@ struct BolusInputView: View {
                     Text("Insulin")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                        .padding(.bottom, state.offersReducedBolus || state.offersSuperBolus ? 2 : nil)
+                        .padding(.bottom, showsOptions ? 2 : nil)
 
-                    if state.offersReducedBolus || state.offersSuperBolus {
-                        HStack(spacing: 6) {
+                    if showsOptions {
+                        HStack(spacing: 5) {
                             if state.offersReducedBolus {
                                 optionButton(String(localized: "Reduced", comment: "Reduced bolus option on the watch"), isOn: reducedBolus) {
                                     reducedBolus.toggle()
@@ -130,6 +130,14 @@ struct BolusInputView: View {
                                     if superBolus { reducedBolus = false }
                                     state.requestBolusRecommendation(reducedBolus: reducedBolus, superBolus: superBolus)
                                 }
+                            }
+                            if offersReminder {
+                                // Remind Me to Eat: each tap the next preset, then off again
+                                optionButton(reminderLabel, isOn: state.mealTimeReminderMinutes > 0) {
+                                    let presets = state.mealTimeReminderPresets.filter { $0 > 0 }.sorted()
+                                    state.mealTimeReminderMinutes = presets.first { $0 > state.mealTimeReminderMinutes } ?? 0
+                                }
+                                .accessibilityLabel(String(localized: "Remind Me to Eat", comment: "Meal-time reminder on the watch"))
                             }
                         }
                         .padding(.bottom, 4)
@@ -145,7 +153,8 @@ struct BolusInputView: View {
 
                     Button(actionButtonLabel) {
                         if isCarbsOnly {
-                            state.sendCarbsRequest(state.carbsAmount)
+                            state.sendCarbsRequest(state.carbsAmount, remindAfter: offersReminder ? state.mealTimeReminderMinutes : 0)
+                            state.mealTimeReminderMinutes = 0
                             state.carbsAmount = 0 // reset carbs in state
                             navigationPath.append(NavigationDestinations.acknowledgmentPending)
                         } else {
@@ -183,6 +192,8 @@ struct BolusInputView: View {
             // Set initial bolus amount to recommended value
             // Only do this if user has not updated amount previously, e.g., when navigating to next and then back to this view
             if bolusAmount == 0 {
+                // a new meal: its reminder starts off, as on the phone
+                state.mealTimeReminderMinutes = 0
                 state.requestBolusRecommendation()
                 bolusAmount = Double(truncating: NSDecimalNumber(decimal: state.recommendedBolus))
             }
@@ -194,6 +205,18 @@ struct BolusInputView: View {
                 bolusAmount = Double(truncating: NSDecimalNumber(decimal: newValue))
             }
         }
+    }
+
+    /// The meal-time reminder, with carbs entered and the reminder on on the phone.
+    private var offersReminder: Bool {
+        state.mealTimeReminderEnabled && state.carbsAmount > 0 && state.mealTimeReminderPresets.contains { $0 > 0 }
+    }
+
+    private var showsOptions: Bool { state.offersReducedBolus || state.offersSuperBolus || offersReminder }
+
+    private var reminderLabel: String {
+        let minutes = state.mealTimeReminderMinutes
+        return minutes > 0 ? "⏰ \(minutes)′" : "⏰"
     }
 
     /// A reduced or super bolus, on or off: the recommendation follows.

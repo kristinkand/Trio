@@ -81,6 +81,20 @@ import WatchKit
         return reducedBolusOption
     }
 
+    /// Settings › Bolus Calculator › Meal-Time Reminder and its presets, as the phone last sent them; kept, so the
+    /// watch offers them while the phone is away too.
+    var mealTimeReminderEnabled: Bool = UserDefaults.standard.bool(forKey: WatchMessageKeys.mealTimeReminderEnabled) {
+        didSet { UserDefaults.standard.set(mealTimeReminderEnabled, forKey: WatchMessageKeys.mealTimeReminderEnabled) }
+    }
+
+    var mealTimeReminderPresets: [Int] = UserDefaults.standard.array(forKey: WatchMessageKeys.mealTimeReminderPresets) as? [Int]
+        ?? [] {
+        didSet { UserDefaults.standard.set(mealTimeReminderPresets, forKey: WatchMessageKeys.mealTimeReminderPresets) }
+    }
+
+    /// This meal's reminder on the bolus page, in minutes; 0 is off. Off each time the page opens, as on the phone.
+    var mealTimeReminderMinutes = 0
+
     var offersSuperBolus: Bool {
         if UntetheredWatchManager.shared.isActive {
             return UntetheredWatchManager.shared.data.grant?.bolusCalculator.sweetMeals ?? false
@@ -740,6 +754,13 @@ import WatchKit
                 // limit minimum to 0.05 to avoid dealing with 0.025 increments
                 self.bolusIncrement = max(decimalValue, 0.05)
             }
+        }
+
+        if let reminder = message[WatchMessageKeys.mealTimeReminderEnabled] as? Bool, reminder != mealTimeReminderEnabled {
+            mealTimeReminderEnabled = reminder
+        }
+        if let presets = message[WatchMessageKeys.mealTimeReminderPresets] as? [Int], presets != mealTimeReminderPresets {
+            mealTimeReminderPresets = presets
         }
 
         if let reduced = message[WatchMessageKeys.reducedBolusOption] as? Bool {
