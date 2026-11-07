@@ -2223,6 +2223,9 @@ extension UntetheredWatchManager {
     static let criticalAlarmIDs: Set<String> = [
         notificationPrefix + "urgentLow", notLoopingID, noReadingsID, podLinkID
     ]
+    /// Who doses changed: through Focus and kept on the screen, and the log says it was booked (7 November: two
+    /// takeovers, and neither "Watch Took Over" was noticed).
+    static let takeoverNoticeIDs: Set<String> = [notificationPrefix + "fallback"]
 
     /// - Parameter asksForAction: the user has to do something (open Trio, pair the sensor): felt at once and asked
     ///   again (`ActionNotice`)
@@ -2235,13 +2238,18 @@ extension UntetheredWatchManager {
         content.sound = critical ? .defaultCritical : .default
         // Time-sensitive for what asks for action and for the safety alarms that can't be critical: they get through
         // Focus and stay on the screen (31 October: "Watch Took Over" went by as news). A critical sound is critical.
-        if !critical, asksForAction || Self.criticalAlarmIDs.contains(id) {
+        if !critical, asksForAction || Self.criticalAlarmIDs.contains(id) || Self.takeoverNoticeIDs.contains(id) {
             content.interruptionLevel = .timeSensitive
         }
         let trigger = delay.flatMap { $0 > 0 ? UNTimeIntervalNotificationTrigger(timeInterval: $0, repeats: false) : nil }
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request) { error in
-            guard let error else { return }
+            guard let error else {
+                if Self.takeoverNoticeIDs.contains(id) {
+                    Task { await WatchLogger.shared.log("⌚️ Untethered: notification \(id) booked", force: true) }
+                }
+                return
+            }
             Task {
                 await WatchLogger.shared.log("⌚️ Untethered: notification \(id) failed: \(error.localizedDescription)", force: true)
             }
