@@ -152,8 +152,8 @@ extension UntetheredWatchManager {
                             record(enactedAt: nil)
                             looped()
                         } else {
-                            try await self.enact(determination, pump: pump, dosingMode: grant.dosingMode)
-                            record(enactedAt: Date())
+                            let enacted = try await self.enact(determination, pump: pump, dosingMode: grant.dosingMode)
+                            record(enactedAt: enacted ? Date() : nil)
                             looped()
                             self.scheduleNotLoopingAlert(from: now)
                             self.recordPumpStatus()
@@ -336,9 +336,13 @@ extension UntetheredWatchManager {
         }
     }
 
-    /// The phone's `APSManager.enactDetermination`.
-    private func enact(_ determination: Determination, pump: PumpManager, dosingMode: DosingMode) async throws {
-        if case .suspended = pump.status.basalDeliveryState { return }
+    /// The phone's `APSManager.enactDetermination`: false when nothing could be enacted (a suspended pod), as the
+    /// phone records it.
+    private func enact(_ determination: Determination, pump: PumpManager, dosingMode: DosingMode) async throws -> Bool {
+        if case .suspended = pump.status.basalDeliveryState { return false }
+        // a loop that waited on the pod link past the hand-back's last stage, or into the phone's take-back minute,
+        // sends nothing: the watch's last records already went to the phone
+        guard mayDose else { throw UntetheredWatchError.noPump }
         // a pod command watchOS can freeze half-way is what leaves the pod link stuck (2026-10-19 08:09,
         // 2026-10-20 02:25 and 12:11): none starts once the loop has no background time left
         guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
@@ -353,8 +357,18 @@ extension UntetheredWatchManager {
            pump.status.bolusState == .noBolus
         {
             guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
+            guard mayDose else { throw UntetheredWatchError.noPump }
             try await pump.enactBolus(units: units.nearestDouble, automatic: true)
         }
+        return true
+    }
+
+    /// The watch may still command the pod: the session runs (a hand-back until its last stage) and the phone isn't
+    /// taking the pod back. `runLoop` checks this at the start; a dose checks it again after the waits on the pod.
+    var mayDose: Bool {
+        let phase = data.session.phase
+        guard phase == .active || (phase == .ending && !isFinalizing) else { return false }
+        return podQuietUntil.map { Date() >= $0 } ?? true
     }
 
     /// Says when the loop starts or stops taking the phone's profile.
@@ -1422,7 +1436,7 @@ extension UntetheredWatchManager: PumpManagerDelegate {
         }
         refresh()
         // the phone sounds its own devices' alerts until the watch takes over
-        if isActive { notify(id: pending.id, title: pending.title, body: pending.body, after: delay) }
+        if isActive { notify(id: Self.notificationID(pending.id), title: pending.title, body: pending.body, after: delay) }
     }
 
     /// Alerts issued before the takeover sound on the wrist from it on; at the hand-back the phone's again.
@@ -1430,7 +1444,9 @@ extension UntetheredWatchManager: PumpManagerDelegate {
         let alerts = data.pendingPumpAlerts
         guard toWatch else {
             UNUserNotificationCenter.current()
-                .removePendingNotificationRequests(withIdentifiers: alerts.map(\.id) + [Self.notLoopingID, Self.noReadingsID])
+                .removePendingNotificationRequests(
+                    withIdentifiers: alerts.map { Self.notificationID($0.id) } + [Self.notLoopingID, Self.noReadingsID]
+                )
             return
         }
         // from the takeover at the earliest: booked from the phone's last loop, a start without the phone sounded
@@ -1439,16 +1455,20 @@ extension UntetheredWatchManager: PumpManagerDelegate {
         scheduleNoReadingsAlert(from: sensorGlucose.map(\.dateString).max() ?? Date())
         for alert in alerts {
             guard let due = alert.due, due > Date() else { continue }
-            notify(id: alert.id, title: alert.title, body: alert.body, after: due.timeIntervalSinceNow)
+            notify(id: Self.notificationID(alert.id), title: alert.title, body: alert.body, after: due.timeIntervalSinceNow)
         }
     }
 
     func retractAlert(identifier: LoopKit.Alert.Identifier) {
         let id = identifier.managerIdentifier + "." + identifier.alertIdentifier
         store.update { $0.pendingPumpAlerts.removeAll { $0.id == id } }
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.notificationID(id)])
         refresh()
     }
+
+    /// A pump or CGM alert's notification: untethered's prefix, so it also shows with Trio open on the wrist
+    /// (`WatchNotificationHandler.willPresent` shows only prefixed ones).
+    static func notificationID(_ alertID: String) -> String { notificationPrefix + alertID }
 
     func doesIssuedAlertExist(identifier: LoopKit.Alert.Identifier) async throws -> Bool {
         data.pendingPumpAlerts.contains { $0.id == identifier.managerIdentifier + "." + identifier.alertIdentifier }
@@ -1473,24 +1493,13 @@ extension UntetheredWatchManager: CGMManagerDelegate {
     /// Past OmnipodKit's idle disconnect (4 s after the last command): an app asleep before it leaves the pod connected.
     static let podIdleDisconnectWait: TimeInterval = 5
 
-    /// The loop is done and, past the pod's idle disconnect, the app has nothing to do until the next reading. In the
-    /// background the rest of G7's wait after the reading then goes to bluetoothd as a start delay, as when Trio leaves
-    /// the screen, so the app can sleep through it (2026-10-23 10:30: 23 s awake for nothing but that wait). Not in
-    /// front, not while a bolus runs (its progress and end are followed here), not once another loop started.
-    /// ponytail: the start delay as the ordinary wait lost bursts (kristinkand 3b3f1f3); here it covers only the rest
-    /// after a loop. If link-ups drop again, release only (`release()`) and keep G7's hold.
+    /// The loop is done: its hold ends past the pod's idle disconnect, so an app asleep doesn't leave the pod
+    /// connected. In front, while a bolus runs or with the workout keeping the app awake, it ends at once. The sensor
+    /// keeps its own hold, which waits out its tail (no start delay since Pete Schwamb's LoopKit/G7SensorKit#80).
     func endLoopHold(_ release: @escaping () -> Void) {
         // a running workout keeps the app awake anyway: the sensor keeps its own hold, which loses no bursts
         guard WKApplication.shared().applicationState != .active, !isBolusing, !isKeptAwake else { return release() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.podIdleDisconnectWait) { [weak self] in
-            defer { release() }
-            guard let self, !self.isLooping, !self.isBolusing,
-                  WKApplication.shared().applicationState != .active
-            else { return }
-            // No start delay any more (Pete Schwamb, LoopKit/G7SensorKit#80, and the readings it cost on 23/24 October):
-            // the sensor keeps its own hold, which waits out its tail, as this function's note foresaw.
-            Task { await WatchLogger.shared.log("⌚️ Untethered: loop done, the sensor keeps its own hold", force: true) }
-        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.podIdleDisconnectWait) { release() }
     }
 
     /// A test (22 October): every pod stall so far began with a command cut off within seconds of a sensor reading
@@ -1591,7 +1600,6 @@ extension UntetheredWatchManager: CGMManagerDelegate {
     func noteSensorPairingEvent(_ message: String) {
         guard isActive else { return }
         if message.contains("Pairing: running the key exchange")
-            || message.contains("the sensor no longer accepts the saved key")
             // the same sensor asking to bond again (bond=2) after its Bluetooth pairing was lost; 2026-10-22 05:00:
             // Trio left the screen a second into it, the sensor dropped the link, no reading for 50 minutes
             || message.contains("Running the certificate exchange")
@@ -1664,7 +1672,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
     /// Trio came to the front: a pairing that is due keeps it there.
     func appBecameActive() {
         ActionNotice.clearReminders()
-        watchCGMAppBecameActive(cgmManager)
+        watchCGMRecheckAcquisition(cgmManager)
         if isPairingSensor { keepTrioInFrontForPairing() }
         updateWorkoutKeepAlive()
         // Trio in front can search: a pod the watch doesn't know yet is looked for now (opened from a notification,
@@ -2128,7 +2136,8 @@ extension UntetheredWatchManager {
             }
         }
         // two missed readings on the sensor's 5-minute grid
-        if let newest = latest?.dateString, now.timeIntervalSince(newest) > Self.noReadingsAfter {
+        // the sensor's readings only: a fingerstick doesn't hide a silent sensor (`sensorGlucose`)
+        if let newest = sensorGlucose.map(\.dateString).max(), now.timeIntervalSince(newest) > Self.noReadingsAfter {
             let minutes = Int(now.timeIntervalSince(newest) / 60)
             // the sensor's own reason when it gives one: the watch reaches it, the sensor sends nothing usable
             switch watchCGMSensorProblem(cgmManager, now: now) {
