@@ -7,11 +7,16 @@ extension WatchState {
     /// Sends a bolus insulin request to the paired iPhone
     /// - Parameters:
     ///   - amount: The insulin amount to be delivered
-    func sendBolusRequest(_ amount: Decimal) {
+    ///   - remindAfter: a meal-time reminder this many minutes after the bolus has been delivered; 0 none.
+    ///   - carbs: the meal's carbs, for the reminder.
+    func sendBolusRequest(_ amount: Decimal, remindAfter minutes: Int = 0, carbs: Int = 0) {
         if UntetheredWatchManager.shared.isActive {
             showCommsAnimation = true
             UntetheredWatchManager.shared.bolus(amount) { success, message in
-                DispatchQueue.main.async { self.handleAcknowledgment(success: success, message: message) }
+                DispatchQueue.main.async {
+                    if success, minutes > 0 { UntetheredWatchManager.shared.remindToEat(after: minutes, bolus: amount) }
+                    self.handleAcknowledgment(success: success, message: message)
+                }
             }
             return
         }
@@ -27,9 +32,13 @@ extension WatchState {
 
         WatchLogger.shared.info(.bolus, "Bolus of \(amount) U requested")
 
-        let message: [String: Any] = [
+        var message: [String: Any] = [
             WatchMessageKeys.bolus: amount
         ]
+        if minutes > 0 {
+            message[WatchMessageKeys.mealTimeReminderMinutes] = minutes
+            message[WatchMessageKeys.mealTimeReminderCarbs] = carbs
+        }
 
         session.sendMessage(message, replyHandler: nil) { error in
             WatchLogger.shared.error(.bolus, "Sending bolus request failed", error: error)
@@ -45,9 +54,11 @@ extension WatchState {
     ///   - date: The timestamp for the carb entry (defaults to current time)
     /// - Parameter acknowledge: false when a bolus follows at once; untethered, its answer is the only one, as the
     ///   phone's combo answers once.
-    func sendCarbsRequest(_ amount: Int, _ date: Date = Date(), acknowledge: Bool = true) {
+    /// - Parameter remindAfter: carbs without insulin and a meal-time reminder: a timer from now; 0 none.
+    func sendCarbsRequest(_ amount: Int, _ date: Date = Date(), acknowledge: Bool = true, remindAfter minutes: Int = 0) {
         if UntetheredWatchManager.shared.isActive {
             UntetheredWatchManager.shared.addCarbs(amount, fat: fatAmount, protein: proteinAmount, at: date)
+            if minutes > 0 { UntetheredWatchManager.shared.remindToEat(after: minutes, bolus: 0) }
             if acknowledge { handleAcknowledgment(success: true, message: String(localized: "Carbs logged on the watch.")) }
             return
         }
@@ -65,10 +76,14 @@ extension WatchState {
 
         WatchLogger.shared.info(.treatments, "Carbs of \(amount) g requested for \(date)")
 
-        let message: [String: Any] = [
+        var message: [String: Any] = [
             WatchMessageKeys.carbs: amount,
             WatchMessageKeys.date: date.timeIntervalSince1970
         ]
+        if minutes > 0 {
+            message[WatchMessageKeys.mealTimeReminderMinutes] = minutes
+            message[WatchMessageKeys.mealTimeReminderCarbs] = amount
+        }
 
         session.sendMessage(message, replyHandler: nil) { error in
             WatchLogger.shared.error(.treatments, "Sending carbs request failed", error: error)

@@ -64,6 +64,12 @@ enum WatchMessageKeys {
     /// A bolus recommendation asked for with a reduced or a super bolus.
     static let useReducedBolus = "useReducedBolus"
     static let useSuperBolus = "useSuperBolus"
+    /// Settings › Bolus Calculator › Meal-Time Reminder: on, and its presets in minutes.
+    static let mealTimeReminderEnabled = "mealTimeReminderEnabled"
+    static let mealTimeReminderPresets = "mealTimeReminderPresets"
+    /// With a bolus or carbs from the watch: remind to eat this many minutes after the bolus has been delivered.
+    static let mealTimeReminderMinutes = "mealTimeReminderMinutes"
+    static let mealTimeReminderCarbs = "mealTimeReminderCarbs"
 
     // Notification Actions
     static let snoozeDuration = "snoozeDuration"

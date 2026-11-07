@@ -40,6 +40,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     @Injected() private var notificationsManager: UserNotificationsManager!
     @Injected() private var fetchGlucoseManager: FetchGlucoseManager!
     @Injected() private var untethered: UntetheredPhoneManager!
+    @Injected() private var mealTimeReminderService: MealTimeReminderService!
 
     private var units: GlucoseUnits = .mgdL
     private var glucoseColorScheme: GlucoseColorScheme = .staticColor
@@ -374,6 +375,8 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 watchState.confirmBolusFaster = self.settingsManager.settings.confirmBolusFaster
                 watchState.reducedBolusOption = self.settingsManager.settings.fattyMeals
                 watchState.superBolusOption = self.settingsManager.settings.sweetMeals
+                watchState.mealTimeReminderEnabled = self.settingsManager.settings.mealTimeReminderEnabled
+                watchState.mealTimeReminderPresets = self.settingsManager.settings.mealTimeReminderPresets
 
                 watchState.showForecast = self.settingsManager.settings.showForecastWatch
                 watchState.isForecastCone = self.settingsManager.settings.forecastDisplayType == .cone
@@ -588,6 +591,8 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WatchMessageKeys.confirmBolusFaster: state.confirmBolusFaster,
             WatchMessageKeys.reducedBolusOption: state.reducedBolusOption,
             WatchMessageKeys.superBolusOption: state.superBolusOption,
+            WatchMessageKeys.mealTimeReminderEnabled: state.mealTimeReminderEnabled,
+            WatchMessageKeys.mealTimeReminderPresets: state.mealTimeReminderPresets.map { NSDecimalNumber(decimal: $0).intValue },
             WatchMessageKeys.units: state.units.rawValue,
             WatchMessageKeys.showForecastWatch: state.showForecast,
             WatchMessageKeys.isForecastCone: state.isForecastCone,
@@ -917,7 +922,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                       message[WatchMessageKeys.date] == nil
             {
                 info(.watch, "Watch requested bolus of \(bolusAmount) U")
-                self.handleBolusRequest(Decimal(bolusAmount))
+                self.handleBolusRequest(Decimal(bolusAmount), reminder: Self.mealTimeReminder(in: message))
             } else if let carbsAmount = message[WatchMessageKeys.carbs] as? Int,
                       let timestamp = message[WatchMessageKeys.date] as? TimeInterval,
                       message[WatchMessageKeys.bolus] == nil
@@ -925,6 +930,16 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 let date = Date(timeIntervalSince1970: timestamp)
                 info(.watch, "Watch requested \(carbsAmount) g carbs at \(date)")
                 self.handleCarbsRequest(carbsAmount, date)
+                // carbs without insulin and a reminder: a timer from now, as the calculator's
+                if let reminder = Self.mealTimeReminder(in: message) {
+                    Task {
+                        await self.mealTimeReminderService.scheduleEatReminder(
+                            after: reminder.leadTime,
+                            carbs: reminder.carbs,
+                            bolusAmount: 0
+                        )
+                    }
+                }
             } else if let bolusAmount = message[WatchMessageKeys.bolus] as? Double,
                       let carbsAmount = message[WatchMessageKeys.carbs] as? Int,
                       let timestamp = message[WatchMessageKeys.date] as? TimeInterval
@@ -1107,9 +1122,27 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
 
     /// Processes bolus requests received from the Watch
     /// - Parameter amount: The requested bolus amount in units
-    private func handleBolusRequest(_ amount: Decimal) {
+    /// A meal-time reminder the watch set with its bolus or carbs, with the reminder on here.
+    private static func mealTimeReminder(in message: [String: Any]) -> (leadTime: TimeInterval, carbs: Decimal)? {
+        guard let minutes = message[WatchMessageKeys.mealTimeReminderMinutes] as? Int, minutes > 0,
+              TrioApp.resolver.resolve(SettingsManager.self)?.settings.mealTimeReminderEnabled == true
+        else { return nil }
+        return (TimeInterval(minutes * 60), Decimal(message[WatchMessageKeys.mealTimeReminderCarbs] as? Int ?? 0))
+    }
+
+    private func handleBolusRequest(_ amount: Decimal, reminder: (leadTime: TimeInterval, carbs: Decimal)? = nil) {
         Task {
             await apsManager.enactBolus(amount: Double(amount), isSMB: false) { success, message in
+                // as the calculator: the reminder counts from the end of the delivery
+                if success, let reminder {
+                    Task {
+                        await self.mealTimeReminderService.prepareEatReminder(
+                            after: reminder.leadTime,
+                            carbs: reminder.carbs,
+                            bolusAmount: amount
+                        )
+                    }
+                }
                 // Acknowledge success or error of bolus
                 self.sendAcknowledgment(
                     toWatch: success,

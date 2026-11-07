@@ -773,6 +773,27 @@ import WatchKit
         }
     }
 
+    /// The meal-time reminder while the watch has the pump: the phone may be away, so the watch rings itself, the
+    /// set minutes after the bolus has been delivered (a pod gives about 1.5 U a minute) or from now without one.
+    func remindToEat(after minutes: Int, bolus units: Decimal) {
+        let delivery = Double(truncating: units as NSNumber) / 1.5 * 60
+        let deliveredAt = bolusWindow.map { max($0.end, Date()) } ?? Date().addingTimeInterval(delivery)
+        let delay = deliveredAt.timeIntervalSinceNow + Double(minutes * 60)
+        notify(
+            id: Self.notificationPrefix + "mealTimeReminder",
+            title: String(localized: "Time to Eat", comment: "Meal-time reminder on the watch"),
+            body: String(localized: "Your \(minutes) min meal-time reminder is up: time to eat.", comment: "Meal-time reminder on the watch"),
+            after: max(1, delay),
+            asksForAction: true
+        )
+        Task {
+            await WatchLogger.shared.log(
+                "⌚️ Untethered: meal-time reminder in \(Int((delay / 60).rounded())) min (\(minutes) min after the bolus)",
+                force: true
+            )
+        }
+    }
+
     func install(_ pump: PumpManager & ExclusiveDeviceControl) {
         pump.pumpManagerDelegate = self
         pump.delegateQueue = .main

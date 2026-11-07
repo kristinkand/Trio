@@ -30,6 +30,8 @@ struct WatchState: Hashable, Equatable, Sendable, Encodable, Decodable {
     // Bolus calculator options the watch offers too (Settings › Bolus Calculator)
     var reducedBolusOption: Bool = false
     var superBolusOption: Bool = false
+    var mealTimeReminderEnabled: Bool = false
+    var mealTimeReminderPresets: [Decimal] = []
 
     // Forecast options
     var showForecast: Bool = false
@@ -66,6 +68,8 @@ struct WatchState: Hashable, Equatable, Sendable, Encodable, Decodable {
             lhs.confirmBolusFaster == rhs.confirmBolusFaster &&
             lhs.reducedBolusOption == rhs.reducedBolusOption &&
             lhs.superBolusOption == rhs.superBolusOption &&
+            lhs.mealTimeReminderEnabled == rhs.mealTimeReminderEnabled &&
+            lhs.mealTimeReminderPresets == rhs.mealTimeReminderPresets &&
             lhs.showForecast == rhs.showForecast &&
             lhs.isForecastCone == rhs.isForecastCone &&
             lhs.forecastStartDate == rhs.forecastStartDate &&
@@ -101,6 +105,8 @@ struct WatchState: Hashable, Equatable, Sendable, Encodable, Decodable {
         hasher.combine(confirmBolusFaster)
         hasher.combine(reducedBolusOption)
         hasher.combine(superBolusOption)
+        hasher.combine(mealTimeReminderEnabled)
+        hasher.combine(mealTimeReminderPresets)
         hasher.combine(showForecast)
         hasher.combine(isForecastCone)
         hasher.combine(forecastStartDate)
