@@ -27,6 +27,10 @@ struct WatchState: Hashable, Equatable, Sendable, Encodable, Decodable {
     var bolusIncrement: Decimal = 0.05
     var confirmBolusFaster: Bool = false
 
+    // Bolus calculator options the watch offers too (Settings › Bolus Calculator)
+    var reducedBolusOption: Bool = false
+    var superBolusOption: Bool = false
+
     // Forecast options
     var showForecast: Bool = false
     var isForecastCone: Bool = false
@@ -60,6 +64,8 @@ struct WatchState: Hashable, Equatable, Sendable, Encodable, Decodable {
             lhs.maxProtein == rhs.maxProtein &&
             lhs.bolusIncrement == rhs.bolusIncrement &&
             lhs.confirmBolusFaster == rhs.confirmBolusFaster &&
+            lhs.reducedBolusOption == rhs.reducedBolusOption &&
+            lhs.superBolusOption == rhs.superBolusOption &&
             lhs.showForecast == rhs.showForecast &&
             lhs.isForecastCone == rhs.isForecastCone &&
             lhs.forecastStartDate == rhs.forecastStartDate &&
@@ -93,6 +99,8 @@ struct WatchState: Hashable, Equatable, Sendable, Encodable, Decodable {
         hasher.combine(maxProtein)
         hasher.combine(bolusIncrement)
         hasher.combine(confirmBolusFaster)
+        hasher.combine(reducedBolusOption)
+        hasher.combine(superBolusOption)
         hasher.combine(showForecast)
         hasher.combine(isForecastCone)
         hasher.combine(forecastStartDate)
