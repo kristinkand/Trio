@@ -10,6 +10,7 @@ struct BolusInputView: View {
     /// The phone's Reduced Bolus and Super Bolus for this meal, when the phone has the option on; one at a time.
     @State private var reducedBolus = false
     @State private var superBolus = false
+    @State private var showsReminderPicker = false
 
     let state: WatchState
 
@@ -132,12 +133,31 @@ struct BolusInputView: View {
                                 }
                             }
                             if offersReminder {
-                                // Remind Me to Eat: each tap the next preset, then off again
+                                // Remind Me to Eat: the phone's presets to choose from, or none
                                 optionButton(reminderLabel, isOn: state.mealTimeReminderMinutes > 0) {
-                                    let presets = state.mealTimeReminderPresets.filter { $0 > 0 }.sorted()
-                                    state.mealTimeReminderMinutes = presets.first { $0 > state.mealTimeReminderMinutes } ?? 0
+                                    showsReminderPicker = true
                                 }
                                 .accessibilityLabel(String(localized: "Remind Me to Eat", comment: "Meal-time reminder on the watch"))
+                                .confirmationDialog(
+                                    String(localized: "Remind Me to Eat", comment: "Meal-time reminder on the watch"),
+                                    isPresented: $showsReminderPicker,
+                                    titleVisibility: .visible
+                                ) {
+                                    ForEach(state.mealTimeReminderPresets.filter { $0 > 0 }.sorted(), id: \.self) { minutes in
+                                        Button(
+                                            (minutes == state.mealTimeReminderMinutes ? "✓ " : "")
+                                                + String(localized: "In \(minutes) min", comment: "Meal-time reminder preset on the watch")
+                                        ) {
+                                            state.mealTimeReminderMinutes = minutes
+                                        }
+                                    }
+                                    Button(
+                                        (state.mealTimeReminderMinutes == 0 ? "✓ " : "")
+                                            + String(localized: "No Reminder", comment: "Meal-time reminder off on the watch")
+                                    ) {
+                                        state.mealTimeReminderMinutes = 0
+                                    }
+                                }
                             }
                         }
                         .padding(.bottom, 4)
