@@ -407,6 +407,8 @@ final class UnsureGlucoseStore: ObservableObject {
     }
 
     init() {
+        // a new sensor's readings count from after the old one's last, an unreliable one included
+        CGMSensorHandover.latestOtherReading = { UnsureGlucoseStore.shared.latest?.date }
         guard Self.isEnabled else {
             UserDefaults.standard.removeObject(forKey: Self.storageKey)
             return
