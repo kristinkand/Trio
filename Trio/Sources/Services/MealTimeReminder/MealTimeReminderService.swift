@@ -6,6 +6,11 @@ import Swinject
     import AlarmKit
 #endif
 
+extension Notification.Name {
+    /// The pending meal-time reminder was set, changed or cleared.
+    static let mealTimeReminderDidChange = Notification.Name("mealTimeReminderDidChange")
+}
+
 struct PendingMealTimeReminder: Equatable, Codable {
     var fireDate: Date
     var carbs: Decimal
@@ -184,6 +189,8 @@ protocol MealTimeReminderService: AnyObject {
         expiryTask = nil
         pendingReminder = reminder
         scheduledAlarmID = reminder?.alarmID
+        // the countdown on the watch's first page follows
+        Foundation.NotificationCenter.default.post(name: .mealTimeReminderDidChange, object: nil)
 
         guard let reminder else {
             UserDefaults.standard.removeObject(forKey: Self.pendingReminderDefaultsKey)
