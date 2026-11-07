@@ -330,10 +330,12 @@ extension UntetheredWatchManager {
         }
     }
 
-    /// The phone's `APSManager.enactDetermination`: false when nothing could be enacted (a suspended pod), as the
-    /// phone records it.
+    /// The phone's `APSManager.enactDetermination`: false when nothing could be enacted (a suspended or inoperable
+    /// pod), as the phone records it.
     private func enact(_ determination: Determination, pump: PumpManager, dosingMode: DosingMode) async throws -> Bool {
         if case .suspended = pump.status.basalDeliveryState { return false }
+        // a halted patch or faulted pod reports .pumpInoperable: never loop against it, as the phone (Trio 469033590)
+        if case .pumpInoperable = pump.status.basalDeliveryState { return false }
         // a loop that waited on the pod link past the hand-back's last stage, or into the phone's take-back minute,
         // sends nothing: the watch's last records already went to the phone
         guard mayDose else { throw UntetheredWatchError.noPump }
