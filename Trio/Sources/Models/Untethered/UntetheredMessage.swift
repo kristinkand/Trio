@@ -223,8 +223,9 @@ struct UntetheredGrant: Codable, Equatable {
 
     let pumpSettings: PumpSettings
     let bgTargets: BGTargets
-    let basalProfile: [BasalProfileEntry]
-    let insulinSensitivities: InsulinSensitivities
+    /// `var`: the profile (`profile`) swaps its own in while it runs.
+    var basalProfile: [BasalProfileEntry]
+    var insulinSensitivities: InsulinSensitivities
     let carbRatios: CarbRatios
     let preferences: Preferences
     var dosingMode: DosingMode
@@ -265,6 +266,36 @@ struct UntetheredGrant: Codable, Equatable {
     let overridePresets: [Override]
     let tempTargetPresets: [TempTarget]
     let linkedOverrideID: String?
+    /// The phone's profile (Adjustments › Profile), when it runs as the watch takes over. Nil from a phone without
+    /// it, or with it off.
+    var profile: UntetheredProfile? = nil
+
+    /// The copy as the loop takes it at `now`: while the profile runs and neither an override nor a temp target
+    /// does, its basal and ISF schedules in place of the regular ones, as the phone's `OpenAPS.createProfiles`
+    /// swaps them. Carb ratios stay.
+    func withProfile(at now: Date, overrideOrTempTargetActive: Bool) -> UntetheredGrant {
+        guard !overrideOrTempTargetActive, let profile, profile.isRunning(at: now) else { return self }
+        var grant = self
+        if !profile.basalProfile.isEmpty { grant.basalProfile = profile.basalProfile }
+        if let isf = profile.insulinSensitivities, !isf.sensitivities.isEmpty { grant.insulinSensitivities = isf }
+        return grant
+    }
+}
+
+/// The phone's profile (a second basal and ISF schedule with its own target and SMB/UAM minutes, started by hand), as
+/// the watch loops on it: until it ends, and only while no override or temp target runs, as on the phone (7 November:
+/// before, the watch looped on the regular schedules while the phone showed the profile running).
+struct UntetheredProfile: Codable, Equatable {
+    let name: String
+    /// What the phone's loop takes as the override while it runs: its target and SMB/UAM minutes, 100 %.
+    let override: Override
+    /// Empty: the regular schedule.
+    let basalProfile: [BasalProfileEntry]
+    let insulinSensitivities: InsulinSensitivities?
+    /// Nil: until stopped.
+    let endsAt: Date?
+
+    func isRunning(at now: Date) -> Bool { endsAt.map { now < $0 } ?? true }
 }
 
 /// One TDD calculation, as `TDDStored` keeps it.

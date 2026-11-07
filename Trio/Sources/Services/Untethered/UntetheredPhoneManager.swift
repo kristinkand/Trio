@@ -1114,7 +1114,20 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             tempTargets: storage.retrieve(OpenAPS.Settings.tempTargets, as: [TempTarget].self) ?? [],
             overridePresets: overridePresets,
             tempTargetPresets: tempTargetPresets,
-            linkedOverrideID: linkedOverrideID
+            linkedOverrideID: linkedOverrideID,
+            profile: Self.runningProfile(now: now)
+        )
+    }
+
+    /// The profile when it runs, for the watch to loop on as the phone's loop does.
+    private static func runningProfile(now: Date) -> UntetheredProfile? {
+        guard WeekendProfileStore.isActive, !WeekendProfileStore.isExpired else { return nil }
+        return UntetheredProfile(
+            name: WeekendProfileStore.name,
+            override: OpenAPS.weekendProfileOverride(now: now),
+            basalProfile: WeekendProfileStore.basalProfile,
+            insulinSensitivities: WeekendProfileStore.insulinSensitivities,
+            endsAt: WeekendProfileStore.activeEndDate
         )
     }
 
