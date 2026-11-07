@@ -144,6 +144,14 @@ struct TrioMainWatchView: View {
                         )
                     }
 
+                    // a pending meal-time reminder: how long until it rings; a tap cancels it
+                    if state.pendingMealReminderAt != nil {
+                        VStack {
+                            MealReminderLine(state: state)
+                            Spacer()
+                        }
+                    }
+
                     if state.showSyncingAnimation {
                         Image(systemName: "iphone.radiowaves.left.and.right")
                             .symbolRenderingMode(.palette)
@@ -427,5 +435,47 @@ struct ChartScrubEnd: ViewModifier {
     private func stop() {
         withAnimation { isScrubbing = false }
         scrubSteps = 0
+    }
+}
+
+/// The pending meal-time reminder on the first page, the phone's or the watch's own: "🍽 in 12 min", gone once it
+/// has rung. A tap asks whether to cancel it, so a brush of the screen doesn't.
+struct MealReminderLine: View {
+    let state: WatchState
+    @State private var asksToCancel = false
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 15)) { context in
+            if let fireAt = state.pendingMealReminderAt, fireAt > context.date {
+                Button {
+                    asksToCancel = true
+                } label: {
+                    Text(label(until: fireAt, now: context.date))
+                        .font(.caption2.weight(.semibold))
+                        .monospacedDigit()
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.orange.opacity(0.25)))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .confirmationDialog(
+            String(localized: "Cancel the meal-time reminder?", comment: "Watch: cancel the pending meal-time reminder"),
+            isPresented: $asksToCancel,
+            titleVisibility: .visible
+        ) {
+            Button(String(localized: "Cancel Reminder", comment: "Watch: cancel the pending meal-time reminder"), role: .destructive) {
+                state.cancelMealTimeReminder()
+            }
+            Button(String(localized: "Keep", comment: "Watch: keep the pending meal-time reminder"), role: .cancel) {}
+        }
+    }
+
+    private func label(until fireAt: Date, now: Date) -> String {
+        let minutes = Int((fireAt.timeIntervalSince(now) / 60).rounded(.up))
+        return minutes <= 1
+            ? String(localized: "🍽 in 1 min", comment: "Watch: meal-time reminder countdown")
+            : String(localized: "🍽 in \(minutes) min", comment: "Watch: meal-time reminder countdown")
     }
 }
