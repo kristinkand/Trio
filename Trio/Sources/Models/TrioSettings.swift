@@ -74,6 +74,8 @@ struct TrioSettings: JSON, Equatable, Encodable {
     /// While untethered with the phone out of reach, the watch uploads its readings and loops to Nightscout itself,
     /// over Wi-Fi or its own cellular connection. Off until chosen.
     var nightscoutUploadWatch: Bool = false
+    /// The home screen's background takes the untethered color while the watch has the pump.
+    var untetheredTintHomeWatch: Bool = true
     var overrideFactor: Decimal = 0.8
     var fattyMeals: Bool = false
     var fattyMealFactor: Decimal = 0.7
@@ -371,6 +373,10 @@ extension TrioSettings: Decodable {
 
         if let nightscoutUploadWatch = try? container.decode(Bool.self, forKey: .nightscoutUploadWatch) {
             settings.nightscoutUploadWatch = nightscoutUploadWatch
+        }
+
+        if let untetheredTintHomeWatch = try? container.decode(Bool.self, forKey: .untetheredTintHomeWatch) {
+            settings.untetheredTintHomeWatch = untetheredTintHomeWatch
         }
 
         if let displayPresets = try? container.decode(Bool.self, forKey: .displayPresets) {
