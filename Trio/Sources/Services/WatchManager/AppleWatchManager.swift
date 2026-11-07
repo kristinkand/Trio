@@ -1141,8 +1141,6 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
     }
 
-    /// Processes bolus requests received from the Watch
-    /// - Parameter amount: The requested bolus amount in units
     /// A meal-time reminder the watch set with its bolus or carbs, with the reminder on here.
     private static func mealTimeReminder(in message: [String: Any]) -> (leadTime: TimeInterval, carbs: Decimal)? {
         guard let minutes = message[WatchMessageKeys.mealTimeReminderMinutes] as? Int, minutes > 0,
@@ -1151,8 +1149,22 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         return (TimeInterval(minutes * 60), Decimal(message[WatchMessageKeys.mealTimeReminderCarbs] as? Int ?? 0))
     }
 
+    /// Processes bolus requests received from the Watch
+    /// - Parameter amount: The requested bolus amount in units
     private func handleBolusRequest(_ amount: Decimal, reminder: (leadTime: TimeInterval, carbs: Decimal)? = nil) {
         Task {
+            // The watch has just handed the pump back and the phone is still reading it: the bolus waits for that, up
+            // to 30 s (6 November, third tester: a 3 U meal bolus sent from the watch a few seconds after its session
+            // ended came while the phone read the pump back, was refused with "The watch is in charge of the pump",
+            // and was given only 17 minutes later). The watch keeps showing that it is sending until the answer.
+            var waited = 0
+            while untethered.state.pumpReturnPending, untethered.state.session.isIdle, waited < 30 {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                waited += 1
+            }
+            if waited > 0 {
+                info(.bolus, "Watch bolus of \(amount) U waited \(waited) s for the pump to come back from the watch")
+            }
             await apsManager.enactBolus(amount: Double(amount), isSMB: false) { success, message in
                 // as the calculator: the reminder counts from the end of the delivery
                 if success, let reminder {
