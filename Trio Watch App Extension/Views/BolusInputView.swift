@@ -194,7 +194,7 @@ struct BolusInputView: View {
             if bolusAmount == 0 {
                 // a new meal: its reminder starts off, as on the phone
                 state.mealTimeReminderMinutes = 0
-                state.requestBolusRecommendation()
+                state.requestBolusRecommendation(reducedBolus: reducedBolus, superBolus: superBolus)
                 bolusAmount = Double(truncating: NSDecimalNumber(decimal: state.recommendedBolus))
             }
         }
