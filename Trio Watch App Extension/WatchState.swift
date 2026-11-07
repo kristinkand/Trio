@@ -93,7 +93,10 @@ import WatchKit
     }
 
     /// The phone's profile runs (Adjustments › Profile) over the last day and the running one, for the bar on the graph.
-    var profileRuns: [WatchProfileRun] = []
+    var profileRuns: [WatchAdjustmentRun] = []
+    /// The phone's overrides and temp targets over the last day and the running ones, for their bars on the graph.
+    var overrideRuns: [WatchAdjustmentRun] = []
+    var tempTargetRuns: [WatchAdjustmentRun] = []
 
     /// This meal's reminder on the bolus page, in minutes; 0 is off. Off each time the page opens, as on the phone.
     var mealTimeReminderMinutes = 0
@@ -766,8 +769,16 @@ import WatchKit
             mealTimeReminderPresets = presets
         }
         if let runs = message[WatchMessageKeys.profileRuns] as? [[String: Any]] {
-            let parsed = runs.compactMap(WatchProfileRun.init)
+            let parsed = runs.compactMap(WatchAdjustmentRun.init)
             if parsed != profileRuns { profileRuns = parsed }
+        }
+        if let runs = message[WatchMessageKeys.overrideRuns] as? [[String: Any]] {
+            let parsed = runs.compactMap(WatchAdjustmentRun.init)
+            if parsed != overrideRuns { overrideRuns = parsed }
+        }
+        if let runs = message[WatchMessageKeys.tempTargetRuns] as? [[String: Any]] {
+            let parsed = runs.compactMap(WatchAdjustmentRun.init)
+            if parsed != tempTargetRuns { tempTargetRuns = parsed }
         }
 
         if let reduced = message[WatchMessageKeys.reducedBolusOption] as? Bool {
@@ -958,8 +969,9 @@ extension WatchState {
     }
 }
 
-/// One run of the phone's profile, for the bar on the graph. `end` nil: it runs until stopped.
-struct WatchProfileRun: Equatable, Identifiable {
+/// One run of the phone's profile, an override or a temp target, for its bar on the graph. `end` nil: it runs until
+/// stopped.
+struct WatchAdjustmentRun: Equatable, Identifiable {
     let name: String
     let start: Date
     let end: Date?

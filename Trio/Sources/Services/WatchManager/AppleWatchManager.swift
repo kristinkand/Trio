@@ -531,6 +531,57 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
     }
 
+    private static func adjustmentRun(_ name: String?, _ start: Date, _ end: Date?) -> [String: Any] {
+        var run: [String: Any] = ["name": name ?? "", "start": start.timeIntervalSince1970]
+        if let end { run["end"] = end.timeIntervalSince1970 }
+        return run
+    }
+
+    /// Overrides and temp targets of the last day for the bars under the watch graph: the ended ones from their run
+    /// records, the running one with its planned end (none while it runs until cancelled).
+    private func chartAdjustments() async -> (overrides: [[String: Any]], tempTargets: [[String: Any]]) {
+        let context = CoreDataStack.shared.newTaskContext()
+        context.name = "watchChartAdjustments"
+        let since = Date.oneDayAgo
+        let now = Date()
+        return await context.perform {
+            let run = Self.adjustmentRun
+            let overrideRunRequest = NSFetchRequest<OverrideRunStored>(entityName: "OverrideRunStored")
+            overrideRunRequest.predicate = NSPredicate(format: "endDate >= %@", since as NSDate)
+            var overrides: [[String: Any]] = ((try? context.fetch(overrideRunRequest)) ?? []).compactMap { stored in
+                guard let start = stored.startDate, let end = stored.endDate, end > start else { return nil }
+                return run(stored.name, start, end)
+            }
+            let overrideRequest = NSFetchRequest<OverrideStored>(entityName: "OverrideStored")
+            overrideRequest.predicate = NSPredicate.lastActiveOverride
+            for stored in (try? context.fetch(overrideRequest)) ?? [] {
+                guard let start = stored.date else { continue }
+                let minutes = stored.duration?.doubleValue ?? 0
+                let end: Date? = stored.indefinite || minutes <= 0 ? nil : start.addingTimeInterval(minutes * 60)
+                guard end.map({ $0 > now }) ?? true else { continue }
+                overrides.append(run(stored.name, start, end))
+            }
+
+            let tempTargetRunRequest = NSFetchRequest<TempTargetRunStored>(entityName: "TempTargetRunStored")
+            tempTargetRunRequest.predicate = NSPredicate(format: "endDate >= %@", since as NSDate)
+            var tempTargets: [[String: Any]] = ((try? context.fetch(tempTargetRunRequest)) ?? []).compactMap { stored in
+                guard let start = stored.startDate, let end = stored.endDate, end > start else { return nil }
+                return run(stored.name, start, end)
+            }
+            let tempTargetRequest = NSFetchRequest<TempTargetStored>(entityName: "TempTargetStored")
+            tempTargetRequest.predicate = NSPredicate.lastActiveTempTarget
+            for stored in (try? context.fetch(tempTargetRequest)) ?? [] {
+                guard let start = stored.date else { continue }
+                let minutes = stored.duration?.doubleValue ?? 0
+                guard minutes > 0 else { continue }
+                let end = start.addingTimeInterval(minutes * 60)
+                guard end > now else { continue }
+                tempTargets.append(run(stored.name, start, end))
+            }
+            return (overrides, tempTargets)
+        }
+    }
+
     /// Fetches last pump event that is a non-external bolus from CoreData
     /// - Returns: NSManagedObjectIDs for last bolus
     func fetchLastBolus() async throws -> NSManagedObjectID? {
@@ -835,6 +886,10 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         message[WatchMessageKeys.chartCarbs] = treatments.carbs
         message[WatchMessageKeys.chartBoluses] = treatments.boluses
         message[WatchMessageKeys.chartIobCob] = treatments.iobCob
+        // overrides and temp targets as bars under the watch graph, as on the phone's chart
+        let adjustments = await chartAdjustments()
+        message[WatchMessageKeys.overrideRuns] = adjustments.overrides
+        message[WatchMessageKeys.tempTargetRuns] = adjustments.tempTargets
 
         // if session is reachable, it means watch App is in the foreground -> send watchState as message
         // if session is not reachable, it means it's in background -> send watchState as userInfo

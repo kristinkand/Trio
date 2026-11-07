@@ -206,10 +206,10 @@ struct GlucoseChartView: View {
         return pts
     }
 
-    // MARK: - Profile bar
+    // MARK: - Adjustment bars
 
-    /// The profile's runs as the bar shows them: the phone's, and while the watch holds the pod the one it loops on.
-    private var profileRuns: [WatchProfileRun] {
+    /// The profile's runs as its bar shows them: the phone's, and while the watch holds the pod the one it loops on.
+    private var profileRuns: [WatchAdjustmentRun] {
         let untethered = UntetheredWatchManager.shared
         guard untethered.isActive else { return state.profileRuns }
         let now = Date()
@@ -221,47 +221,125 @@ struct GlucoseChartView: View {
             let start = profile.startedAt ?? phoneStart
                 ?? Date(timeIntervalSince1970: TimeInterval(untethered.data.session.epoch))
             runs.removeAll { $0.start == start }
-            runs.append(WatchProfileRun(name: profile.name, start: start, end: profile.endsAt))
+            runs.append(WatchAdjustmentRun(name: profile.name, start: start, end: profile.endsAt))
         }
         return runs
     }
 
-    /// An override or temp target runs now: the loop leaves the profile aside, and its bar is faded meanwhile.
-    private var profileSteppedAside: Bool {
+    /// Overrides as their bar shows them: the phone's, and while the watch holds the pod the one running there.
+    private var overrideRuns: [WatchAdjustmentRun] {
         let untethered = UntetheredWatchManager.shared
-        if untethered.isActive {
-            let now = Date()
-            return untethered.activeOverride(at: now) != nil || untethered.activeTempTarget(at: now) != nil
+        guard untethered.isActive else { return state.overrideRuns }
+        let now = Date()
+        var runs = state.overrideRuns.filter { $0.end.map { $0 <= now } ?? false }
+        if let override = untethered.activeOverride(at: now) {
+            let end = override.indefinite ? nil : override.date.addingTimeInterval(Double(truncating: override.duration as NSNumber) * 60)
+            runs.removeAll { $0.start == override.date }
+            runs.append(WatchAdjustmentRun(name: override.name, start: override.date, end: end))
         }
-        return state.overridePresets.contains(where: \.isEnabled) || state.tempTargetPresets.contains(where: \.isEnabled)
+        return runs
     }
 
-    private struct ProfileBand: Identifiable {
-        let id: Date
+    /// Temp targets as their bar shows them: the phone's, and while the watch holds the pod the one running there.
+    private var tempTargetRuns: [WatchAdjustmentRun] {
+        let untethered = UntetheredWatchManager.shared
+        guard untethered.isActive else { return state.tempTargetRuns }
+        let now = Date()
+        var runs = state.tempTargetRuns.filter { $0.end.map { $0 <= now } ?? false }
+        if let tempTarget = untethered.activeTempTarget(at: now) {
+            let end = tempTarget.createdAt.addingTimeInterval(Double(truncating: tempTarget.duration as NSNumber) * 60)
+            runs.removeAll { $0.start == tempTarget.createdAt }
+            runs.append(WatchAdjustmentRun(name: tempTarget.displayName, start: tempTarget.createdAt, end: end))
+        }
+        return runs
+    }
+
+    /// An override or temp target runs at that time: the loop leaves the profile aside then.
+    private func profileSteppedAside(at date: Date) -> Bool {
+        (overrideRuns + tempTargetRuns).contains { $0.contains(date) }
+    }
+
+    private enum BarKind: Int {
+        case profile, override, tempTarget
+
+        /// As on the phone's chart: the profile mint, overrides purple, temp targets green.
+        var color: Color {
+            switch self {
+            case .profile: return .mint
+            case .override: return .purple
+            case .tempTarget: return .green
+            }
+        }
+    }
+
+    private struct Bar: Identifiable {
+        let kind: BarKind
         let start: Date
         let end: Date
-        let isRunning: Bool
+        /// Faded: an ended run, or the profile while an override or temp target leaves it aside.
+        let faded: Bool
+        var id: String { "\(kind.rawValue)-\(start.timeIntervalSince1970)-\(faded)" }
     }
 
-    /// The runs within the window, cut to it; one without an end reaches the window's right edge.
-    private var profileBands: [ProfileBand] {
+    /// The runs within the window, cut to it; one without an end reaches the window's right edge. The profile's are
+    /// split where an override or temp target runs, and those stretches faded.
+    private var bars: [Bar] {
         let domain = xAxisDomain
         let now = Date()
-        return profileRuns.compactMap { run in
+        func clipped(_ run: WatchAdjustmentRun) -> (Date, Date)? {
             let start = max(run.start, domain.lowerBound)
             let end = min(run.end ?? domain.upperBound, domain.upperBound)
-            guard start < end else { return nil }
-            return ProfileBand(id: run.start, start: start, end: end, isRunning: run.contains(now))
+            return start < end ? (start, end) : nil
+        }
+        var bars: [Bar] = []
+        let asides = (overrideRuns + tempTargetRuns).compactMap(clipped)
+        for run in profileRuns {
+            guard let range = clipped(run) else { continue }
+            let (start, end) = range
+            let ended = run.end.map { $0 <= now } ?? false
+            // cut points: where an override or temp target starts or ends inside the run
+            let cuts = ([start, end] + asides.flatMap { [$0.0, $0.1] }.filter { $0 > start && $0 < end }).sorted()
+            for (from, to) in zip(cuts, cuts.dropFirst()) where from < to {
+                let middle = from.addingTimeInterval(to.timeIntervalSince(from) / 2)
+                bars.append(Bar(kind: .profile, start: from, end: to, faded: ended || profileSteppedAside(at: middle)))
+            }
+        }
+        for (kind, runs) in [(BarKind.override, overrideRuns), (.tempTarget, tempTargetRuns)] {
+            for run in runs {
+                guard let range = clipped(run) else { continue }
+                bars.append(Bar(kind: kind, start: range.0, end: range.1, faded: !run.contains(now)))
+            }
+        }
+        return bars
+    }
+
+    /// The bars stack from the bottom, profile first, one lane for each kind in the window.
+    private var barLanes: [BarKind] {
+        Set(bars.map(\.kind)).sorted { $0.rawValue < $1.rawValue }
+    }
+
+    /// About 6 % of the graph's height per lane, in its units, with a small gap between lanes.
+    private var barHeight: Double { (yAxisDomain.upperBound - yAxisDomain.lowerBound) * 0.06 }
+
+    private func barBottom(_ kind: BarKind) -> Double {
+        let lane = Double(barLanes.firstIndex(of: kind) ?? 0)
+        return yAxisDomain.lowerBound + lane * barHeight * 1.2
+    }
+
+    private struct ScrubAdjustment: Identifiable {
+        let kind: BarKind
+        let run: WatchAdjustmentRun
+        var id: Int { kind.rawValue }
+    }
+
+    /// The profile, override and temp target at the scrub line, for the scrub box.
+    private var scrubAdjustments: [ScrubAdjustment] {
+        let date = scrubDate
+        let all: [(BarKind, [WatchAdjustmentRun])] = [(.profile, profileRuns), (.override, overrideRuns), (.tempTarget, tempTargetRuns)]
+        return all.compactMap { entry in
+            entry.1.last { $0.contains(date) }.map { ScrubAdjustment(kind: entry.0, run: $0) }
         }
     }
-
-    /// The run at the scrub line, for the scrub box.
-    private var scrubProfileRun: WatchProfileRun? {
-        profileRuns.last { $0.contains(scrubDate) }
-    }
-
-    /// The phone's profile color (its button and chart band): mint.
-    private static let profileColor = Color.mint
 
     var glucosePointSize: CGFloat {
         switch timeWindow {
@@ -293,11 +371,6 @@ struct GlucoseChartView: View {
         // only, and in mmol/L left the readings squeezed into a band in the middle
         let padding = WatchG7Reader.shared.isMmol ? 0.5 : 10
         return (bounds.min - padding) ... (bounds.max + padding)
-    }
-
-    /// About 5 % of the graph's height, in its units.
-    private var profileBarHeight: Double {
-        (yAxisDomain.upperBound - yAxisDomain.lowerBound) * 0.05
     }
 
     private var yAxisValues: [Double] {
@@ -344,17 +417,15 @@ struct GlucoseChartView: View {
                             .lineStyle(StrokeStyle(lineWidth: 1))
                     }
 
-                    // the profile's runs: a thin bar along the bottom, faded while an override or temp target runs
-                    ForEach(profileBands) { band in
+                    // the profile, overrides and temp targets: thin bars along the bottom, as on the phone's chart
+                    ForEach(bars) { bar in
                         RectangleMark(
-                            xStart: .value("Profile start", band.start),
-                            xEnd: .value("Profile end", band.end),
-                            yStart: .value("Profile bottom", yAxisDomain.lowerBound),
-                            yEnd: .value("Profile top", yAxisDomain.lowerBound + profileBarHeight)
+                            xStart: .value("Start", bar.start),
+                            xEnd: .value("End", bar.end),
+                            yStart: .value("Bottom", barBottom(bar.kind)),
+                            yEnd: .value("Top", barBottom(bar.kind) + barHeight)
                         )
-                        .foregroundStyle(
-                            Self.profileColor.opacity(band.isRunning ? (profileSteppedAside ? 0.35 : 0.9) : 0.5)
-                        )
+                        .foregroundStyle(bar.kind.color.opacity(bar.faded ? 0.35 : 1))
                     }
 
                     if isScrubbing {
@@ -520,17 +591,19 @@ struct GlucoseChartView: View {
                 .font(Self.scrubFont)
                 .labelStyle(CompactLabelStyle())
             }
-            // the profile that ran at that time, and until when
-            if let run = scrubProfileRun {
+            // the profile, override and temp target at that time, each in its color, and until when
+            ForEach(scrubAdjustments) { item in
                 HStack(spacing: 3) {
-                    Text(run.name).lineLimit(1)
-                    if let end = run.end {
+                    Text(item.run.name).lineLimit(1)
+                    if item.kind == .profile, profileSteppedAside(at: scrubDate) {
+                        Text("(paused)")
+                    } else if let end = item.run.end {
                         Text("until")
                         Text(end, style: .time)
                     }
                 }
                 .font(Self.scrubFont)
-                .foregroundStyle(Self.profileColor)
+                .foregroundStyle(item.kind.color)
             }
         }
         .monospacedDigit()

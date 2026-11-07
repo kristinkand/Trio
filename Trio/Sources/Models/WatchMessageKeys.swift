@@ -70,6 +70,9 @@ enum WatchMessageKeys {
     /// Adjustments › Profile: its runs over the last day and the running one, for the bar on the watch's graph.
     /// [["name": String, "start": TimeInterval, "end": TimeInterval]], no "end" while it runs until stopped.
     static let profileRuns = "profileRuns"
+    /// Overrides and temp targets over the last day and the running ones, in the same form, for their bars.
+    static let overrideRuns = "overrideRuns"
+    static let tempTargetRuns = "tempTargetRuns"
     /// With a bolus or carbs from the watch: remind to eat this many minutes after the bolus has been delivered.
     static let mealTimeReminderMinutes = "mealTimeReminderMinutes"
     static let mealTimeReminderCarbs = "mealTimeReminderCarbs"
