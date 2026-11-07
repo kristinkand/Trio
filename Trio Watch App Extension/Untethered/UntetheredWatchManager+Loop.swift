@@ -2293,8 +2293,22 @@ extension UntetheredWatchManager {
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request) { error in
             guard let error else {
-                if Self.takeoverNoticeIDs.contains(id) {
-                    Task { await WatchLogger.shared.log("⌚️ Untethered: notification \(id) booked", force: true) }
+                guard Self.takeoverNoticeIDs.contains(id) else { return }
+                // whether watchOS shows it at all: Trio's notifications on the watch may be off, or not shown as
+                // banners (7 November: booked, felt as Trio's own taps, never seen, and no reminder came)
+                UNUserNotificationCenter.current().getNotificationSettings { settings in
+                    func name(_ setting: UNNotificationSetting) -> String {
+                        switch setting {
+                        case .enabled: return "on"
+                        case .disabled: return "off"
+                        default: return "n/a"
+                        }
+                    }
+                    let line = "⌚️ Untethered: notification \(id) booked; watch settings: allowed \(settings.authorizationStatus.rawValue)"
+                        + ", alerts \(name(settings.alertSetting)), sound \(name(settings.soundSetting))"
+                        + ", time-sensitive \(name(settings.timeSensitiveSetting))"
+                        + ", notification center \(name(settings.notificationCenterSetting))"
+                    Task { await WatchLogger.shared.log(line, force: true) }
                 }
                 return
             }
