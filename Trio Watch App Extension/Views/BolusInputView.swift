@@ -7,6 +7,9 @@ import WatchKit
 struct BolusInputView: View {
     @Binding var navigationPath: NavigationPath
     @State private var bolusAmount = 0.0
+    /// The phone's Reduced Bolus and Super Bolus for this meal, when the phone has the option on; one at a time.
+    @State private var reducedBolus = false
+    @State private var superBolus = false
 
     let state: WatchState
 
@@ -110,7 +113,27 @@ struct BolusInputView: View {
                     Text("Insulin")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                        .padding(.bottom)
+                        .padding(.bottom, state.offersReducedBolus || state.offersSuperBolus ? 2 : nil)
+
+                    if state.offersReducedBolus || state.offersSuperBolus {
+                        HStack(spacing: 6) {
+                            if state.offersReducedBolus {
+                                optionButton(String(localized: "Reduced", comment: "Reduced bolus option on the watch"), isOn: reducedBolus) {
+                                    reducedBolus.toggle()
+                                    if reducedBolus { superBolus = false }
+                                    state.requestBolusRecommendation(reducedBolus: reducedBolus, superBolus: superBolus)
+                                }
+                            }
+                            if state.offersSuperBolus {
+                                optionButton(String(localized: "Super", comment: "Super bolus option on the watch"), isOn: superBolus) {
+                                    superBolus.toggle()
+                                    if superBolus { reducedBolus = false }
+                                    state.requestBolusRecommendation(reducedBolus: reducedBolus, superBolus: superBolus)
+                                }
+                            }
+                        }
+                        .padding(.bottom, 4)
+                    }
 
                     Spacer()
 
@@ -171,5 +194,20 @@ struct BolusInputView: View {
                 bolusAmount = Double(truncating: NSDecimalNumber(decimal: newValue))
             }
         }
+    }
+
+    /// A reduced or super bolus, on or off: the recommendation follows.
+    private func optionButton(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption2)
+                .fontWeight(isOn ? .semibold : .regular)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(isOn ? Color.insulin : Color.gray.opacity(0.3)))
+                .foregroundStyle(isOn ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
