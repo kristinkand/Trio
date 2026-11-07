@@ -933,6 +933,11 @@ extension UntetheredWatchManager {
                 if case let .failure(error) = result {
                     self.setError(error.localizedDescription)
                 } else {
+                    // as the phone's: a bolus cancelled early ends its delivery now, so its meal-time reminder counts
+                    // from here
+                    if let reminder = self.pendingMealReminder, reminder.deliveredBy > Date() {
+                        self.remindToEat(after: reminder.minutes, bolus: 0)
+                    }
                     // in case the pod books the cancelled bolus only later: what it delivered so far counts now
                     self.runLoop(.treatment)
                 }
