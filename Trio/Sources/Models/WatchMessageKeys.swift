@@ -70,6 +70,10 @@ enum WatchMessageKeys {
     /// Adjustments › Profile: its runs over the last day and the running one, for the bar on the watch's graph.
     /// [["name": String, "start": TimeInterval, "end": TimeInterval]], no "end" while it runs until stopped.
     static let profileRuns = "profileRuns"
+    /// Adjustments › Profile: its name, for starting it from the watch's override list; "" when none is set up.
+    static let profileName = "profileName"
+    /// From the watch: start (true) or stop (false) the profile, from its override list.
+    static let profileActive = "profileActive"
     /// Overrides and temp targets over the last day and the running ones, in the same form, for their bars.
     static let overrideRuns = "overrideRuns"
     static let tempTargetRuns = "tempTargetRuns"

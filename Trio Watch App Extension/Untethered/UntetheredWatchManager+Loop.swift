@@ -742,13 +742,33 @@ extension UntetheredWatchManager {
             endTempTarget()
             answer(true, String(localized: "Temp target canceled on the Apple Watch"))
         case .startProfile:
-            let now = Date()
+            let result = changeProfile(start: true, grant: grant, epoch: epoch)
+            answer(result.done, result.message)
+        case .stopProfile:
+            let result = changeProfile(start: false, grant: grant, epoch: epoch)
+            answer(result.done, result.message)
+        }
+    }
+
+    /// The profile started or stopped from the watch itself (Overrides › Profile) while it has the pump, as from
+    /// LoopFollow: started until stopped. The phone hears of it as of a remote command.
+    func changeProfileFromWatch(start: Bool) -> (done: Bool, message: String) {
+        guard data.session.phase == .active, !isFinalizing, let grant = data.grant else {
+            return (false, String(localized: "The Apple Watch doesn't have the pump right now."))
+        }
+        Task { await WatchLogger.shared.log("⌚️ Untethered: profile \(start ? "start" : "stop") from the watch", force: true) }
+        return changeProfile(start: start, grant: grant, epoch: data.session.epoch)
+    }
+
+    private func changeProfile(start: Bool, grant: UntetheredGrant, epoch: Int) -> (done: Bool, message: String) {
+        let now = Date()
+        if start {
             if let running = grant.profile, running.isRunning(at: now) {
                 // already the state asked for, as on the phone
-                return answer(true, String(localized: "\(running.name) was already active"))
+                return (true, String(localized: "\(running.name) was already active"))
             }
             guard let setup = grant.profileSetup else {
-                return answer(
+                return (
                     false,
                     String(localized: "Command rejected: no profile is set up on the iPhone, or its build can't send it to the watch.")
                 )
@@ -756,16 +776,14 @@ extension UntetheredWatchManager {
             // as the phone's remote start: until stopped
             setProfile(setup, startedAt: now, endsAt: nil)
             send(.profileChanged(UntetheredProfileChange(name: setup.name, startedAt: now, stoppedAt: nil)), epoch: epoch, queueing: true)
-            answer(true, String(localized: "\(setup.name) started on the Apple Watch"))
-        case .stopProfile:
-            let now = Date()
-            guard let running = grant.profile, running.isRunning(at: now) else {
-                return answer(true, String(localized: "The profile was already inactive"))
-            }
-            setProfile(running, startedAt: running.startedAt, endsAt: now)
-            send(.profileChanged(UntetheredProfileChange(name: running.name, startedAt: nil, stoppedAt: now)), epoch: epoch, queueing: true)
-            answer(true, String(localized: "\(running.name) stopped on the Apple Watch"))
+            return (true, String(localized: "\(setup.name) started on the Apple Watch"))
         }
+        guard let running = grant.profile, running.isRunning(at: now) else {
+            return (true, String(localized: "The profile was already inactive"))
+        }
+        setProfile(running, startedAt: running.startedAt, endsAt: now)
+        send(.profileChanged(UntetheredProfileChange(name: running.name, startedAt: nil, stoppedAt: now)), epoch: epoch, queueing: true)
+        return (true, String(localized: "\(running.name) stopped on the Apple Watch"))
     }
 
     /// The profile the loop takes (`UntetheredGrant.effective`), started or ended on the watch; the next loop uses it.

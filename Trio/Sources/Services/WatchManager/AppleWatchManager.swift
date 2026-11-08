@@ -35,6 +35,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
     @Injected() private var overrideStorage: OverrideStorage!
     @Injected() private var tempTargetStorage: TempTargetsStorage!
     @Injected() private var adjustmentManager: AdjustmentManager!
+    @Injected() private var nightscoutManager: NightscoutManager!
     @Injected() private var bolusCalculationManager: BolusCalculationManager!
     @Injected() private var iobService: IOBService!
     @Injected() private var notificationsManager: UserNotificationsManager!
@@ -683,6 +684,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
         dictionary[WatchMessageKeys.showUnreliableG7] = UnsureGlucoseStore.isEnabled
         dictionary[WatchMessageKeys.profileRuns] = Self.profileRunsForWatch()
+        dictionary[WatchMessageKeys.profileName] = WeekendProfileStore.isConfigured ? WeekendProfileStore.name : ""
         if let unsure = UnsureGlucoseStore.shared.latest,
            Date().timeIntervalSince(unsure.date) < UnsureGlucoseStore.freshFor
         {
@@ -1025,6 +1027,11 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 return
             }
 
+            if let start = message[WatchMessageKeys.profileActive] as? Bool {
+                self.handleProfileFromWatch(start: start)
+                return
+            }
+
             if let snoozeMinutes = message[WatchMessageKeys.snoozeDuration] as? Int {
                 info(.watch, "Watch requested alert snooze for \(snoozeMinutes) min")
                 await self.notificationsManager.applySnooze(for: TimeInterval(snoozeMinutes * 60))
@@ -1191,6 +1198,31 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
 
     /// The countdown on the watch was tapped. Only the reminder the watch showed goes: the message may come late
     /// (queued while the phone was off), and a newer reminder set meanwhile stays.
+    /// Adjustments › Profile started (until stopped, as from LoopFollow) or stopped from the watch's override list.
+    @MainActor private func handleProfileFromWatch(start: Bool) {
+        info(.watch, "Watch requested profile \(start ? "start" : "stop")")
+        let name = WeekendProfileStore.name
+        if start {
+            guard WeekendProfileStore.isConfigured else {
+                sendAcknowledgment(toWatch: false, message: "No profile is set up on the iPhone.", ackCode: .genericFailure)
+                return
+            }
+            guard !WeekendProfileStore.isActive else {
+                sendAcknowledgment(toWatch: true, message: "\(name) was already active", ackCode: .genericSuccess)
+                return
+            }
+            WeekendProfileStore.activate(nightscoutManager: nightscoutManager)
+        } else {
+            guard WeekendProfileStore.isActive else {
+                sendAcknowledgment(toWatch: true, message: "\(name) was already inactive", ackCode: .genericSuccess)
+                return
+            }
+            WeekendProfileStore.deactivate(nightscoutManager: nightscoutManager, reason: "watch")
+        }
+        Foundation.NotificationCenter.default.post(name: .didUpdateWeekendProfileConfiguration, object: nil)
+        sendAcknowledgment(toWatch: true, message: start ? "\(name) started" : "\(name) stopped", ackCode: .genericSuccess)
+    }
+
     @MainActor private func cancelMealTimeReminderFromWatch(_ fireAt: TimeInterval) {
         guard let pending = mealTimeReminderService.pendingReminder,
               abs(pending.fireDate.timeIntervalSince1970 - fireAt) < 2

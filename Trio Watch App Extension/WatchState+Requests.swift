@@ -146,6 +146,33 @@ extension WatchState {
         showCommsAnimation = true
     }
 
+    /// Starts (until stopped) or stops the profile: on the watch while it has the pump, otherwise on the phone.
+    func sendProfileRequest(start: Bool) {
+        if UntetheredWatchManager.shared.isActive {
+            let result = UntetheredWatchManager.shared.changeProfileFromWatch(start: start)
+            handleAcknowledgment(success: result.done, message: result.message)
+            return
+        }
+        guard let session = session, session.isReachable else {
+            WatchLogger.shared.warning(.treatments, "Profile request not sent, phone unreachable")
+            handleAcknowledgment(success: false, message: String(localized: "iPhone not reachable."))
+            return
+        }
+
+        WatchLogger.shared.info(.treatments, "Profile \(start ? "start" : "stop") requested")
+
+        let message: [String: Any] = [
+            WatchMessageKeys.profileActive: start
+        ]
+
+        session.sendMessage(message, replyHandler: nil) { error in
+            WatchLogger.shared.error(.treatments, "Sending profile request failed", error: error)
+        }
+
+        // Display pending communication animation
+        showCommsAnimation = true
+    }
+
     /// Sends a request to cancel the current temporary target to the paired iPhone
     func sendCancelTempTargetRequest() {
         if UntetheredWatchManager.shared.isActive {

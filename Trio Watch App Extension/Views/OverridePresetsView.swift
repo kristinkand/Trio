@@ -37,6 +37,32 @@ struct OverridePresetsView: View {
                     )
                 }
 
+                // Adjustments › Profile, as on the phone under the overrides: started until stopped
+                if let profileName = state.watchProfileName {
+                    let running = state.watchProfileIsRunning
+                    Section(header: Text("Profile")) {
+                        Button {
+                            state.sendProfileRequest(start: !running)
+                            onPresetAction()
+                        } label: {
+                            HStack {
+                                Text(running ? "Stop \(profileName)" : "Start \(profileName)")
+                                    .font(.caption)
+                                if running {
+                                    Spacer()
+                                    Text("is running")
+                                        .font(.caption2)
+                                }
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .listRowBackground(
+                            (running ? Color.loopRed : Color.mint.opacity(0.45))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        )
+                    }
+                }
+
                 if sortedPresets.isEmpty {
                     Text("No Override Presets")
                         .font(.caption)

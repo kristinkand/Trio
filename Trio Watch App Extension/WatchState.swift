@@ -94,6 +94,26 @@ import WatchKit
 
     /// The phone's profile runs (Adjustments › Profile) over the last day and the running one, for the bar on the graph.
     var profileRuns: [WatchAdjustmentRun] = []
+    /// The phone's profile (Adjustments › Profile), for its row in the override list; "" when none is set up.
+    var phoneProfileName: String = ""
+
+    /// The profile the override list offers: while the watch has the pump the one it got with the pump, otherwise
+    /// the phone's. nil: none set up, or a phone build that doesn't say.
+    var watchProfileName: String? {
+        if UntetheredWatchManager.shared.isActive, let grant = UntetheredWatchManager.shared.data.grant {
+            return grant.profileSetup?.name ?? grant.profile?.name
+        }
+        return phoneProfileName.isEmpty ? nil : phoneProfileName
+    }
+
+    /// Whether that profile runs now.
+    var watchProfileIsRunning: Bool {
+        let now = Date()
+        if UntetheredWatchManager.shared.isActive, let grant = UntetheredWatchManager.shared.data.grant {
+            return grant.profile?.isRunning(at: now) ?? false
+        }
+        return profileRuns.contains { $0.start <= now && ($0.end.map { $0 > now } ?? true) }
+    }
     /// The phone's overrides and temp targets over the last day and the running ones, for their bars on the graph.
     var overrideRuns: [WatchAdjustmentRun] = []
     var tempTargetRuns: [WatchAdjustmentRun] = []
@@ -800,6 +820,9 @@ import WatchKit
         if let fireAt = message[WatchMessageKeys.mealTimeReminderAt] as? TimeInterval {
             let date = fireAt > 0 ? Date(timeIntervalSince1970: fireAt) : nil
             if date != phoneMealReminderAt { phoneMealReminderAt = date }
+        }
+        if let name = message[WatchMessageKeys.profileName] as? String, name != phoneProfileName {
+            phoneProfileName = name
         }
         if let runs = message[WatchMessageKeys.profileRuns] as? [[String: Any]] {
             let parsed = runs.compactMap(WatchAdjustmentRun.init)
