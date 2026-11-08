@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// A manual "second profile" toggle, independent of Trio's Overrides system, that runs either
 /// indefinitely until stopped by hand or -- since `indefinite`/`durationMinutes`/`useSpecificDate`/
@@ -312,7 +313,11 @@ extension WeekendProfileStore {
         isActive = true
         activeStartDate = start
         debug(.treatments, "Profile started (remote): \(logDescription)")
+        // begun before the upload: a start from the watch or LoopFollow often wakes Trio in the background only
+        // briefly, and the upload then waited for the next wake, minutes later
+        let backgroundTask = startBackgroundTask(withName: "Profile start upload")
         Task {
+            var backgroundTaskID = backgroundTask
             let event = NightscoutExercise(
                 duration: indefiniteDurationMinutes,
                 eventType: .nsExercise,
@@ -321,6 +326,7 @@ extension WeekendProfileStore {
                 notes: name
             )
             await nightscoutManager.uploadWeekendProfileEvent(event, replacingPrevious: false)
+            endBackgroundTaskSafely(&backgroundTaskID, taskName: "Profile start upload")
         }
     }
 
@@ -350,7 +356,10 @@ extension WeekendProfileStore {
         recordCompletedRun(name: runName, start: start, end: end)
 
         let elapsedMinutes = max(1, Int(end.timeIntervalSince(start) / 60))
+        // as in `activate`: the correction finishes even when the stop came in the background
+        let backgroundTask = startBackgroundTask(withName: "Profile stop upload")
         Task {
+            var backgroundTaskID = backgroundTask
             let event = NightscoutExercise(
                 duration: elapsedMinutes,
                 eventType: .nsExercise,
@@ -359,6 +368,7 @@ extension WeekendProfileStore {
                 notes: runName
             )
             await nightscoutManager.uploadWeekendProfileEvent(event, replacingPrevious: true)
+            endBackgroundTaskSafely(&backgroundTaskID, taskName: "Profile stop upload")
         }
     }
 
