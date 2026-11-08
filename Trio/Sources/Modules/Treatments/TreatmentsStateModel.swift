@@ -369,10 +369,7 @@ extension Treatments {
             mealTimeReminderEnabled = settings.settings.mealTimeReminderEnabled
             mealTimeReminderMinutes = 0
 
-            mealTimeReminderPresets = Array(Set(settings.settings.mealTimeReminderPresets.filter { $0 > 0 }))
-                .sorted()
-                .prefix(TrioSettings.mealTimeReminderPresetLimit)
-                .map { $0 }
+            mealTimeReminderPresets = TrioSettings.normalizedMealTimeReminderPresets(settings.settings.mealTimeReminderPresets)
             displayPresets = settings.settings.displayPresets
             showMealTime = settings.settings.showMealTime
             showMealNote = settings.settings.showMealNote
