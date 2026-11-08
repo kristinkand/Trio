@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// The watch's own G7 reading: the switch, the latest reading and one status
-/// line. Details, the log and the reset sit behind a button.
+/// The watch's own G7 reading: the switch, the latest reading, one status
+/// line and the pairing button. Details and the log sit behind a button.
 struct WatchG7View: View {
     @State private var showDetails = false
+    @State private var showResetConfirmation = false
 
     private var reader: WatchG7Reader { WatchG7Reader.shared }
 
@@ -43,6 +44,8 @@ struct WatchG7View: View {
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
 
+                    pairingButton
+
                     Button {
                         showDetails = true
                     } label: {
@@ -61,8 +64,48 @@ struct WatchG7View: View {
         .sheet(isPresented: $showDetails) {
             WatchG7DetailsView()
         }
+        .confirmationDialog(
+            Text("Pair the watch with the sensor again?", comment: "Confirmation title for resetting the watch's sensor pairing"),
+            isPresented: $showResetConfirmation
+        ) {
+            Button(role: .destructive) {
+                reader.resetWatchPairing()
+            } label: {
+                Text("Pair again", comment: "Confirm resetting the watch's sensor pairing")
+            }
+        }
         .onAppear {
             reader.noteWake()
+        }
+    }
+
+    /// Right under the status, never greyed out: without a key it starts the pairing now (a new sensor, or a missed
+    /// "Open Trio to Pair the Sensor"); with one it forgets the key and pairs again, after a confirmation.
+    @ViewBuilder private var pairingButton: some View {
+        if reader.hasWatchKey {
+            Button(role: .destructive) {
+                showResetConfirmation = true
+            } label: {
+                Text("Pair watch again", comment: "Button: forget the watch's own pairing with the sensor")
+                    .font(.footnote)
+            }
+        } else {
+            Button {
+                reader.pairNow()
+            } label: {
+                Text("Pair sensor now", comment: "Button: start pairing the watch with the sensor")
+                    .font(.footnote)
+                    .fontWeight(.semibold)
+            }
+            .tint(.loopGreen)
+
+            Text(
+                "Keep Trio open until the first reading shows, and accept the Bluetooth request.",
+                comment: "Hint under the watch sensor's pair button"
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
         }
     }
 
@@ -88,10 +131,9 @@ struct WatchG7View: View {
     }
 }
 
-/// Everything for testing: the share button, what the watch knows, the reset, and the log (folded away).
+/// Everything for testing: the share button, what the watch knows, and the log (folded away).
 struct WatchG7DetailsView: View {
-    @State private var showResetConfirmation = false
-    /// the log is long: folded away by default, so the details and the reset are in reach without scrolling
+    /// the log is long: folded away by default, so the details are in reach without scrolling
     @State private var showLog = false
 
     private var reader: WatchG7Reader { WatchG7Reader.shared }
@@ -139,14 +181,6 @@ struct WatchG7DetailsView: View {
                 }
                 .font(.caption2)
 
-                Divider()
-                Button(role: .destructive) {
-                    showResetConfirmation = true
-                } label: {
-                    Text("Pair watch again", comment: "Button: forget the watch's own pairing with the sensor")
-                        .font(.footnote)
-                }
-                .disabled(!reader.hasWatchKey)
 
                 if !reader.logLines.isEmpty {
                     Divider()
@@ -173,16 +207,6 @@ struct WatchG7DetailsView: View {
                 }
             }
             .padding(.horizontal, 4)
-        }
-        .confirmationDialog(
-            Text("Pair the watch with the sensor again?", comment: "Confirmation title for resetting the watch's sensor pairing"),
-            isPresented: $showResetConfirmation
-        ) {
-            Button(role: .destructive) {
-                reader.resetWatchPairing()
-            } label: {
-                Text("Pair again", comment: "Confirm resetting the watch's sensor pairing")
-            }
         }
     }
 
