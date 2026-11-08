@@ -194,8 +194,22 @@ struct GlucoseTrendView: View {
         }
     }
 
+    /// "x min ago" / the last reading's time, normally under the bubble
+    private var lastReadingText: some View {
+        Text(bottomText)
+            .font(.system(size: minutesAgoFontSize))
+            .fontWidth(isWatchStateDated && directReading == nil ? .expanded : .standard)
+    }
+
     var body: some View {
+        // a pending meal-time reminder takes the place under the bubble; the last reading moves above it
+        let remindsMeal = state.pendingMealReminderAt != nil
+
         VStack {
+            if remindsMeal {
+                lastReadingText
+            }
+
             ZStack {
                 Circle()
                     .stroke(statusColor(for: state.lastLoopTime), lineWidth: lineWidth)
@@ -241,9 +255,11 @@ struct GlucoseTrendView: View {
 
             Spacer()
 
-            Text(bottomText)
-                .font(.system(size: minutesAgoFontSize))
-                .fontWidth(isWatchStateDated && directReading == nil ? .expanded : .standard)
+            if remindsMeal {
+                MealReminderLine(state: state)
+            } else {
+                lastReadingText
+            }
 
             Spacer()
 

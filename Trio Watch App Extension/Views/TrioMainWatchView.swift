@@ -144,14 +144,6 @@ struct TrioMainWatchView: View {
                         )
                     }
 
-                    // a pending meal-time reminder: how long until it rings; a tap cancels it
-                    if state.pendingMealReminderAt != nil {
-                        VStack {
-                            MealReminderLine(state: state)
-                            Spacer()
-                        }
-                    }
-
                     if state.showSyncingAnimation {
                         Image(systemName: "iphone.radiowaves.left.and.right")
                             .symbolRenderingMode(.palette)
@@ -438,8 +430,8 @@ struct ChartScrubEnd: ViewModifier {
     }
 }
 
-/// The pending meal-time reminder on the first page, the phone's or the watch's own: "🍽 in 12 min", gone once it
-/// has rung. A tap asks whether to cancel it, so a brush of the screen doesn't.
+/// The pending meal-time reminder under the bubble on the first page, the phone's or the watch's own: "🍽 in 12 min",
+/// gone once it has rung. A tap asks whether to cancel it, so a brush of the screen doesn't.
 struct MealReminderLine: View {
     let state: WatchState
     @State private var asksToCancel = false
