@@ -1311,10 +1311,10 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 info(.bolus, "Watch bolus of \(amount) U waited \(waited) s for the pump to come back from the watch")
             }
             await apsManager.enactBolus(amount: Double(amount), isSMB: false) { success, message in
-                // as the calculator: the reminder counts from the end of the delivery
+                // as the calculator: once the bolus command was accepted, the reminder counts from now
                 if success, let reminder {
                     Task {
-                        await self.mealTimeReminderService.prepareEatReminder(
+                        await self.mealTimeReminderService.scheduleEatReminder(
                             after: reminder.leadTime,
                             carbs: reminder.carbs,
                             bolusAmount: amount
