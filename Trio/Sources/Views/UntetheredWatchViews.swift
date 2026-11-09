@@ -19,6 +19,20 @@ extension UntetheredPhoneManager {
     /// The hand-back was asked for and the watch hasn't handed back yet: it may take until the watch's next wake.
     var isHandingBack: Bool { state.session.phase == .ending }
 
+    /// Why the hand-back takes its time: the watch's bolus, which it finishes first, or the watch's next wake.
+    var handingBackText: String {
+        if let left = watchBolusLeft {
+            let units = String(format: "%.2f", left.units)
+            let time = left.until.formatted(date: .omitted, time: .shortened)
+            return String(
+                localized: "Waiting for the watch's bolus to finish: about \(units) U left, until \(time). The watch hands the pump back after it. To stop the bolus, stop it on the watch."
+            )
+        }
+        return String(
+            localized: "Open Trio on the watch to finish now. Otherwise it can take a few minutes, until the watch picks up the request."
+        )
+    }
+
     /// While the pump comes back: reaching it, then waiting for the watch's last records and the audit.
     var pumpReturnTitle: String {
         pumpReturnAnswered ? String(localized: "Checking the watch's records…") : String(localized: "Reaching the pump…")
@@ -149,7 +163,7 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
                     ? manager.state.lastError
                     ?? String(localized: "Checking what the watch delivered before the phone doses again.")
                     : manager.isHandingBack
-                    ? String(localized: "Open Trio on the watch to finish now. Otherwise it can take a few minutes, until the watch picks up the request.")
+                    ? manager.handingBackText
                     : manager.state.session.isCheckingForeignSession
                     ? String(localized: "Another controller used the pod. Dosing waits until the watch says whether it has the pump, at most 3 minutes; opening Trio on the watch answers at once.")
                     : String(localized: "The phone doesn't dose. Bolus and carbs are entered on the watch."),
@@ -308,10 +322,13 @@ struct UntetheredTreatmentGate<Content: View>: View {
                 if manager.isHandingBack {
                     VStack(spacing: 8) {
                         ProgressView()
-                        Text("Asking the watch for the pump… Open Trio on the watch to finish now. Otherwise it can take a few minutes, until the watch picks up the request.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                        // counts down while the watch's bolus runs
+                        TimelineView(.periodic(from: .now, by: 5)) { _ in
+                            Text(String(localized: "Asking the watch for the pump…") + " " + manager.handingBackText)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
                     }
                     gateButton("Take Back the Pump Now", systemImage: "exclamationmark.triangle", tint: .red) {
                         confirmForce = true
