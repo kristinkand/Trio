@@ -395,6 +395,38 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     private static let handbackRequestRetryDelay: TimeInterval = 20
     /// The returned pump has answered: what is left is the watch's last records and the audit.
     @Published private(set) var pumpReturnAnswered = false
+    /// The watch's newest bolus while it still delivers, from its records: a hand-back waits for it, and the phone
+    /// says so (9 November: a 2 U bolus from the watch, End Untethered Mode, and nothing seemed to happen).
+    @Published private(set) var watchBolus: WatchBolusInFlight?
+
+    struct WatchBolusInFlight: Equatable {
+        let id: String
+        let units: Double
+        let start: Date
+        let end: Date
+
+        /// What is left now, as the pod delivers it evenly; nil once it is over.
+        func left(at now: Date = Date()) -> (units: Double, until: Date)? {
+            guard end > now, end > start else { return nil }
+            let fraction = min(1, end.timeIntervalSince(now) / end.timeIntervalSince(start))
+            return (units * fraction, end)
+        }
+    }
+
+    /// From each pump event the watch sends: a bolus still delivering is noted, its final version clears it.
+    @MainActor private func noteWatchDose(_ dose: DoseEntry?) {
+        guard let dose, dose.type == .bolus, let id = dose.syncIdentifier else { return }
+        if dose.isMutable, dose.endDate > Date() {
+            watchBolus = WatchBolusInFlight(
+                id: id, units: dose.programmedUnits, start: dose.startDate, end: dose.endDate
+            )
+        } else if watchBolus?.id == id {
+            watchBolus = nil
+        }
+    }
+
+    /// What the watch's running bolus has left, for the hand-back.
+    var watchBolusLeft: (units: Double, until: Date)? { watchBolus?.left() }
     /// How long the start waits for the pump to answer.
     private static let pumpCheckTimeout: TimeInterval = 30
 
@@ -431,6 +463,12 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     }
 
     @MainActor func end() async {
+        if let left = watchBolusLeft {
+            info(
+                .watch,
+                "Untethered: hand-back asked while the watch's bolus runs (\(String(format: "%.2f", left.units)) U left until \(left.until)): the watch hands back after it"
+            )
+        }
         await apply(.end)
         // a watch app the system has suspended isn't reachable, and the request (repeated every 30 s) only got through
         // once Trio was in front on the watch (1 November, 11:44 to 11:45:47). Queued as well, it reaches the watch
@@ -1722,7 +1760,10 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         for record in run {
             switch record.kind {
             case let .glucose(reading): glucose.append(reading)
-            case let .pumpEvent(data): events.append(try Self.pumpEvent(from: data))
+            case let .pumpEvent(data):
+                let event = try Self.pumpEvent(from: data)
+                await MainActor.run { self.noteWatchDose(event.dose) }
+                events.append(event)
             default: break
             }
         }
@@ -1754,6 +1795,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         switch record.kind {
         case let .pumpEvent(data):
             let event = try Self.pumpEvent(from: data)
+            await MainActor.run { self.noteWatchDose(event.dose) }
             // held before the row exists, so no purge can fall in between; released once the row is final
             let pendingDose = event.dose?.syncIdentifier.flatMap { $0.isEmpty ? nil : $0 }
             if let pendingDose, event.dose?.isMutable == true {
