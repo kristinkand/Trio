@@ -702,6 +702,10 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 var handover = await releasePump()
                 // the deadline the session set at the watch's answer, the same for both sides
                 handover.leaseExpiresAt = UntetheredGate.state.session.leaseExpiresAt
+                handover.committedAt = Date()
+                if let lease = handover.leaseExpiresAt {
+                    debug(.watch, "Untethered: commit sent, takeover deadline in \(Int(lease.timeIntervalSinceNow)) s")
+                }
                 deliver(.commit(handover))
             case .takePump:
                 takePump()
