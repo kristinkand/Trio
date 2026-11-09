@@ -1239,6 +1239,8 @@ import WatchKit
     /// From the wrist, or because the linked override is over. Needs the phone close by.
     func end() {
         guard !isBolusing else {
+            // in the log too: the refusal showed only on the watch (9 November, a 2 U bolus and "it took ages")
+            Task { await WatchLogger.shared.log("⌚️ Untethered: End tapped during a bolus — refused until it finishes or is stopped", force: true) }
             setError(String(localized: "Wait for the bolus to finish, or stop it, before handing back."))
             return
         }
@@ -1272,6 +1274,9 @@ import WatchKit
             self.isFinalizing = true
             // a hand-back asked for by the phone also waits for a running bolus; a loop only so long
             let loopWaitUntil = Date().addingTimeInterval(Self.handbackPodLimit)
+            if self.isBolusing {
+                Task { await WatchLogger.shared.log("⌚️ Untethered: hand-back waits for the bolus to finish", force: true) }
+            }
             while self.isBolusing || (self.isLooping && Date() < loopWaitUntil) {
                 try? await Task.sleep(nanoseconds: 500_000_000)
             }
