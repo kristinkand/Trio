@@ -399,8 +399,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     @Published private(set) var pumpReturnAnswered = false
     /// Sends of the current start's offer that didn't get through, for the progress the screens show.
     @Published private(set) var prepareAttempts = 0
-    /// The watch's newest bolus while it still delivers, from its records: a hand-back waits for it, and the phone
-    /// says so (9 November: a 2 U bolus from the watch, End Untethered Mode, and nothing seemed to happen).
+    /// The watch's newest bolus while it still delivers, from its records: a hand-back says it goes on on the pod
+    /// (9 November: a 2 U bolus from the watch, End Untethered Mode, and nothing seemed to happen).
     @Published private(set) var watchBolus: WatchBolusInFlight?
 
     struct WatchBolusInFlight: Equatable {
@@ -471,7 +471,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         if let left = watchBolusLeft {
             info(
                 .watch,
-                "Untethered: hand-back asked while the watch's bolus runs (\(String(format: "%.2f", left.units)) U left until \(left.until)): the watch hands back after it"
+                "Untethered: hand-back asked while the watch's bolus runs (\(String(format: "%.2f", left.units)) U left until \(left.until)): it goes on on the pod"
             )
         }
         await apply(.end)
