@@ -578,6 +578,9 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         if let own = PhoneOwnGlucose.newest {
             dictionary[WatchMessageKeys.phoneOwnGlucoseDate] = own.timeIntervalSince1970
         }
+        if let dose = PhoneLastDose.date {
+            dictionary[WatchMessageKeys.phoneLastDoseDate] = dose.timeIntervalSince1970
+        }
         dictionary[WatchMessageKeys.remoteControlSecret] = Self.remoteControlSecretForWatch(settingsManager.settings)
 
         var forecastData: [String: Any] = [
