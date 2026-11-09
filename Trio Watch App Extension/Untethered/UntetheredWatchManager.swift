@@ -963,13 +963,20 @@ import WatchKit
 
     /// A background refresh as the backstop wake: if a connect is still missing, it is put in on that wake.
     /// One refresh is pending per app at a time; this one replaces the watch reader's while a session runs.
+    /// Each reading and each leaving of the screen puts it off again, so it only comes when a reading is missing.
+    /// 7 minutes: just past the point where the sensor's acquisition counts a standing request as lost (one window
+    /// of 5 minutes and 90 s, `G7WatchAcquisition.recheck`), so that wake renews it. At 10 minutes a request lost at
+    /// the start of a session with the Workout app in front stood until Trio was opened (9 November, 05:04 to
+    /// 05:11:54: 452 s without a link, "No Sensor Readings" after 11 minutes).
     func scheduleSessionRefresh() {
         guard isActive else { return }
         WKApplication.shared().scheduleBackgroundRefresh(
-            withPreferredDate: Date().addingTimeInterval(10 * 60),
+            withPreferredDate: Date().addingTimeInterval(Self.sessionRefreshDelay),
             userInfo: nil
         ) { _ in }
     }
+
+    static let sessionRefreshDelay: TimeInterval = 7 * 60
 
     func recheckCGM() {
         watchCGMRecheckAcquisition(cgmManager)
