@@ -337,6 +337,19 @@ import WatchKit
             answerSync(epoch: envelope.epoch, bucketStart: bucketStart, checksums: checksums)
 
         case let .commit(handover):
+            // the deadline by the watch's clock, and how long ago the phone sent it by its own: both clocks normally
+            // agree within a second, so a delay well off the delivery time points at the clocks
+            if let lease = handover.leaseExpiresAt {
+                let now = Date()
+                let sent = handover.committedAt.map { String(format: "%.1f s", now.timeIntervalSince($0)) } ?? "unknown"
+                Task {
+                    await WatchLogger.shared.log(
+                        "⌚️ Untethered: commit in, deadline in \(String(format: "%.1f", lease.timeIntervalSince(now))) s " +
+                            "by the watch's clock; first sent \(sent) ago by the phone's",
+                        force: true
+                    )
+                }
+            }
             apply(.received(envelope.message, epoch: envelope.epoch), reply: replyHandler) {
                 if $0.session.phase == .starting, $0.session.epoch == envelope.epoch { $0.handover = handover }
             }
