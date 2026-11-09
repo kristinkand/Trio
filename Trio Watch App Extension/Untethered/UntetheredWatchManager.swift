@@ -996,6 +996,9 @@ import WatchKit
             self.streamRecords()
             // the phone reads the sensor again: a session the fallback started goes back to it
             if let phoneReading, Date().timeIntervalSince(phoneReading) < 10 * 60, self.isFallbackSession {
+                // the hand-back checks the phone's newest reading: the wake's, as its state may not have come yet
+                // (9 November: the phone read again after its sensor was paired anew, and the watch kept the pump)
+                WatchG7Reader.shared.notePhoneOwnReading(phoneReading)
                 Task {
                     await WatchLogger.shared.log(
                         "⌚️ Untethered: fallback — the phone reads the sensor again (\(phoneReading.formatted(date: .omitted, time: .shortened)))",
