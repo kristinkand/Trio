@@ -1062,13 +1062,19 @@ import WatchKit
               (standingGrantRequestedAt ?? .distantPast).addingTimeInterval(Self.standingGrantRequestInterval) < now
         else { return }
         standingGrantRequestedAt = now
-        // queued, so a phone out of reach or asleep answers once it can; only the newest request waits
-        for transfer in WCSession.default.outstandingUserInfoTransfers
-            where (try? UntetheredEnvelope.decode(transfer.userInfo))?.message == .standingGrantRequest
-        {
-            transfer.cancel()
+        // queued, so a phone out of reach or asleep answers once it can; only the newest request waits. The list is
+        // read off the main thread (`WCTransfers`), and the request sent once the older ones are cancelled.
+        let epoch = data.session.epoch
+        WCTransfers.run {
+            for transfer in WCSession.default.outstandingUserInfoTransfers
+                where (try? UntetheredEnvelope.decode(transfer.userInfo))?.message == .standingGrantRequest
+            {
+                transfer.cancel()
+            }
+            DispatchQueue.main.async {
+                self.send(.standingGrantRequest, epoch: epoch, queueing: true)
+            }
         }
-        send(.standingGrantRequest, epoch: data.session.epoch, queueing: true)
     }
 
     /// Why there is no start without the phone, for the status page; nil when one can start.
