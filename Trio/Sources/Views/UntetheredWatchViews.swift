@@ -19,6 +19,21 @@ extension UntetheredPhoneManager {
     /// The hand-back was asked for and the watch hasn't handed back yet: it may take until the watch's next wake.
     var isHandingBack: Bool { state.session.phase == .ending }
 
+    /// The start is under way and the watch hasn't answered yet: the phone keeps the pump and doses meanwhile.
+    var isReachingWatch: Bool { state.session.phase == .preparing }
+
+    /// The start's progress, so nobody taps again while it still goes on (9 November: a link that came and went ended
+    /// a start after 30 s, and it showed only as "Untethered on Apple Watch" for a moment).
+    func startProgressText(now: Date = Date()) -> String {
+        let total = UntetheredSession.prepareTimeout
+        let left = state.session.prepareDeadline.map { max(0, Int($0.timeIntervalSince(now).rounded())) } ?? Int(total)
+        let waited = max(0, Int(total) - left)
+        let tries = prepareAttempts > 0 ? " " + String(localized: "(try \(prepareAttempts + 1))") : ""
+        return String(
+            localized: "Reaching the watch: \(waited) s of up to \(Int(total)) s\(tries). Keep Trio open on the watch. The phone keeps the pump and doses until the watch has taken it."
+        )
+    }
+
     /// Why the hand-back takes its time: the watch's bolus, which it finishes first, or the watch's next wake.
     var handingBackText: String {
         if let left = watchBolusLeft {
@@ -69,6 +84,14 @@ struct UntetheredSettingsSection: View {
                         }
                     ))
                         .labelsHidden()
+                }
+            }
+
+            if manager.isReachingWatch {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(manager.startProgressText(now: context.date))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -147,11 +170,14 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
 
     var body: some View {
         if manager.isWatchInCharge || manager.state.pumpReturnPending {
+            // by the second while the start reaches the watch, so its progress counts up
+            TimelineView(.periodic(from: .now, by: manager.isReachingWatch ? 1 : 60)) { context in
             banner(
                 manager.isBluetoothOff
                     ? String(localized: "⚠️ iPhone Bluetooth Off")
                     : manager.state.pumpReturnPending
                     ? manager.pumpReturnTitle
+                    : manager.isReachingWatch ? String(localized: "Starting Untethered…")
                     : manager.isHandingBack ? String(localized: "Asking the watch for the pump…")
                     : manager.state.session.isCheckingForeignSession ? String(localized: "Safety Check with the Watch")
                     : String(localized: "Untethered on Apple Watch"),
@@ -162,15 +188,18 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
                     : manager.state.pumpReturnPending
                     ? manager.state.lastError
                     ?? String(localized: "Checking what the watch delivered before the phone doses again.")
+                    : manager.isReachingWatch
+                    ? manager.startProgressText(now: context.date)
                     : manager.isHandingBack
                     ? manager.handingBackText
                     : manager.state.session.isCheckingForeignSession
                     // not untethered mode, though it shows in its place (6 November, 07:36: "what was that?")
                     ? String(localized: "The watch was just at the pod. The phone waits for the watch's answer before dosing again, usually a few seconds. Untethered mode is not on.")
                     : String(localized: "The phone doesn't dose. Bolus and carbs are entered on the watch."),
-                manager.isWatchInCharge,
-                { showActions = manager.isWatchInCharge }
+                manager.isWatchInCharge && !manager.isReachingWatch,
+                { showActions = manager.isWatchInCharge && !manager.isReachingWatch }
             )
+            }
             .confirmationDialog("Untethered Watch Mode", isPresented: $showActions, titleVisibility: .visible) {
                 Button("End Untethered Mode") { Task { await manager.end() } }
                 Button("Take Back the Pump Now", role: .destructive) { confirmForce = true }
