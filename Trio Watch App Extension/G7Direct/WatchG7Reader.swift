@@ -434,16 +434,21 @@ import WatchKit
         }
     }
 
-    /// Asks watchOS for a background wake about every 15 minutes (it decides
-    /// the actual timing). Each wake re-checks the sensor connection, so a
-    /// request the system dropped is put back without the app being opened.
+    /// Asks watchOS for a background wake 7 minutes on (it decides the actual timing), put off again by each
+    /// reading, so it only comes when one is missing. Each wake re-checks the sensor connection, so a request the
+    /// system dropped is put back without the app being opened. 7 minutes: just past the point where a missed sensor
+    /// window counts as lost. At 15 minutes, and booked only at launch and on its own wake, watchOS ending Trio in
+    /// the background left the watch without readings for 20 minutes (9 November, 13:16 to 13:36, relaunched only for
+    /// Bluetooth). An untethered session books its own (`scheduleSessionRefresh`), which replaces this one.
     func scheduleBackgroundRefresh() {
         guard isEnabled else { return }
         WKApplication.shared().scheduleBackgroundRefresh(
-            withPreferredDate: Date().addingTimeInterval(TimeInterval(minutes: 15)),
+            withPreferredDate: Date().addingTimeInterval(Self.backgroundRefreshDelay),
             userInfo: nil
         ) { _ in }
     }
+
+    static let backgroundRefreshDelay: TimeInterval = 7 * 60
 
     func setEnabled(_ enabled: Bool) {
         dispatchPrecondition(condition: .onQueue(.main))
@@ -947,6 +952,8 @@ import WatchKit
             )
             self.merge([reading])
             self.noteLiveReading(reading.date)
+            // the backstop wake is put off: it comes only if the next reading doesn't
+            if !self.isStandingAside { self.scheduleBackgroundRefresh() }
             self.handBackAt = nil
             UntetheredWatchManager.shared.checkFallback(readerReadings: self.history.map(\.date))
             ComplicationStore.add(reading)
