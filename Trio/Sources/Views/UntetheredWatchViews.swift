@@ -34,13 +34,13 @@ extension UntetheredPhoneManager {
         )
     }
 
-    /// Why the hand-back takes its time: the watch's bolus, which it finishes first, or the watch's next wake.
+    /// Why the hand-back takes its time: the watch's next wake. A bolus the watch runs goes on meanwhile and after.
     var handingBackText: String {
         if let left = watchBolusLeft {
             let units = String(format: "%.2f", left.units)
             let time = left.until.formatted(date: .omitted, time: .shortened)
             return String(
-                localized: "Waiting for the watch's bolus to finish: about \(units) U left, until \(time). The watch hands the pump back after it. To stop the bolus, stop it on the watch."
+                localized: "The watch's bolus goes on: about \(units) U left, until \(time). The pump comes back meanwhile; the phone keeps the bolus as the watch reported it."
             )
         }
         return String(
