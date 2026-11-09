@@ -88,6 +88,8 @@ import WatchKit
     @ObservationIgnored var lastPodLinkNotice: Date?
     /// When the phone was last heard from: any untethered message, or the phone reachable.
     @ObservationIgnored var lastPhoneContact: Date?
+    /// Since when the answer to the phone's ownership question waits for a reply that shows the phone has it.
+    @ObservationIgnored var ownershipAnswerUnconfirmedSince: Date?
     /// The fallback's hand-back is waiting out its minute.
     @ObservationIgnored var fallbackHandbackPending = false
     /// This stall's request to the phone to take the pump back.
@@ -439,7 +441,42 @@ import WatchKit
             if self.data.podEnded, self.data.session.phase == .active { self.end() }
             self.notePhoneReturn()
             self.checkLinkedOverride()
+            self.resendOwnershipAnswerIfUnconfirmed()
         }
+    }
+
+    /// The phone holds its dosing until the answer to its ownership question comes, and a queued answer reaches it only
+    /// when Trio runs on the phone: a queued transfer doesn't wake it, a message does. On 9 November (second tester)
+    /// the question came at 10:40:03, the answer went queued, Trio on the phone went back to sleep, its next reading
+    /// didn't come, and it held its dosing until it was opened at 10:48. So the answer goes again as a message at the
+    /// watch's next wakes while the phone is in reach, for up to 15 minutes, until the phone replies to one.
+    static let ownershipAnswerRetryWindow: TimeInterval = 15 * 60
+
+    private func sendOwnershipAnswer(_ message: UntetheredMessage, epoch: Int) {
+        ownershipAnswerUnconfirmedSince = Date()
+        send(message, epoch: epoch, onDelivered: { [weak self] in self?.ownershipAnswerUnconfirmedSince = nil })
+    }
+
+    /// At a wake of the watch's (a reading, the phone coming in reach): the answer as it stands now, never the one
+    /// first given, so a takeover since then is reported as holding.
+    func resendOwnershipAnswerIfUnconfirmed() {
+        guard let since = ownershipAnswerUnconfirmedSince else { return }
+        guard Date().timeIntervalSince(since) < Self.ownershipAnswerRetryWindow else {
+            ownershipAnswerUnconfirmedSince = nil
+            return
+        }
+        guard WCSession.default.activationState == .activated, WCSession.default.isReachable else { return }
+        let session = data.session
+        let holding = session.phase == .active || session.phase == .ending ? session.startStatus : nil
+        Task {
+            await WatchLogger.shared.log("⌚️ Untethered: the phone hasn't confirmed the ownership answer; sent again", force: true)
+        }
+        send(
+            .statusReport(holding: holding),
+            epoch: session.epoch,
+            queueing: false,
+            onDelivered: { [weak self] in self?.ownershipAnswerUnconfirmedSince = nil }
+        )
     }
 
     /// Why this grant can't run here, or nil.
@@ -527,8 +564,10 @@ import WatchKit
                 if let replyHandler = reply {
                     self.reply(message, epoch: epoch, via: replyHandler)
                     reply = nil
+                } else if case .statusReport = message {
+                    // queued by `send` itself, and sent again until the phone is seen to have it
+                    sendOwnershipAnswer(message, epoch: epoch)
                 } else {
-                    // `.statusReport`, the answer to the phone's ownership question, is queued by `send` itself
                     send(message, epoch: epoch)
                 }
             case .takeover:
@@ -634,6 +673,7 @@ import WatchKit
         epoch: Int,
         queueing: Bool? = nil,
         onReply: (() -> Void)? = nil,
+        onDelivered: (() -> Void)? = nil,
         onFailure: (() -> Void)? = nil
     ) {
         guard WCSession.isSupported(), WCSession.default.activationState == .activated,
@@ -672,6 +712,7 @@ import WatchKit
         for part in UntetheredChunks.split(payload) ?? [payload] {
             session.sendMessage(part, replyHandler: { [weak self] reply in
                 DispatchQueue.main.async { self?.phoneTroubleAt = nil }
+                if let onDelivered { DispatchQueue.main.async(execute: onDelivered) }
                 guard reply[UntetheredEnvelope.key] != nil else { return }
                 self?.receive(reply, replyHandler: nil)
                 // queued behind the reply's own handling, which `receive` puts on the main queue
