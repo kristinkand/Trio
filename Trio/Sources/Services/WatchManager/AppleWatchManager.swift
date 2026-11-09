@@ -682,6 +682,9 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         if let own = PhoneOwnGlucose.newest {
             dictionary[WatchMessageKeys.phoneOwnGlucoseDate] = own.timeIntervalSince1970
         }
+        if let dose = PhoneLastDose.date {
+            dictionary[WatchMessageKeys.phoneLastDoseDate] = dose.timeIntervalSince1970
+        }
         dictionary[WatchMessageKeys.showUnreliableG7] = UnsureGlucoseStore.isEnabled
         dictionary[WatchMessageKeys.profileRuns] = Self.profileRunsForWatch()
         dictionary[WatchMessageKeys.profileName] = WeekendProfileStore.isConfigured ? WeekendProfileStore.name : ""
