@@ -65,6 +65,14 @@ import WatchKit
         [phoneGlucoseDate, phoneDoseDate].compactMap { $0 }.max()
     }
 
+    /// The phone's own newest reading as its wake carries it (`untetheredWake`), ahead of the state that brings it
+    /// too: the hand-back to a phone that reads again goes by this date.
+    func notePhoneOwnReading(_ date: Date) {
+        guard date > (phoneGlucoseDate ?? .distantPast) else { return }
+        phoneGlucoseDate = date
+        defaults.set(date, forKey: Key.phoneGlucoseDate)
+    }
+
     // MARK: - Private
 
     @ObservationIgnored private var session: WatchG7Session?
