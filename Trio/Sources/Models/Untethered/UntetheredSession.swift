@@ -57,8 +57,11 @@ struct UntetheredSession: Codable, Equatable {
     }
 
     /// How long the phone keeps offering a start (`prepare`, sent again every few seconds) before it gives up. 15 s
-    /// with a single send failed whenever WatchConnectivity didn't get through at once (25 October: four tries).
-    static let prepareTimeout: TimeInterval = 30
+    /// with a single send failed whenever WatchConnectivity didn't get through at once (25 October: four tries); 30 s
+    /// ran out while the link came and went every few seconds (9 November, second tester: the watch had the offer at
+    /// 26 s, its answer didn't get back in time). The phone keeps the pump and doses meanwhile, and both sides show
+    /// that the start is under way.
+    static let prepareTimeout: TimeInterval = 90
     /// A start without the phone has this long to reach the pump.
     static let takeoverWithoutPhoneLease: TimeInterval = 5 * 60
     /// After the lease the phone asks once whether the watch holds the pump.

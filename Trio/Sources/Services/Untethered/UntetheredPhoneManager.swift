@@ -395,6 +395,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     private static let handbackRequestRetryDelay: TimeInterval = 20
     /// The returned pump has answered: what is left is the watch's last records and the audit.
     @Published private(set) var pumpReturnAnswered = false
+    /// Sends of the current start's offer that didn't get through, for the progress the screens show.
+    @Published private(set) var prepareAttempts = 0
     /// The watch's newest bolus while it still delivers, from its records: a hand-back waits for it, and the phone
     /// says so (9 November: a 2 U bolus from the watch, End Untethered Mode, and nothing seemed to happen).
     @Published private(set) var watchBolus: WatchBolusInFlight?
@@ -454,6 +456,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 )
             }
             let grant = try await makeGrant(linkedOverrideID: linkedOverrideID)
+            prepareAttempts = 0
             await apply(.start(grant))
             return nil
         } catch {
@@ -832,7 +835,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             // the tick ends the start with "the watch did not answer"
             return
         }
-        debug(.watch, "Untethered: the start didn't reach the watch (\(why)), trying again")
+        prepareAttempts += 1
+        debug(.watch, "Untethered: the start didn't reach the watch (\(why)), trying again (\(prepareAttempts + 1). try)")
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.prepareRetryDelay) { [weak self] in
             guard let self, self.state.session.phase == .preparing, self.state.session.epoch == epoch else { return }
             self.send(message, epoch: epoch)
