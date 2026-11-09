@@ -699,7 +699,10 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             case let .send(message):
                 deliver(message)
             case .commit:
-                deliver(.commit(await releasePump()))
+                var handover = await releasePump()
+                // the deadline the session set at the watch's answer, the same for both sides
+                handover.leaseExpiresAt = UntetheredGate.state.session.leaseExpiresAt
+                deliver(.commit(handover))
             case .takePump:
                 takePump()
             case .reconcile:
