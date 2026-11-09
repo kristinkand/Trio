@@ -54,6 +54,15 @@ import WatchKit
     /// while it has lost the sensor (flight mode keeps the watch link), so
     /// this, not the contact, says whether the phone's glucose is current.
     private(set) var phoneGlucoseDate: Date?
+    /// When the phone last enacted a temp basal or bolus, from its state. Nil from a phone build without it.
+    private(set) var phoneDoseDate: Date?
+
+    /// The newest sign that the phone loops: its own newest reading or its last dose, whichever is newer. Contact
+    /// alone isn't one (22 October: a phone in a metal pot got through for 5 s with only an old reading), nor are its
+    /// status reads of the pod (8 November: a phone without a sensor kept reaching the pod and couldn't loop).
+    var phoneLoopSign: Date? {
+        [phoneGlucoseDate, phoneDoseDate].compactMap { $0 }.max()
+    }
 
     // MARK: - Private
 
@@ -86,6 +95,7 @@ import WatchKit
         static let lastAlert = "watchG7.lastAlert."
         static let lastPhoneContact = "watchG7.lastPhoneContact"
         static let phoneGlucoseDate = "watchG7.phoneGlucoseDate"
+        static let phoneDoseDate = "watchG7.phoneDoseDate"
         static let liveReadings = "watchG7.liveReadings"
         static let asideSpans = "watchG7.asideSpans"
     }
@@ -110,6 +120,7 @@ import WatchKit
         peripheralIdentifier = defaults.string(forKey: Key.peripheralIdentifier).flatMap(UUID.init(uuidString:))
         lastPhoneContact = defaults.object(forKey: Key.lastPhoneContact) as? Date
         phoneGlucoseDate = defaults.object(forKey: Key.phoneGlucoseDate) as? Date
+        phoneDoseDate = defaults.object(forKey: Key.phoneDoseDate) as? Date
         if let data = defaults.data(forKey: Key.history),
            let saved = try? JSONDecoder().decode([WatchG7Reading].self, from: data)
         {
@@ -563,6 +574,13 @@ import WatchKit
             defaults.set(date, forKey: Key.phoneGlucoseDate)
             session?.notePhoneReading(at: date)
             bookNoReadingsAlert()
+        }
+        if let dose = payload[WatchMessageKeys.phoneLastDoseDate] as? TimeInterval {
+            let date = Date(timeIntervalSince1970: dose)
+            if date > (phoneDoseDate ?? .distantPast) {
+                phoneDoseDate = date
+                defaults.set(date, forKey: Key.phoneDoseDate)
+            }
         }
 
         // Units from the dedicated key; the general one only from a state with

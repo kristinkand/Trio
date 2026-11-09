@@ -400,9 +400,8 @@ struct UntetheredStatusView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)
-                .disabled(manager.isBolusing)
                 if manager.isBolusing {
-                    note("A bolus is running. Hand back once it is done, or stop it with the treatment button.")
+                    note("A bolus is running. It goes on after the hand-back; to stop it, use the treatment button first.")
                 }
                 stopButton
                 // an alarming pod goes quiet when deactivated; the phone pairs the next one
