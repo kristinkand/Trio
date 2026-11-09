@@ -85,6 +85,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     private var openAPS: OpenAPS!
     private var ticker: Timer?
+    /// Trio kept running for the first seconds of the wait for the watch's ownership answer.
+    private var answerWaitTask = UIBackgroundTaskIdentifier.invalid
     private var lastHandledForeignSessionAt: Date?
     private let assembler = UntetheredChunks.Assembler()
     private var endRequestTimer: Timer?
@@ -744,6 +746,19 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             ticker?.invalidate()
             ticker = nil
         }
+        // The ownership question goes out from a background wake (a reading, a refused pod command), and the watch's
+        // answer, queued when the phone is out of reach for that moment, is delivered only while Trio runs: on
+        // 9 November (second tester) Trio went back to sleep 4 s after asking at 10:40:03 and held its dosing until
+        // it was opened at 10:48. Kept running for the seconds the system gives, which an answer usually needs.
+        if state.session.isCheckingForeignSession {
+            if answerWaitTask == .invalid {
+                answerWaitTask = UIApplication.shared.beginBackgroundTask(withName: "Untethered ownership answer") {
+                    [weak self] in self?.endAnswerWait()
+                }
+            }
+        } else {
+            endAnswerWait()
+        }
         if phase == .ending {
             // repeated until the watch hands back; it may be reachable without a reachability change
             if endRequestTimer == nil {
@@ -758,6 +773,12 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             endRequestTimer = nil
         }
         Task { await scheduleLinkedOverrideCheck() }
+    }
+
+    @MainActor private func endAnswerWait() {
+        guard answerWaitTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(answerWaitTask)
+        answerWaitTask = .invalid
     }
 
     /// A refused pod command exposes the watch's newer EAP session before WatchConnectivity
