@@ -973,6 +973,7 @@ import WatchKit
             if !self.isStandingAside { self.scheduleBackgroundRefresh() }
             self.handBackAt = nil
             UntetheredWatchManager.shared.checkFallback(readerReadings: self.history.map(\.date))
+            UntetheredWatchManager.shared.resendOwnershipAnswerIfUnconfirmed()
             ComplicationStore.add(reading)
             self.bookNoReadingsAlert()
             self.appendLog("Reading \(self.format(Double(reading.glucose))) \(self.units) \(self.arrow(for: reading.trendName))")
