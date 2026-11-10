@@ -24,6 +24,9 @@ struct CurrentGlucoseView: View {
 
     /// A reading the G7 marks unreliable, shown greyed with a warning when it's newer than the last reliable one.
     @ObservedObject var unsureStore = UnsureGlucoseStore.shared
+    /// One line of the sensor tag's callout text.
+    private static let tagLineHeight: CGFloat = 20
+
     private var unsureReading: UnsureGlucose? {
         _ = timerDate
         return unsureStore.current(after: glucose.last?.date)
@@ -118,7 +121,9 @@ struct CurrentGlucoseView: View {
             // with an unreliable reading the trend arrow is hidden, so the tag can't collide with it
             if let tag = tagLabel, !trendIsDownward || unsureReading != nil {
                 SensorStatusTagView(text: tag.text, theme: tag.theme, iconSystemName: tag.icon)
-                    .offset(y: 14)
+                    // the unreliable reading's tag has two lines and grew up into the bubble, hard to read (first
+                    // tester, 11 November): one line further down
+                    .offset(y: unsureReading != nil ? 14 + Self.tagLineHeight : 14)
                     .zIndex(1)
             }
         }
