@@ -329,7 +329,7 @@ struct WeekendProfileSection: View {
                     HStack {
                         Text("Duration")
                         Spacer()
-                        Text(state.formatHoursAndMinutes(Int(weekendDurationMinutes)))
+                        Text(Duration(minutes: weekendDurationMinutes).formattedTimeSpan())
                             .foregroundColor(!displayPickerDuration ? .primary : .accentColor)
                             .onTapGesture {
                                 displayPickerDuration.toggle()
@@ -367,7 +367,7 @@ struct WeekendProfileSection: View {
                         displayPickerDuration = false
                         startProfile(mode: .duration, durationMinutes: weekendDurationMinutes)
                     } label: {
-                        Text("Start for \(state.formatHoursAndMinutes(Int(weekendDurationMinutes)))")
+                        Text("Start for \(Duration(minutes: weekendDurationMinutes).formattedTimeSpan())")
                             .frame(maxWidth: .infinity)
                     }
                     .disabled(weekendDurationMinutes <= 0)
