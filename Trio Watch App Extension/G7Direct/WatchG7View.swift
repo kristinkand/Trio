@@ -120,6 +120,15 @@ struct WatchG7View: View {
                 Text("Check iPhone again", comment: "Button: ask the iPhone for the sensor and its pairing code")
                     .font(.footnote)
             }
+        } else if reader.hasWatchKey, reader.isWaitingForFirstReadingAfterPairing {
+            // the pairing is done; pairing again now would only throw the key away
+            Text(
+                "No need to pair again. Keep Trio open until the reading shows.",
+                comment: "Hint under the watch sensor's status right after a pairing, before its first reading"
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
         } else if reader.hasWatchKey {
             Button(role: .destructive) {
                 showResetConfirmation = true
