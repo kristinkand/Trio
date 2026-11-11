@@ -262,16 +262,56 @@ import WatchKit
             if !showsUnreliableG7 {
                 unsureGlucoseMgdl = nil
                 unsureGlucoseDate = nil
+                unsureGlucoseHistory = []
             }
         }
     }
 
     func noteUnsureGlucose(mgdl: Int, date: Date) {
         DispatchQueue.main.async {
-            guard self.showsUnreliableG7, date > (self.unsureGlucoseDate ?? .distantPast) else { return }
+            guard self.showsUnreliableG7 else { return }
+            self.addUnsureGlucose([(date: date, mgdl: mgdl)])
+            guard date > (self.unsureGlucoseDate ?? .distantPast) else { return }
             self.unsureGlucoseMgdl = mgdl
             self.unsureGlucoseDate = date
         }
+    }
+
+    /// The flagged readings of the last 24 h, oldest first, from the phone, the watch's own reader or untethered
+    /// mode: the chart's hollow orange dots. Kept across relaunches.
+    var unsureGlucoseHistory: [(date: Date, mgdl: Int)] = WatchState.loadUnsureGlucoseHistory() {
+        didSet {
+            let saved = unsureGlucoseHistory.map { [$0.date.timeIntervalSince1970, Double($0.mgdl)] }
+            UserDefaults.standard.set(saved, forKey: Self.unsureGlucoseHistoryKey)
+        }
+    }
+
+    private static let unsureGlucoseHistoryKey = "unsureGlucoseHistory"
+
+    private static func loadUnsureGlucoseHistory() -> [(date: Date, mgdl: Int)] {
+        guard UserDefaults.standard.bool(forKey: WatchMessageKeys.showUnreliableG7),
+              let saved = UserDefaults.standard.array(forKey: unsureGlucoseHistoryKey) as? [[Double]]
+        else { return [] }
+        let now = Date()
+        return saved.compactMap { pair -> (date: Date, mgdl: Int)? in
+            guard pair.count == 2 else { return nil }
+            let date = Date(timeIntervalSince1970: pair[0])
+            return now.timeIntervalSince(date) < 24 * 60 * 60 ? (date: date, mgdl: Int(pair[1])) : nil
+        }
+    }
+
+    /// Adds readings not already there within a minute; drops those older than 24 h. On the main queue.
+    private func addUnsureGlucose(_ new: [(date: Date, mgdl: Int)]) {
+        let now = Date()
+        var merged = unsureGlucoseHistory.filter { now.timeIntervalSince($0.date) < 24 * 60 * 60 }
+        for reading in new where now.timeIntervalSince(reading.date) < 24 * 60 * 60 {
+            guard !merged.contains(where: { abs($0.date.timeIntervalSince(reading.date)) < 60 }) else { continue }
+            merged.append(reading)
+        }
+        merged.sort { $0.date < $1.date }
+        guard merged.count != unsureGlucoseHistory.count || merged.last?.date != unsureGlucoseHistory.last?.date
+        else { return }
+        unsureGlucoseHistory = merged
     }
 
     /// Kept, so the lines and the time-in-range bar stay while the phone is away and after a relaunch.
@@ -832,6 +872,18 @@ import WatchKit
            let mgdl = (message[WatchMessageKeys.unsureGlucoseMgdl] as? NSNumber)?.intValue
         {
             noteUnsureGlucose(mgdl: mgdl, date: Date(timeIntervalSince1970: at))
+        }
+        if let list = message[WatchMessageKeys.unsureGlucoseValues] as? [[String: Any]] {
+            let readings = list.compactMap { entry -> (date: Date, mgdl: Int)? in
+                guard let at = entry["date"] as? TimeInterval,
+                      let mgdl = (entry["mgdl"] as? NSNumber)?.intValue
+                else { return nil }
+                return (date: Date(timeIntervalSince1970: at), mgdl: mgdl)
+            }
+            DispatchQueue.main.async {
+                guard self.showsUnreliableG7 else { return }
+                self.addUnsureGlucose(readings)
+            }
         }
 
         if let minYAxisValue = message[WatchMessageKeys.minYAxisValue] {
