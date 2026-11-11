@@ -41,6 +41,23 @@ import WatchKit
     private(set) var isStandingAside = false
     /// Back from untethered mode, until the first reading arrives.
     private(set) var isReconnecting = false
+    /// A pairing started on the sensor page or by a reset, until the sensor first answers: the sensor checks in only
+    /// every 5 minutes, so a press shows nothing at once (11 November, second tester: "Pair sensor now" twice in
+    /// 6 s, the sensor found 2 min later).
+    private(set) var pairingStartedAt: Date?
+    /// The pairing ran and the key is in, but the sensor dropped the link at the Bluetooth step, as it often does:
+    /// the next check-in reads with this key. Until then the page says so and offers no "Pair watch again", which
+    /// would throw the good key away (11 November, second tester: two resets after good pairings at 07:10 and
+    /// 07:15; the 07:15 key read at 07:30).
+    private(set) var pairedAt: Date?
+    /// How long "Paired" waits for the first reading before "Pair watch again" shows again: three check-ins.
+    static let pairedGrace: TimeInterval = 15 * 60
+
+    var isWaitingForFirstReadingAfterPairing: Bool {
+        guard let pairedAt else { return false }
+        return Date().timeIntervalSince(pairedAt) < Self.pairedGrace
+    }
+
     /// The sensor's state when it last answered without a usable reading (warm-up, failed, ...).
     private(set) var sensorProblem: String? = nil
     /// The same as a few words for the first page, so a missing reading is put down to the sensor, not the watch.
@@ -278,6 +295,18 @@ import WatchKit
         if isConnected {
             return String(localized: "Connected", comment: "Watch G7 status: connected")
         }
+        if hasWatchKey, isWaitingForFirstReadingAfterPairing {
+            return String(
+                localized: "Paired. First reading at the sensor's next check (within 5 min).",
+                comment: "Watch G7 status: paired, the sensor dropped the link at the Bluetooth step; the next check-in reads"
+            )
+        }
+        if !hasWatchKey, let pairingStartedAt, Date().timeIntervalSince(pairingStartedAt) < Self.pairedGrace {
+            return String(
+                localized: "Looking for the sensor. It checks in every 5 min; keep Trio open.",
+                comment: "Watch G7 status: pairing started, waiting for the sensor's next check-in"
+            )
+        }
         if isSearching {
             return String(
                 localized: "Searching… keep this open",
@@ -500,6 +529,8 @@ import WatchKit
     func resetWatchPairing() {
         dispatchPrecondition(condition: .onQueue(.main))
         appendLog("Pairing reset on the watch")
+        pairedAt = nil
+        pairingStartedAt = Date()
         setSharedKey(nil)
         setPeripheralIdentifier(nil)
         session?.update(credentials: credentials)
@@ -515,6 +546,7 @@ import WatchKit
     func pairNow() {
         dispatchPrecondition(condition: .onQueue(.main))
         appendLog("Pairing: started from the sensor page")
+        if pairingStartedAt == nil { pairingStartedAt = Date() }
         WatchState.shared.requestWatchStateUpdate()
         lastPairingAsk = nil
         startSessionIfPossible()
@@ -976,6 +1008,9 @@ import WatchKit
 
     func session(_: WatchG7Session, didRead message: WatchG7GlucoseMessage, receivedAt: Date) {
         DispatchQueue.main.async {
+            // any answer ends a pairing's wait
+            self.pairingStartedAt = nil
+            self.pairedAt = nil
             guard message.hasReliableGlucose, let glucose = message.glucose else {
                 // a value the sensor marks unreliable: shown greyed with a warning, never used
                 if let glucose = message.glucose {
@@ -1024,6 +1059,8 @@ import WatchKit
     func session(_: WatchG7Session, didAuthenticateWith sharedKey: Data) {
         DispatchQueue.main.async {
             self.setSharedKey(sharedKey)
+            self.pairingStartedAt = nil
+            self.pairedAt = Date()
             self.appendLog("Paired with the sensor")
         }
     }

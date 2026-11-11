@@ -103,7 +103,16 @@ struct WatchG7View: View {
     /// Right under the status, never greyed out: without a key it starts the pairing now (a new sensor, or a missed
     /// "Open Trio to Pair the Sensor"); with one it forgets the key and pairs again, after a confirmation.
     @ViewBuilder private var pairingButton: some View {
-        if reader.hasWatchKey {
+        if reader.hasWatchKey, reader.isWaitingForFirstReadingAfterPairing {
+            // the pairing is done; pairing again now would only throw the key away
+            Text(
+                "No need to pair again. Keep Trio open until the reading shows.",
+                comment: "Hint under the watch sensor's status right after a pairing, before its first reading"
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+        } else if reader.hasWatchKey {
             Button(role: .destructive) {
                 showResetConfirmation = true
             } label: {
