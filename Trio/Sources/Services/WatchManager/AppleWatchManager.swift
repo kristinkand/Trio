@@ -688,11 +688,17 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         dictionary[WatchMessageKeys.showUnreliableG7] = UnsureGlucoseStore.isEnabled
         dictionary[WatchMessageKeys.profileRuns] = Self.profileRunsForWatch()
         dictionary[WatchMessageKeys.profileName] = WeekendProfileStore.isConfigured ? WeekendProfileStore.name : ""
-        if let unsure = UnsureGlucoseStore.shared.latest,
+        let unsureReadings = UnsureGlucoseStore.shared.snapshot
+        if let unsure = unsureReadings.last,
            Date().timeIntervalSince(unsure.date) < UnsureGlucoseStore.freshFor
         {
             dictionary[WatchMessageKeys.unsureGlucoseMgdl] = unsure.mgdl
             dictionary[WatchMessageKeys.unsureGlucoseDate] = unsure.date.timeIntervalSince1970
+        }
+        if UnsureGlucoseStore.isEnabled {
+            dictionary[WatchMessageKeys.unsureGlucoseValues] = unsureReadings.map {
+                ["mgdl": $0.mgdl, "date": $0.date.timeIntervalSince1970] as [String: Any]
+            }
         }
         dictionary[WatchMessageKeys.remoteControlSecret] = Self.remoteControlSecretForWatch(settingsManager.settings)
 
