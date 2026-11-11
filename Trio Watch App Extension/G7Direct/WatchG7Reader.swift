@@ -64,6 +64,15 @@ import WatchKit
         [phoneGlucoseDate, phoneDoseDate].compactMap { $0 }.max()
     }
 
+    /// The phone took the pump back from an untethered session: it doses from now on, as its next state will say,
+    /// often minutes late (11 November, 10:51: the fallback looked at the pod 5 minutes after a hand-back, and the
+    /// look cost the phone its next loop). Counts as its newest dose until the state brings a newer one.
+    func notePhoneTookPump(at date: Date = Date()) {
+        guard date > (phoneDoseDate ?? .distantPast) else { return }
+        phoneDoseDate = date
+        defaults.set(date, forKey: Key.phoneDoseDate)
+    }
+
     /// The phone's own newest reading as its wake carries it (`untetheredWake`), ahead of the state that brings it
     /// too: the hand-back to a phone that reads again goes by this date.
     func notePhoneOwnReading(_ date: Date) {
