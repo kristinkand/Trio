@@ -228,7 +228,7 @@ import WatchKit
     var unsureGlucoseMgdl: Int?
     var unsureGlucoseDate: Date?
 
-    /// The phone's "Show Unreliable G7 Readings"; kept, so the watch's own reader and untethered mode follow it
+    /// The phone's "Show Unreliable Sensor Readings"; kept, so the watch's own reader and untethered mode follow it
     /// while the phone is away. Off unless the phone said otherwise.
     var showsUnreliableG7 = UserDefaults.standard.bool(forKey: WatchMessageKeys.showUnreliableG7) {
         didSet {
