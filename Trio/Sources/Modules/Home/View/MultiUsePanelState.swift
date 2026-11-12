@@ -8,6 +8,7 @@ enum MultiUsePanelState: Equatable {
     /// What the pump delivered in an untethered session and what the complete history says still differ.
     case untetheredAudit(String)
     case maxIOBZero
+    case tidepoolLoginRequired
     case whatsNew
     case dosingModeLimited(DosingMode)
     case stats
@@ -20,6 +21,7 @@ enum MultiUsePanelState: Equatable {
         pumpTimeMismatch: Bool,
         lastGlucoseDate: Date?,
         maxIOB: Decimal,
+        tidepoolLoginRequired: Bool,
         hasUnacknowledgedReleaseNotes: Bool,
         dosingMode: DosingMode,
         untetheredAuditFinding: String? = nil,
@@ -35,6 +37,8 @@ enum MultiUsePanelState: Equatable {
             return .dosingModeLimited(dosingMode)
         }
         if maxIOB <= 0 { return .maxIOBZero }
+        // Uploads only, so it yields to every dosing-related warning above.
+        if tidepoolLoginRequired { return .tidepoolLoginRequired }
         // Informational, so it yields to every warning above but still displaces the stats.
         if hasUnacknowledgedReleaseNotes { return .whatsNew }
         return .stats
