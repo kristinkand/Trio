@@ -277,7 +277,8 @@ extension Adjustments.StateModel: SettingsObserver, PreferencesObserver {
     /// elapsed one, so Loop Follow (and any other Nightscout-based viewer) shows the real end time
     /// instead of ~30 days out.
     func stopWeekendProfile() {
-        let end = Date()
+        // as `WeekendProfileStore.deactivate`: a run whose end time has passed ended then
+        let end = ProfileRules.stopDate(requested: Date(), endDate: WeekendProfileStore.activeEndDate)
         let name = WeekendProfileStore.name
         guard let start = WeekendProfileStore.activeStartDate else {
             // Nothing to close out -- e.g. Weekend Profile was already active before this version's
@@ -289,7 +290,7 @@ extension Adjustments.StateModel: SettingsObserver, PreferencesObserver {
         debug(.storage, "Profile stopped (in app): ran \(start) - \(end)")
         WeekendProfileStore.recordCompletedRun(name: name, start: start, end: end)
 
-        let elapsedMinutes = max(1, Int(end.timeIntervalSince(start) / 60))
+        let elapsedMinutes = ProfileRules.elapsedMinutes(start: start, end: end)
         Task {
             let event = NightscoutExercise(
                 duration: elapsedMinutes,
