@@ -283,8 +283,14 @@ struct UntetheredGrant: Codable, Equatable {
     func withProfile(at now: Date, overrideOrTempTargetActive: Bool) -> UntetheredGrant {
         guard !overrideOrTempTargetActive, let profile, profile.isRunning(at: now) else { return self }
         var grant = self
-        if !profile.basalProfile.isEmpty { grant.basalProfile = profile.basalProfile }
-        if let isf = profile.insulinSensitivities, !isf.sensitivities.isEmpty { grant.insulinSensitivities = isf }
+        let schedules = ProfileRules.schedules(
+            regularBasal: basalProfile,
+            regularSensitivities: insulinSensitivities,
+            profileBasal: profile.basalProfile,
+            profileSensitivities: profile.insulinSensitivities
+        )
+        grant.basalProfile = schedules.basal
+        grant.insulinSensitivities = schedules.sensitivities
         return grant
     }
 }
@@ -302,7 +308,7 @@ struct UntetheredProfile: Codable, Equatable {
     /// Nil: until stopped.
     let endsAt: Date?
 
-    func isRunning(at now: Date) -> Bool { endsAt.map { now < $0 } ?? true }
+    func isRunning(at now: Date) -> Bool { !ProfileRules.isExpired(endDate: endsAt, now: now) }
 }
 
 /// One TDD calculation, as `TDDStored` keeps it.
