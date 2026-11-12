@@ -214,7 +214,10 @@ import WatchKit
     /// The phone app's version and build as it last said; kept. The watch app starts no session while it differs
     /// from its own, which is the case for a while after an update, until watchOS has installed the new watch app.
     var phoneAppVersion: String? = UserDefaults.standard.string(forKey: WatchMessageKeys.phoneAppVersion) {
-        didSet { UserDefaults.standard.set(phoneAppVersion, forKey: WatchMessageKeys.phoneAppVersion) }
+        didSet {
+            UserDefaults.standard.set(phoneAppVersion, forKey: WatchMessageKeys.phoneAppVersion)
+            if phoneAppVersion != oldValue { UntetheredWatchManager.shared.notePhoneVersion() }
+        }
     }
 
     // chart lines and markers
