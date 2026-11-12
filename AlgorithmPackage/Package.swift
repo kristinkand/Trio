@@ -69,6 +69,7 @@ let package = Package(
                 "APS/OpenAPS/OrefPipeline.swift",
                 "Helpers/TempTargetCalculations.swift",
                 "Models/DosingMode.swift",
+                "Models/ProfileRules.swift",
                 "Models/Preferences+DosingMode.swift",
                 "Models/Untethered",
                 "Models/WatchMessageKeys.swift",

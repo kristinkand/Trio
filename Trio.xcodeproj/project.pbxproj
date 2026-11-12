@@ -456,6 +456,7 @@
 		0F890A5F6FA49726B5E5ED9A /* MealHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9E6DA12D59A12200514CEC /* MealHistory.swift */; };
 		1155E2C9AA6C36158C3F6425 /* BGTargets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 382C134A25F14E3700715CE1 /* BGTargets.swift */; };
 		1839EB2C31586EF659F1A665 /* DosingMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6B7CB32C7B71F700B75030 /* DosingMode.swift */; };
+		F0698B2460E12704251079AE /* ProfileRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = E247FFEBE04546198ABD608C /* ProfileRules.swift */; };
 		1B224F7BCE80605DA80028FB /* Profile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B5CD2AF2D4AEA6600CE213C /* Profile.swift */; };
 		1B7D5022EEB5C13F8F6989D2 /* RileyLinkKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3818AA56274C26A300843DB3 /* RileyLinkKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1CA0B08F7DEC2CCC381B41FB /* TDD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B2F77852D7E52ED005ED9FA /* TDD.swift */; };
@@ -533,6 +534,7 @@
 		BEFF8624F9C614B466DF20B6 /* TempTargetCalculations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49239B422EEA27AD00469145 /* TempTargetCalculations.swift */; };
 		C59BB00A1EAD1BA9C3229ECF /* ForecastGenerator+Forecasts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD30B9CD2E062AA300DA677C /* ForecastGenerator+Forecasts.swift */; };
 		C61BF93A63804BE071D04789 /* UntetheredTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B34245E04814390E7536BC5D /* UntetheredTests.swift */; };
+		DA499BC2C4A9E3A6041FCC6F /* ProfileRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C35397D8875AAD07F6B195B7 /* ProfileRulesTests.swift */; };
 		E5A56C7259B227DECD34B898 /* UntetheredProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C59A7740855000158B02F77 /* UntetheredProtocolTests.swift */; };
 		336BF83AC46756579D7DDFFA /* UntetheredPumpHistoryParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C9D3742188075FAB6535FDF /* UntetheredPumpHistoryParityTests.swift */; };
 		DD5FE13409741BDD93B7EFCC /* UntetheredParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28235655C8A6621A69BAAB68 /* UntetheredParityTests.swift */; };
@@ -1112,6 +1114,7 @@
 		DD6B7CB22C7B6F0800B75029 /* Rounding.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6B7CB12C7B6F0800B75029 /* Rounding.swift */; };
 		DD6B7CB42C7B71F700B75029 /* ForecastDisplayType.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6B7CB32C7B71F700B75029 /* ForecastDisplayType.swift */; };
 		DD6B7CB42C7B71F700B75030 /* DosingMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6B7CB32C7B71F700B75030 /* DosingMode.swift */; };
+		DF2E014B5104CF9F46F13D90 /* ProfileRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = E247FFEBE04546198ABD608C /* ProfileRules.swift */; };
 		DD6B7CB42C7B71F700B75031 /* Preferences+DosingMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6B7CB32C7B71F700B75031 /* Preferences+DosingMode.swift */; };
 		DD6D67E42C9C253500660C9B /* ColorSchemeOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6D67E32C9C253500660C9B /* ColorSchemeOption.swift */; };
 		DD6F63CC2D27F615007D94CF /* TreatmentMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6F63CB2D27F606007D94CF /* TreatmentMenuView.swift */; };
@@ -1875,6 +1878,7 @@
 		A815925DB49E34B07E469B9A /* UntetheredAudit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredAudit.swift; sourceTree = "<group>"; };
 		7C393F93D669F4F89FA5ADCA /* UntetheredAlgorithm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredAlgorithm.swift; sourceTree = "<group>"; };
 		B34245E04814390E7536BC5D /* UntetheredTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredTests.swift; sourceTree = "<group>"; };
+		C35397D8875AAD07F6B195B7 /* ProfileRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileRulesTests.swift; sourceTree = "<group>"; };
 		1C59A7740855000158B02F77 /* UntetheredProtocolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredProtocolTests.swift; sourceTree = "<group>"; };
 		6C9D3742188075FAB6535FDF /* UntetheredPumpHistoryParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredPumpHistoryParityTests.swift; sourceTree = "<group>"; };
 		28235655C8A6621A69BAAB68 /* UntetheredParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UntetheredParityTests.swift; sourceTree = "<group>"; };
@@ -2422,6 +2426,7 @@
 		DD6B7CB12C7B6F0800B75029 /* Rounding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rounding.swift; sourceTree = "<group>"; };
 		DD6B7CB32C7B71F700B75029 /* ForecastDisplayType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastDisplayType.swift; sourceTree = "<group>"; };
 		DD6B7CB32C7B71F700B75030 /* DosingMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DosingMode.swift; sourceTree = "<group>"; };
+		E247FFEBE04546198ABD608C /* ProfileRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileRules.swift; sourceTree = "<group>"; };
 		DD6B7CB32C7B71F700B75031 /* Preferences+DosingMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Preferences+DosingMode.swift"; sourceTree = "<group>"; };
 		DD6D67E32C9C253500660C9B /* ColorSchemeOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSchemeOption.swift; sourceTree = "<group>"; };
 		DD6F63CB2D27F606007D94CF /* TreatmentMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreatmentMenuView.swift; sourceTree = "<group>"; };
@@ -3631,6 +3636,7 @@
 				DD6B7CB32C7B71F700B75029 /* ForecastDisplayType.swift */,
 				DD6B7CB32C7B71F700B75030 /* DosingMode.swift */,
 				DD6B7CB32C7B71F700B75031 /* Preferences+DosingMode.swift */,
+				E247FFEBE04546198ABD608C /* ProfileRules.swift */,
 				DD3078692D42F94000DE0490 /* GarminDevice.swift */,
 				49090A8C2E9FE8D200D0F5DB /* GarminWatchSettings.swift */,
 				DD4FFF322D458EE600B6CFF9 /* GarminWatchState.swift */,
@@ -4042,6 +4048,7 @@
 			isa = PBXGroup;
 			children = (
 				B34245E04814390E7536BC5D /* UntetheredTests.swift */,
+				C35397D8875AAD07F6B195B7 /* ProfileRulesTests.swift */,
 				1C59A7740855000158B02F77 /* UntetheredProtocolTests.swift */,
 				28235655C8A6621A69BAAB68 /* UntetheredParityTests.swift */,
 				3B1C5C3C2D68E269004E9273 /* json */,
@@ -6775,6 +6782,7 @@
 				DD6B7CB42C7B71F700B75029 /* ForecastDisplayType.swift in Sources */,
 				DD6B7CB42C7B71F700B75030 /* DosingMode.swift in Sources */,
 				DD6B7CB42C7B71F700B75031 /* Preferences+DosingMode.swift in Sources */,
+				DF2E014B5104CF9F46F13D90 /* ProfileRules.swift in Sources */,
 				BD47FD172D88AAF50043966B /* CompletedStepView.swift in Sources */,
 				DD4AFFF12DADB59100AB7387 /* AlgorithmSettingsContentsStepView.swift in Sources */,
 				DDEBB05C2D89E9050032305D /* TimeInRangeType.swift in Sources */,
@@ -7027,6 +7035,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C61BF93A63804BE071D04789 /* UntetheredTests.swift in Sources */,
+				DA499BC2C4A9E3A6041FCC6F /* ProfileRulesTests.swift in Sources */,
 				E5A56C7259B227DECD34B898 /* UntetheredProtocolTests.swift in Sources */,
 				DD5FE13409741BDD93B7EFCC /* UntetheredParityTests.swift in Sources */,
 				477F2885616B2839D22FF0A4 /* PumpStatusStorageTests.swift in Sources */,
@@ -7277,6 +7286,7 @@
 				7F885363AAA60DF2C3A309E9 /* UntetheredMessage.swift in Sources */,
 				EAB60535CE1FDC59AFC38597 /* Preferences+DosingMode.swift in Sources */,
 				1839EB2C31586EF659F1A665 /* DosingMode.swift in Sources */,
+				F0698B2460E12704251079AE /* ProfileRules.swift in Sources */,
 				BEFF8624F9C614B466DF20B6 /* TempTargetCalculations.swift in Sources */,
 				8FA475260A697F87BCECA748 /* OrefPipeline.swift in Sources */,
 				036EA2964CBB2BB8390AA204 /* DecimalExtensions.swift in Sources */,

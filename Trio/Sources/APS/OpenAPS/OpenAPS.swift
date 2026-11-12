@@ -398,8 +398,12 @@ final class OpenAPS {
             // never touching ISF or carb ratio here (its basal and ISF schedules are substituted
             // into the profile by createProfiles()).
             let isTempTargetActive = try self.fetchActiveTempTargets(on: context).first?.enabled ?? false
-            let useWeekendProfile = override == nil && !isTempTargetActive && WeekendProfileStore.isActive &&
-                !WeekendProfileStore.isExpired
+            let useWeekendProfile = ProfileRules.applies(
+                isActive: WeekendProfileStore.isActive,
+                isExpired: WeekendProfileStore.isExpired,
+                overrideActive: override != nil,
+                tempTargetActive: isTempTargetActive
+            )
 
             let trioCustomOrefVariablesData = OrefPipeline.customOrefVariables(
                 override: useWeekendProfile ? Self.weekendProfileOverride(now: now) : override,
@@ -493,8 +497,12 @@ final class OpenAPS {
                 let isOverrideActive = try self.fetchActiveOverrides(on: context).first?.enabled ?? false
                 let tempTarget = try self.fetchActiveTempTargets(on: context).first
                 let isTempTargetActive = tempTarget?.enabled ?? false
-                let useWeekendProfile = !isOverrideActive && !isTempTargetActive && WeekendProfileStore.isActive &&
-                    !WeekendProfileStore.isExpired
+                let useWeekendProfile = ProfileRules.applies(
+                    isActive: WeekendProfileStore.isActive,
+                    isExpired: WeekendProfileStore.isExpired,
+                    overrideActive: isOverrideActive,
+                    tempTargetActive: isTempTargetActive
+                )
                 guard let tempTarget, tempTarget.enabled, let target = tempTarget.target?.decimalValue else {
                     return (nil, useWeekendProfile)
                 }
@@ -529,13 +537,14 @@ final class OpenAPS {
             // yet (empty schedule), so turning the toggle on before ever saving the editor is a
             // harmless no-op rather than an empty-schedule crash.
             if useWeekendProfile {
-                let weekendBasal = WeekendProfileStore.basalProfile
-                if !weekendBasal.isEmpty {
-                    basalProfile = weekendBasal
-                }
-                if let weekendIsf = WeekendProfileStore.insulinSensitivities, !weekendIsf.sensitivities.isEmpty {
-                    insulinSensitivities = weekendIsf
-                }
+                let schedules = ProfileRules.schedules(
+                    regularBasal: basalProfile,
+                    regularSensitivities: insulinSensitivities,
+                    profileBasal: WeekendProfileStore.basalProfile,
+                    profileSensitivities: WeekendProfileStore.insulinSensitivities
+                )
+                basalProfile = schedules.basal
+                insulinSensitivities = schedules.sensitivities
             }
 
             let pumpProfile = try ProfileGenerator.generate(
@@ -655,27 +664,11 @@ extension OpenAPS {
     /// and SMB/UAM minutes, never touching ISF or carb ratio (the same values the override fields took
     /// before the oref steps were shared with the untethered watch).
     static func weekendProfileOverride(now: Date) -> Override {
-        Override(
-            name: "Weekend Profile",
-            enabled: true,
-            date: now,
-            duration: 0,
-            indefinite: true,
-            percentage: 100,
-            smbIsOff: false,
-            isPreset: false,
-            id: "",
-            overrideTarget: true,
+        ProfileRules.override(
             target: WeekendProfileStore.target,
-            advancedSettings: true,
-            isfAndCr: false,
-            isf: false,
-            cr: false,
-            smbIsScheduledOff: false,
-            start: 0,
-            end: 0,
             smbMinutes: WeekendProfileStore.smbMinutes,
-            uamMinutes: WeekendProfileStore.uamMinutes
+            uamMinutes: WeekendProfileStore.uamMinutes,
+            now: now
         )
     }
 

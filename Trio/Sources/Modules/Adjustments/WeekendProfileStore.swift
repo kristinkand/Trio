@@ -43,11 +43,7 @@ enum WeekendProfileStore {
     private static let useSpecificDateKey = "weekendProfileUseSpecificDate"
     private static let scheduledEndDateKey = "weekendProfileScheduledEndDate"
 
-    private static let targetRange: ClosedRange<Decimal> = 72 ... 270
-    private static let minutesRange: ClosedRange<Decimal> = 0 ... 180
-    // Up to 4 days -- generous enough for a long weekend/short vacation while still bounded; see
-    // `isExpired` for how this is actually enforced.
-    private static let durationRange: ClosedRange<Decimal> = 0 ... 5760
+    // The ranges, the end of a run and the rest of its rules are in `ProfileRules` (and its tests).
 
     /// Whether Weekend Profile is currently on. Defaults to `false`.
     static var isActive: Bool {
@@ -91,9 +87,9 @@ enum WeekendProfileStore {
     /// Clamped to 0...5760 (4 days); meaningless while `indefinite` is `true` or `useSpecificDate`
     /// is `true`.
     static var durationMinutes: Decimal {
-        get { Decimal(defaults.double(forKey: durationMinutesKey)).clamped(to: durationRange) }
+        get { ProfileRules.clampedDuration(Decimal(defaults.double(forKey: durationMinutesKey))) }
         set {
-            defaults.set(Double(truncating: newValue.clamped(to: durationRange) as NSNumber), forKey: durationMinutesKey)
+            defaults.set(Double(truncating: ProfileRules.clampedDuration(newValue) as NSNumber), forKey: durationMinutesKey)
         }
     }
 
@@ -120,11 +116,13 @@ enum WeekendProfileStore {
     /// the run as indefinite (returns `nil`) if `useSpecificDate` is somehow `true` with no date
     /// actually recorded, rather than crashing or silently using some other date.
     static var activeEndDate: Date? {
-        guard !indefinite, let start = activeStartDate else { return nil }
-        if useSpecificDate {
-            return scheduledEndDate
-        }
-        return start.addingTimeInterval(TimeInterval(truncating: durationMinutes as NSNumber) * 60)
+        ProfileRules.endDate(
+            start: activeStartDate,
+            indefinite: indefinite,
+            useSpecificDate: useSpecificDate,
+            durationMinutes: durationMinutes,
+            scheduledEndDate: scheduledEndDate
+        )
     }
 
     /// True once a non-indefinite run's duration has elapsed. Computed fresh every time it's read
@@ -132,8 +130,7 @@ enum WeekendProfileStore {
     /// (`OpenAPS.prepareTrioCustomOrefVariables`/`createProfiles`) as well as from
     /// `expireIfNeeded` below.
     static var isExpired: Bool {
-        guard let end = activeEndDate else { return false }
-        return Date() >= end
+        ProfileRules.isExpired(endDate: activeEndDate, now: Date())
     }
 
     /// One completed Weekend Profile run: an on/off pair with the name it had at the time.
@@ -156,7 +153,7 @@ enum WeekendProfileStore {
             return decoded
         }
         set {
-            let capped = Array(newValue.suffix(200))
+            let capped = ProfileRules.cappedHistory(newValue)
             guard let data = try? JSONEncoder().encode(capped) else { return }
             defaults.set(data, forKey: runHistoryKey)
         }
@@ -165,7 +162,7 @@ enum WeekendProfileStore {
     /// Appends a completed run to `runHistory`. No-ops for a zero/negative-length run (e.g. toggled
     /// on and immediately off) so the history doesn't fill up with noise.
     static func recordCompletedRun(name: String, start: Date, end: Date) {
-        guard end > start else {
+        guard ProfileRules.isRecordable(start: start, end: end) else {
             debug(.treatments, "Profile run not recorded, end \(end) is not after start \(start)")
             return
         }
@@ -189,7 +186,7 @@ enum WeekendProfileStore {
     static var target: Decimal {
         get { Decimal(defaults.double(forKey: targetKey)) }
         set {
-            let clamped = newValue == 0 ? 0 : newValue.clamped(to: targetRange)
+            let clamped = ProfileRules.clampedTarget(newValue)
             defaults.set(Double(truncating: clamped as NSNumber), forKey: targetKey)
         }
     }
@@ -203,7 +200,7 @@ enum WeekendProfileStore {
             return Decimal(defaults.double(forKey: smbMinutesKey))
         }
         set {
-            defaults.set(Double(truncating: newValue.clamped(to: minutesRange) as NSNumber), forKey: smbMinutesKey)
+            defaults.set(Double(truncating: ProfileRules.clampedMinutes(newValue) as NSNumber), forKey: smbMinutesKey)
         }
     }
 
@@ -215,7 +212,7 @@ enum WeekendProfileStore {
             return Decimal(defaults.double(forKey: uamMinutesKey))
         }
         set {
-            defaults.set(Double(truncating: newValue.clamped(to: minutesRange) as NSNumber), forKey: uamMinutesKey)
+            defaults.set(Double(truncating: ProfileRules.clampedMinutes(newValue) as NSNumber), forKey: uamMinutesKey)
         }
     }
 
@@ -260,7 +257,7 @@ extension WeekendProfileStore {
     /// ~30 days, in minutes -- Trio's convention for representing an indefinite-duration entry
     /// (see `OverrideStorage.getOverrideRunsNotYetUploadedToNightscout`). `activate` posts a
     /// Nightscout entry with this duration; `deactivate` corrects it to the real elapsed time.
-    static let indefiniteDurationMinutes = 43200
+    static let indefiniteDurationMinutes = ProfileRules.indefiniteNightscoutMinutes
 
     /// Distinguishes a Weekend Profile run from a real Override on Nightscout even though both
     /// share the "Exercise" eventType and Trio's usual `enteredBy` of "Trio".
@@ -270,8 +267,7 @@ extension WeekendProfileStore {
     /// (duration or date & time), so Loop Follow shows the right end even if the correction sent at
     /// the end never gets through (e.g. iOS suspends Trio in the background); ~30 days otherwise.
     static func nightscoutStartDurationMinutes(start: Date) -> Int {
-        guard let end = activeEndDate else { return indefiniteDurationMinutes }
-        return max(1, Int((end.timeIntervalSince(start) / 60).rounded(.up)))
+        ProfileRules.nightscoutStartMinutes(start: start, endDate: activeEndDate)
     }
 
     /// One-line summary of the stored state for the log.
@@ -344,7 +340,7 @@ extension WeekendProfileStore {
         }
         // a run that expired while Trio wasn't running ended at its end time, not when Trio next looked (7 November:
         // a run to 10:52 was recorded until 11:21, when the app was opened again)
-        let end = min(stoppedAt ?? Date(), activeEndDate ?? .distantFuture)
+        let end = ProfileRules.stopDate(requested: stoppedAt ?? Date(), endDate: activeEndDate)
         isActive = false
         let runName = name
         guard let start = activeStartDate else {
@@ -355,7 +351,7 @@ extension WeekendProfileStore {
         debug(.treatments, "Profile stopped (\(reason)): ran \(start) - \(end)")
         recordCompletedRun(name: runName, start: start, end: end)
 
-        let elapsedMinutes = max(1, Int(end.timeIntervalSince(start) / 60))
+        let elapsedMinutes = ProfileRules.elapsedMinutes(start: start, end: end)
         // as in `activate`: the correction finishes even when the stop came in the background
         let backgroundTask = startBackgroundTask(withName: "Profile stop upload")
         Task {
@@ -388,11 +384,5 @@ extension WeekendProfileStore {
         guard isExpired else { return false }
         deactivate(nightscoutManager: nightscoutManager, reason: "end time reached")
         return true
-    }
-}
-
-private extension Decimal {
-    func clamped(to range: ClosedRange<Decimal>) -> Decimal {
-        min(max(self, range.lowerBound), range.upperBound)
     }
 }
