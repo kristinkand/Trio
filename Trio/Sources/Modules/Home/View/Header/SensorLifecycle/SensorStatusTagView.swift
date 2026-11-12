@@ -16,7 +16,7 @@ struct SensorStatusTagView: View {
             }
             // A tag with a line break ("Sensor issue:" / "not reliable") is laid out by its first line, exactly
             // where a one-line tag sits; the second hangs below it, a little closer than a full line, so it
-            // keeps clear of the carbs under it (first tester, 12 November).
+            // keeps clear of the carbs under it (first tester, 12 November; 5 pt put the lines on each other, 13 November).
             styled(Text(firstLine))
                 .lineLimit(1)
                 .overlay(alignment: .top) {
@@ -32,7 +32,7 @@ struct SensorStatusTagView: View {
     }
 
     /// How much closer than a full line the second line sits.
-    private static let lineTightening: CGFloat = 5
+    private static let lineTightening: CGFloat = 2
 
     private var firstLine: String {
         String(text.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).first ?? "")
