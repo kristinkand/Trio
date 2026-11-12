@@ -302,6 +302,8 @@ import WatchKit
         if let version = envelope.appVersion, WatchState.shared.phoneAppVersion != version {
             WatchState.shared.phoneAppVersion = version
         }
+        // also after a session: the notice waits while the watch has the pump
+        notePhoneVersion()
         switch envelope.message {
         case let .prepare(grant):
             if let reason = UntetheredVersion.mismatch(phone: envelope.appVersion) ?? rejection(of: grant) {
@@ -1281,6 +1283,29 @@ import WatchKit
         UntetheredVersion.mismatch(phone: WatchState.shared.phoneAppVersion ?? UntetheredVersion.current)
     }
 
+    private static let updateWaitingNoticeKey = "untethered.updateWaitingFor"
+
+    /// The phone runs a newer build than this watch app: watchOS installs the new watch app only once Trio here is
+    /// closed, which it never is by itself while it reads the sensor. Said once per phone build, and not while the
+    /// watch has the pump (closing Trio then would stop its loop).
+    func notePhoneVersion() {
+        guard let phone = WatchState.shared.phoneAppVersion,
+              UntetheredVersion.phoneIsNewer(phone: phone, watch: UntetheredVersion.current),
+              data.session.phase == .idle,
+              UserDefaults.standard.string(forKey: Self.updateWaitingNoticeKey) != phone
+        else { return }
+        UserDefaults.standard.set(phone, forKey: Self.updateWaitingNoticeKey)
+        let watch = UntetheredVersion.current ?? "?"
+        Task { await WatchLogger.shared.log("⌚️ Untethered: the iPhone runs \(phone), this watch app \(watch): update waiting", force: true) }
+        notify(
+            id: Self.notificationPrefix + "updateWaiting",
+            title: String(localized: "Update Waiting"),
+            body: String(localized: "Trio on the iPhone has a newer build. The watch installs it only after Trio here is closed.")
+                + " " + UntetheredVersion.closeOnWatch,
+            asksForAction: true
+        )
+    }
+
     func requestStart() {
         guard WatchState.shared.untetheredMode, data.session.phase == .idle, !isBusy else { return }
         // a start by hand shows in the log: on 3 November at 18:04:55 one went out 6 s after Trio opened from the
@@ -2124,9 +2149,9 @@ extension UntetheredWatchManager {
         UserDefaults.standard.set(Date(), forKey: Self.newPodNoticeKey)
         notify(
             id: Self.notificationPrefix + "newPod",
-            title: String(localized: "Watch Doesn't Know the New Pod Yet"),
+            title: String(localized: "Watch Doesn't Know the Pod Yet"),
             body: String(
-                localized: "To take over by itself, the watch has to have reached this pod once. Open Trio on the watch with the iPhone nearby: it looks for the pod by itself."
+                localized: "To take over by itself, the watch has to have reached this pod once: after a pod change, or after Trio was installed again on the watch. Open Trio on the watch with the iPhone nearby: it looks for the pod by itself."
             ),
             asksForAction: true
         )
