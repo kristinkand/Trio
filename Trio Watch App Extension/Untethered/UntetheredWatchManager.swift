@@ -1491,6 +1491,21 @@ import WatchKit
         )
         send(.handbackRequested(minutesWithoutLoop: minutes), epoch: data.session.epoch, queueing: true)
         holdOffPodForTakeBack(for: Self.podQuietForHandbackRequest)
+        // A reconnect armed before the request keeps its search for the pod going until a loop gets through, and
+        // with it the pod's one connection the phone needs (Claude Fable's review, 14 November): it ends here.
+        if lastPodLinkReset != nil {
+            lastPodLinkReset = nil
+            pumpManager?.endTakeEscalation()
+        }
+        // If the phone doesn't take the pod in the quiet time (the request is late, or the pod refused it), the
+        // watch is again the only one trying: it reconnects then, rather than at the next notice 5 minutes later.
+        if reason == .podStall {
+            let epoch = data.session.epoch
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.podQuietForHandbackRequest + 1) { [weak self] in
+                guard let self, self.data.session.phase == .active, self.data.session.epoch == epoch else { return }
+                self.reconnectPodIfStalled()
+            }
+        }
     }
 
     /// The phone has used the pod since the watch took it (the pod resynchronized to another controller's newer
@@ -1517,8 +1532,8 @@ import WatchKit
 
     /// The phone reaches for the pod for a few seconds after it gets the request; a loop of the watch's that takes
     /// the pod's link then makes it give up (24 October 13:55: the phone found no link in 5 s, the watch had just
-    /// looped at 13:55:52). A minute without the watch's pod commands, unless the phone refused. Ended early when the
-    /// session ends (the phone has the pump).
+    /// looped at 13:55:52). A minute without the watch's pod commands. Ended early when the session ends (the phone has
+    /// the pump).
     func holdOffPodForTakeBack(for duration: TimeInterval = UntetheredWatchManager.podQuietForTakeBack) {
         podQuietUntil = Date().addingTimeInterval(duration)
         let span = duration > Self.podQuietForTakeBack ? "up to \(Int(duration / 60)) minutes" : "a minute"
