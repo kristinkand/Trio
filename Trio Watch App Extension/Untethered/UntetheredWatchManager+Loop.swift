@@ -191,6 +191,8 @@ extension UntetheredWatchManager {
                 // the pod out of reach: loop again as soon as its link is back, not only at the next reading
                 if enacts, String(describing: error).contains("podNotConnected") || String(describing: error).contains("commsError") {
                     self.podRetryPending = (newestGlucose ?? .distantPast, Date())
+                    self.podLinkFailures.append(Date())
+                    if self.podLinkFailures.count > 12 { self.podLinkFailures.removeFirst(self.podLinkFailures.count - 12) }
                 }
             }
             if !self.loopHoldExpired, self.isActive {
@@ -1775,6 +1777,11 @@ extension UntetheredWatchManager: CGMManagerDelegate {
 
     /// Readings arrive but no loop got through for this long: the pod link is presumed stuck.
     static let podLinkStallLimit: TimeInterval = 15 * 60
+    /// The wait once two loops since the last one failed at the pod's link itself. On the first tester's flight
+    /// (13 November) the pod dropped the watch's link within half a second of each connect for 20 minutes and more,
+    /// while the phone reached it at once; waiting 19–25 minutes didn't bring it back.
+    static let podLinkDropLimit: TimeInterval = 10 * 60
+    static let podLinkDropsForEarlyHandback = 2
     /// At most one reconnect per this interval, so a pod that is really out of reach isn't hammered.
     static let podLinkResetInterval: TimeInterval = 10 * 60
 
@@ -1784,7 +1791,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         checkSensorStall(now: now)
         guard data.session.phase == .active, let pump = pumpManager,
               let lastLoop = loopReference,
-              now.timeIntervalSince(lastLoop) > Self.podLinkStallLimit,
+              now.timeIntervalSince(lastLoop) > podLinkLimit(since: lastLoop),
               now.timeIntervalSince(lastPodLinkNotice ?? .distantPast) > Self.podLinkResetInterval,
               // without readings the sensor is what's missing, and its own alarm says so (2026-10-19 18:04)
               let newest = sensorGlucose.map(\.dateString).max(), now.timeIntervalSince(newest) < 11 * 60,
@@ -1827,6 +1834,15 @@ extension UntetheredWatchManager: CGMManagerDelegate {
             )
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.loopHoldLimit) { releaseHold() }
+    }
+
+    /// How long loops may fail before the pump goes back to the phone: shorter once the pod's link itself failed twice
+    /// since the last loop, as a link that keeps dropping rarely comes back soon. Loops that only missed readings
+    /// keep the longer wait (the readings check above still applies to both).
+    func podLinkLimit(since lastLoop: Date) -> TimeInterval {
+        podLinkFailures.filter { $0 > lastLoop }.count >= Self.podLinkDropsForEarlyHandback
+            ? Self.podLinkDropLimit
+            : Self.podLinkStallLimit
     }
 
     /// Neither a reading nor a loop for this long: the watch's own sensor link isn't working.
