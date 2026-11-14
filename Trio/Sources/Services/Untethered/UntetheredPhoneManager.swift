@@ -655,8 +655,16 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     @MainActor private func apply(_ event: UntetheredSession.PhoneEvent, reply: (([String: Any]) -> Void)? = nil) async {
         let now = Date()
-        // a take-back that ends the check of a foreign session: the watch only looked at the pod
-        let afterLook = state.session.isCheckingForeignSession
+        // a take-back that ends the check of a foreign session with the watch's "not holding" for the phone's own
+        // session: the watch only looked at the pod. Not a newer epoch's answer, a release, a failed takeover or a
+        // forced take-back: in those the watch may have dosed and replaced the phone's temp (Claude Fable's review,
+        // 14 November).
+        let afterLook: Bool = {
+            guard state.session.isCheckingForeignSession,
+                  case let .received(.statusReport(holding: nil), messageEpoch) = event
+            else { return false }
+            return messageEpoch == state.session.epoch
+        }()
         let (effects, spanEnded, spanStarted) = UntetheredGate.update { state -> ([UntetheredSession.Effect], Bool, Date?) in
             let held = state.session.phase == .active || state.session.phase == .ending
             let effects = state.session.phone(event, now: now)
