@@ -1851,7 +1851,9 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         Task { await WatchLogger.shared.log("⌚️ Untethered alarm: \(Self.podLinkTitle) after \(minutes) min", force: true) }
         // The reconnect itself waits for a loop or bolus in flight; the notice above doesn't. A loop waiting on the
         // pod held on for 41 minutes (2026-10-20, 12:20 to 13:01), and nothing else ran for the stall meanwhile.
-        guard !isLooping, !isBolusing,
+        // Not while the phone is taking the pump back: the reconnect's search held the pod's one connection, and the
+        // phone found it busy (13 November, third tester). Without the phone in reach it's the watch's only way.
+        guard !isLooping, !isBolusing, (podQuietUntil ?? .distantPast) <= now,
               now.timeIntervalSince(lastPodLinkReset ?? .distantPast) > Self.podLinkResetInterval
         else { return }
         lastPodLinkReset = now
