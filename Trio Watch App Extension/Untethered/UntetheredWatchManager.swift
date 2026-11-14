@@ -1497,7 +1497,7 @@ import WatchKit
                 )
         )
         send(.handbackRequested(minutesWithoutLoop: minutes), epoch: data.session.epoch, queueing: true)
-        holdOffPodForTakeBack()
+        holdOffPodForTakeBack(for: Self.podQuietForHandbackRequest)
     }
 
     /// The phone has used the pod since the watch took it (the pod resynchronized to another controller's newer
@@ -1524,13 +1524,20 @@ import WatchKit
 
     /// The phone reaches for the pod for a few seconds after it gets the request; a loop of the watch's that takes
     /// the pod's link then makes it give up (24 October 13:55: the phone found no link in 5 s, the watch had just
-    /// looped at 13:55:52). A minute without the watch's pod commands, unless the phone refused.
-    func holdOffPodForTakeBack() {
-        podQuietUntil = Date().addingTimeInterval(Self.podQuietForTakeBack)
-        Task { await WatchLogger.shared.log("⌚️ Untethered: leaving the pod to the iPhone for a minute", force: true) }
+    /// looped at 13:55:52). A minute without the watch's pod commands, unless the phone refused. Ended early when the
+    /// session ends (the phone has the pump).
+    func holdOffPodForTakeBack(for duration: TimeInterval = UntetheredWatchManager.podQuietForTakeBack) {
+        podQuietUntil = Date().addingTimeInterval(duration)
+        let span = duration > Self.podQuietForTakeBack ? "up to \(Int(duration / 60)) minutes" : "a minute"
+        Task { await WatchLogger.shared.log("⌚️ Untethered: leaving the pod to the iPhone for \(span)", force: true) }
     }
 
     static let podQuietForTakeBack: TimeInterval = 60
+    /// After the watch asked to hand back because it can't loop (pod not reached, or no readings): it isn't dosing
+    /// anyway, so it leaves the pod alone until the phone has it, up to this long. A minute wasn't enough: on
+    /// 13 November (third tester) the request reached the phone 4 min 45 s late, the watch was back at the pod by
+    /// then, and the phone found it busy; the pump was back on the phone 25 minutes after the request.
+    static let podQuietForHandbackRequest: TimeInterval = 5 * 60
 
     private func hasUnconfirmedRecords(_ epoch: Int) -> Bool {
         !(store.data.pending[epoch] ?? [:]).isEmpty
