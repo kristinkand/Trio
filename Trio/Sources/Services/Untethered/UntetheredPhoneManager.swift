@@ -1334,6 +1334,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         UntetheredGate.update { $0.pumpReturnPending = false }
         publish()
+        PhonePumpReturn.note()
         debug(.watch, "Untethered: pump is back on the phone")
         // the session's start dropped the watch's copy: a phone gone again right after leaves it none to start from
         scheduleStandingGrant(settingsChanged: true, immediately: true)

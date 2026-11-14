@@ -111,6 +111,9 @@ import WatchKit
     @ObservationIgnored var handbackRequestedAt: Date?
     /// How many Pod Not Reachable notices this stall has brought; from the second on the watch vibrates harder.
     @ObservationIgnored var podLinkNoticeCount = 0
+    /// When loops failed at the pod's link (the pod dropped it, or wasn't reached): two since the last loop shorten
+    /// the wait before the pump goes back to the phone (`podLinkDropLimit`).
+    @ObservationIgnored var podLinkFailures: [Date] = []
     /// When readings arrived during the session, one entry per batch: the pod stall check counts batches that had
     /// their loop, not reading times, as a backfill brings several old readings at once.
     @ObservationIgnored var readingArrivals: [Date] = []

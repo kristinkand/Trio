@@ -709,7 +709,34 @@ final class BaseAPSManager: APSManager, Injectable {
             // again by itself (10 November, third tester: each refused loop dosed again within 5–8 s). Nothing was
             // given, so a bolus asked for by hand says that plainly instead of "check pump history"; an SMB says
             // nothing, as the loop that follows decides afresh.
+            var retryError: Error?
             if String(describing: bolusError).contains("Another controller has used this pod") {
+                if !isSMB {
+                    switch await retryRefusedBolus(units: roundedAmount, refusedAt: Date(), pump: pump) {
+                    case .given:
+                        PhoneLastDose.note()
+                        info(.bolus, "Bolus enacted on the second try: \(roundedAmount) U, manual")
+                        bolusProgress.send(0)
+                        callback?(
+                            true,
+                            String(localized: "Bolus enacted successfully.", comment: "Success message for enacting a bolus")
+                        )
+                        do {
+                            try await determineBasalSync()
+                        } catch {
+                            warning(.loop, "Determination after manual bolus failed", error: error)
+                        }
+                        return
+                    case let .failed(error):
+                        // the second try reached the pod and failed there: what it gave isn't known
+                        retryError = error
+                    case .notTried,
+                         .refusedAgain:
+                        break
+                    }
+                }
+            }
+            if retryError == nil, String(describing: bolusError).contains("Another controller has used this pod") {
                 let message = String(
                     localized: "Nothing was given: the watch was checking the pod. Please try again in a moment.",
                     comment: "A bolus refused before it reached the pod, because the watch had just looked at the pod"
@@ -732,7 +759,7 @@ final class BaseAPSManager: APSManager, Injectable {
             let bluetoothOff = await MainActor.run { self.bluetoothManager?.bluetoothState == .poweredOff }
             let reason = bluetoothOff
                 ? String(localized: "The iPhone's Bluetooth is off, so it couldn't reach the pump.")
-                : bolusError.localizedDescription
+                : (retryError ?? bolusError).localizedDescription
             issueAlertForCategory(
                 .bolusFailed,
                 title: String(localized: "Bolus failed"),
@@ -752,6 +779,49 @@ final class BaseAPSManager: APSManager, Injectable {
                 String(localized: "Error! Bolus failed with error: \(reason)")
             )
         }
+    }
+
+    enum RefusedBolusRetry {
+        case given
+        case notTried
+        case refusedAgain
+        case failed(Error)
+    }
+
+    /// How long a refused bolus waits for the pump to come back to the phone.
+    static let refusedBolusRetryWindow: TimeInterval = 15
+
+    /// A bolus asked for by hand, refused before anything reached the pod because the watch had just looked at it.
+    /// The phone asks the watch at once and, when the watch doesn't hold the pump, has it back within a second or two
+    /// (third tester, 12 November: a 1.4 U bolus refused, the pump back on the phone 2 s later). The bolus is then given once
+    /// more by itself instead of asking for it again; only if no other dose went out since the refusal and none is
+    /// running, so it can't add to a dose given meanwhile, and only within `refusedBolusRetryWindow`.
+    private func retryRefusedBolus(units: Double, refusedAt: Date, pump: PumpManager) async -> RefusedBolusRetry {
+        let deadline = refusedAt.addingTimeInterval(Self.refusedBolusRetryWindow)
+        while Date() < deadline {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard (PhonePumpReturn.date ?? .distantPast) > refusedAt else { continue }
+            guard UntetheredGate.phoneMayDose,
+                  (PhoneLastDose.date ?? .distantPast) < refusedAt,
+                  !pump.status.pumpStatus.bolusing
+            else {
+                debug(.bolus, "Refused bolus of \(units) U not tried again: a dose went out meanwhile, or the phone may not dose")
+                return .notTried
+            }
+            debug(.bolus, "Bolus of \(units) U was refused after the watch's look at the pod; the pump is back, trying once more")
+            do {
+                try await pump.enactBolus(units: units, automatic: false)
+                return .given
+            } catch {
+                if String(describing: error).contains("Another controller has used this pod") {
+                    warning(.bolus, "Second try of the bolus of \(units) U refused as well; nothing was given")
+                    return .refusedAgain
+                }
+                return .failed(error)
+            }
+        }
+        debug(.bolus, "Refused bolus of \(units) U not tried again: the pump didn't come back in time")
+        return .notTried
     }
 
     static let invalidBolusAmountMessage = String(
@@ -1648,6 +1718,19 @@ extension PumpManagerStatus {
 /// bolus, its newest reading being 5.5 minutes old). Pod contact alone doesn't count: a phone without a sensor still
 /// reaches the pod for status reads and heartbeats, and that would keep the watch from taking over from a phone that
 /// can't loop (8 November, 11:48 to 14:06).
+/// When the pump last came back to the phone from the watch, or from a look of the watch's at the pod.
+enum PhonePumpReturn {
+    private static let key = "untethered.phonePumpReturnDate"
+
+    static var date: Date? {
+        UserDefaults.standard.object(forKey: key) as? Date
+    }
+
+    static func note(_ date: Date = Date()) {
+        UserDefaults.standard.set(date, forKey: key)
+    }
+}
+
 enum PhoneLastDose {
     private static let key = "untethered.phoneLastDoseDate"
 
