@@ -531,12 +531,14 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
 
             guard let endTime = omni.state.podState?.expiresAt else {
                 pumpExpiresAtDate.send(nil)
+                if omni.state.podState == nil { PodChangeReminder.podRemoved() }
                 return
             }
             pumpExpiresAtDate.send(endTime)
 
             if let startTime = omni.state.podState?.activatedAt {
                 storage.save(startTime, as: OpenAPS.Monitor.podAge)
+                PodChangeReminder.update(activatedAt: startTime)
             }
         }
 
