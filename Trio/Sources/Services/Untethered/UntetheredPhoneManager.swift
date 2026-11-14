@@ -655,6 +655,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     @MainActor private func apply(_ event: UntetheredSession.PhoneEvent, reply: (([String: Any]) -> Void)? = nil) async {
         let now = Date()
+        // a take-back that ends the check of a foreign session: the watch only looked at the pod
+        let afterLook = state.session.isCheckingForeignSession
         let (effects, spanEnded, spanStarted) = UntetheredGate.update { state -> ([UntetheredSession.Effect], Bool, Date?) in
             let held = state.session.phase == .active || state.session.phase == .ending
             let effects = state.session.phone(event, now: now)
@@ -700,7 +702,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 }
                 deliver(.commit(handover))
             case .takePump:
-                takePump()
+                takePump(keepingPhoneDoses: afterLook)
             case .reconcile:
                 UntetheredGate.update { $0.applied[epoch] = $0.applied[epoch] ?? [:] }
                 requestSync(epoch: epoch)
@@ -1191,7 +1193,11 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     // MARK: - Taking the pump back
 
-    @MainActor private func takePump() {
+    /// `keepingPhoneDoses`: the watch only looked at the pod (its answer to a foreign session: not holding). A look
+    /// reads the pod and doses nothing, so the phone's own bolus and temp still in flight stay as programmed. Purged
+    /// as given away instead, the pod's delivered total then booked them as one "untethered gap" bolus at the take-back
+    /// (13 November, third tester: an SMB of 0.35 U and a temp of 1.65 U/h became 0.51 U "no record explains").
+    @MainActor private func takePump(keepingPhoneDoses: Bool = false) {
         UntetheredGate.update {
             $0.pumpReturnPending = true
             // the return's audit judges the session; the gap check starts over after it
@@ -1200,7 +1206,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         publish()
         // a silent watch never said what its copy held: before the take-back's pending report, the phone's own doses
         // in flight stay rather than being purged as given away
-        let keepInFlight = state.session.unknownWatchSince != nil
+        let keepInFlight = state.session.unknownWatchSince != nil || keepingPhoneDoses
         Task {
             if keepInFlight { _ = try? await self.pumpHistoryStorage.keepInFlightDoses(startedAfter: nil) }
             (self.apsManager.pumpManager as? ExclusiveDeviceControl)?.takeControl()
