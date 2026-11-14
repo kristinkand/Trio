@@ -1,6 +1,7 @@
 import Foundation
 import LoopKit
 import Swinject
+import UserNotifications
 
 #if canImport(AlarmKit)
     import AlarmKit
@@ -297,3 +298,148 @@ extension Alert.Identifier {
         alertIdentifier: "eatReminder"
     )
 }
+
+// MARK: - Pod change reminder (first tester's own branch)
+
+/// "Change pump!" when the pod is 2 days and 6 hours old, as an alarm that rings until it is stopped (AlarmKit, the
+/// same permission as the meal-time reminder: Settings › Trio › Alarms). Scheduled once per pod from its activation;
+/// a new pod replaces the alarm. Without that permission, a time-sensitive notification at the same time.
+enum PodChangeReminder {
+    static let podAge: TimeInterval = (2 * 24 + 6) * 60 * 60
+
+    private static let activationKey = "Trio.podChangeReminder.activatedAt"
+    private static let alarmKey = "Trio.podChangeReminder.alarmID"
+    private static let notificationID = "Trio.podChangeReminder"
+
+    private static let lock = NSLock()
+    private static var isScheduling = false
+
+    /// At each pump update with the pod's activation: schedules for a pod it hasn't seen, and for a known pod whose
+    /// reminder is still a notification once the alarm permission is given.
+    static func update(activatedAt: Date) {
+        let defaults = UserDefaults.standard
+        let fireDate = activatedAt.addingTimeInterval(podAge)
+        var previous: UUID?
+        let known = (defaults.object(forKey: activationKey) as? Date).map { abs($0.timeIntervalSince(activatedAt)) < 1 } ?? false
+        if known {
+            guard defaults.string(forKey: alarmKey) == nil, fireDate > Date(), alarmsAllowed else { return }
+        }
+        // claimed before anything changes: a new pod while a schedule runs comes again at the next pump update, with
+        // the old pod's alarm still on record to cancel (Claude Fable's review, 14 November)
+        guard claim() else { return }
+        if !known {
+            defaults.set(activatedAt, forKey: activationKey)
+            previous = defaults.string(forKey: alarmKey).flatMap(UUID.init(uuidString:))
+            defaults.removeObject(forKey: alarmKey)
+        }
+        Task {
+            await schedule(at: fireDate, replacing: previous)
+            lock.withLock { isScheduling = false }
+        }
+    }
+
+    /// The pod was deactivated: its reminder goes, so a pod taken off early doesn't ring later.
+    static func podRemoved() {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: activationKey) != nil else { return }
+        defaults.removeObject(forKey: activationKey)
+        let previous = defaults.string(forKey: alarmKey).flatMap(UUID.init(uuidString:))
+        defaults.removeObject(forKey: alarmKey)
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationID])
+        #if canImport(AlarmKit)
+            if #available(iOS 26.0, *), let previous { try? AlarmManager.shared.cancel(id: previous) }
+        #endif
+        debug(.pump, "Pod change reminder: cancelled, no pod")
+    }
+
+    private static func claim() -> Bool {
+        lock.withLock {
+            guard !isScheduling else { return false }
+            isScheduling = true
+            return true
+        }
+    }
+
+    private static var alarmsAllowed: Bool {
+        #if canImport(AlarmKit)
+            if #available(iOS 26.0, *) { return AlarmManager.shared.authorizationState == .authorized }
+        #endif
+        return false
+    }
+
+    private static func schedule(at fireDate: Date, replacing previous: UUID?) async {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [notificationID])
+        #if canImport(AlarmKit)
+            if #available(iOS 26.0, *) {
+                if let previous { try? AlarmManager.shared.cancel(id: previous) }
+                guard fireDate > Date() else { return }
+                if let id = await scheduleAlarm(at: fireDate) {
+                    UserDefaults.standard.set(id.uuidString, forKey: alarmKey)
+                    return
+                }
+            }
+        #endif
+        guard fireDate > Date() else { return }
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Change pump!")
+        content.body = String(localized: "The pod is 2 days and 6 hours old.")
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, fireDate.timeIntervalSinceNow), repeats: false)
+        do {
+            try await center.add(UNNotificationRequest(identifier: notificationID, content: content, trigger: trigger))
+            debug(.pump, "Pod change reminder: notification for \(fireDate)")
+        } catch {
+            warning(.pump, "Pod change reminder: notification not scheduled", error: error)
+        }
+    }
+
+    #if canImport(AlarmKit)
+        @available(iOS 26.0, *) private static func scheduleAlarm(at fireDate: Date) async -> UUID? {
+            let manager = AlarmManager.shared
+            // asked for here too, as the meal-time reminder does: without it the reminder is only a notification
+            var authorization = manager.authorizationState
+            if authorization == .notDetermined {
+                authorization = (try? await manager.requestAuthorization()) ?? .denied
+            }
+            guard authorization == .authorized else {
+                debug(.pump, "Pod change reminder: no alarm, AlarmKit authorization is \(authorization)")
+                return nil
+            }
+            let title: LocalizedStringResource = "Change pump!"
+            let alert: AlarmPresentation.Alert
+            if #available(iOS 26.1, *) {
+                alert = AlarmPresentation.Alert(title: title)
+            } else {
+                alert = AlarmPresentation.Alert(
+                    title: title,
+                    stopButton: AlarmButton(text: "Done", textColor: .white, systemImageName: "checkmark")
+                )
+            }
+            let attributes = AlarmAttributes<PodChangeReminderMetadata>(
+                presentation: AlarmPresentation(alert: alert),
+                metadata: PodChangeReminderMetadata(),
+                tintColor: MealTimeReminderStyle.tint
+            )
+            let configuration = AlarmManager.AlarmConfiguration.alarm(
+                schedule: .fixed(fireDate),
+                attributes: attributes,
+                sound: .default
+            )
+            do {
+                let id = UUID()
+                _ = try await manager.schedule(id: id, configuration: configuration)
+                debug(.pump, "Pod change reminder: alarm for \(fireDate)")
+                return id
+            } catch {
+                warning(.pump, "Pod change reminder: alarm not scheduled", error: error)
+                return nil
+            }
+        }
+    #endif
+}
+
+#if canImport(AlarmKit)
+    @available(iOS 26.0, *) struct PodChangeReminderMetadata: AlarmMetadata {}
+#endif
