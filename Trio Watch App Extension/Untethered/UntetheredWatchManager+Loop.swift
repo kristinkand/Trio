@@ -1849,6 +1849,19 @@ extension UntetheredWatchManager: CGMManagerDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(tap)) { WKInterfaceDevice.current().play(.failure) }
         }
         Task { await WatchLogger.shared.log("⌚️ Untethered alarm: \(Self.podLinkTitle) after \(minutes) min", force: true) }
+        reconnectPod(pump, minutes: minutes, now: now)
+    }
+
+    /// At the end of the quiet time after a hand-back request, when the phone didn't take the pod: the stall goes on,
+    /// and the reconnect `checkPodLink` held back during the quiet time runs now.
+    func reconnectPodIfStalled(now: Date = Date()) {
+        guard data.session.phase == .active, let pump = pumpManager, let lastLoop = loopReference,
+              now.timeIntervalSince(lastLoop) > podLinkLimit(since: lastLoop)
+        else { return }
+        reconnectPod(pump, minutes: Int(now.timeIntervalSince(lastLoop) / 60), now: now)
+    }
+
+    private func reconnectPod(_ pump: PumpManager & ExclusiveDeviceControl, minutes: Int, now: Date) {
         // The reconnect itself waits for a loop or bolus in flight; the notice above doesn't. A loop waiting on the
         // pod held on for 41 minutes (2026-10-20, 12:20 to 13:01), and nothing else ran for the stall meanwhile.
         // Not while the phone is taking the pump back: the reconnect's search held the pod's one connection, and the
@@ -1898,15 +1911,34 @@ extension UntetheredWatchManager: CGMManagerDelegate {
 
     /// A loop reached the pod again: the search an escalation started ends, and so does its notice.
     func podLinkRecovered(_ pump: PumpManager & ExclusiveDeviceControl) {
-        guard lastPodLinkReset != nil || lastPodLinkNotice != nil else { return }
+        guard lastPodLinkReset != nil || lastPodLinkNotice != nil || handbackRequestedAt != nil else { return }
         lastPodLinkNotice = nil
         podLinkNoticeCount = 0
         handbackRequestedAt = nil
+        // a request still queued for the phone would take the pump from a session that loops again
+        Self.cancelQueuedHandbackRequests()
         if lastPodLinkReset != nil {
             lastPodLinkReset = nil
             pump.endTakeEscalation()
         }
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [Self.podLinkID])
+    }
+
+    /// Drops the stall's hand-back requests still waiting in WatchConnectivity's queue, and their notice (Claude
+    /// Fable's review, 14 November). The fallback's hand-back (no minutes) stays: the phone is back, and it should get
+    /// the pump. Off the main thread: reading the transfer list there hung the app (see `WCTransfers`).
+    static func cancelQueuedHandbackRequests() {
+        guard WCSession.isSupported() else { return }
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [notificationPrefix + "handbackRequest"])
+        WCTransfers.run {
+            for transfer in WCSession.default.outstandingUserInfoTransfers {
+                guard let envelope = try? UntetheredEnvelope.decode(transfer.userInfo),
+                      case let .handbackRequested(minutes) = envelope.message, minutes > 0
+                else { continue }
+                transfer.cancel()
+                Task { await WatchLogger.shared.log("⌚️ Untethered: the pod is back, the queued hand-back request is withdrawn", force: true) }
+            }
+        }
     }
 
     static let podLinkID = "untethered.podLink"
