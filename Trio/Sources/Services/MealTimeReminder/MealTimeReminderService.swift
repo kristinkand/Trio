@@ -305,8 +305,6 @@ extension Alert.Identifier {
 /// same permission as the meal-time reminder: Settings › Trio › Alarms). Scheduled once per pod from its activation;
 /// a new pod replaces the alarm. Without that permission, a time-sensitive notification at the same time.
 enum PodChangeReminder {
-    /// Whether this build has the reminder. Off: one scheduled before is cancelled at the next pump update.
-    static let isEnabled = false
     static let podAge: TimeInterval = (2 * 24 + 6) * 60 * 60
     /// A reminder that would fall at night (from 22:00) rings at 07:00 instead, still well before the pod's 72 hours.
     static let nightStartHour = 22
@@ -330,9 +328,10 @@ enum PodChangeReminder {
 
     /// At each pump update with the pod's activation: schedules for a pod it hasn't seen, and for a known pod whose
     /// reminder is still a notification once the alarm permission is given.
-    static func update(activatedAt: Date) {
-        guard isEnabled else {
-            podRemoved(reason: "not in this build")
+    /// `enabled`: the setting (Bolus Calculator). Off: one scheduled before is cancelled.
+    static func update(activatedAt: Date, enabled: Bool) {
+        guard enabled else {
+            podRemoved(reason: "switched off")
             return
         }
         let defaults = UserDefaults.standard

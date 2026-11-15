@@ -538,7 +538,10 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
 
             if let startTime = omni.state.podState?.activatedAt {
                 storage.save(startTime, as: OpenAPS.Monitor.podAge)
-                PodChangeReminder.update(activatedAt: startTime)
+                PodChangeReminder.update(
+                    activatedAt: startTime,
+                    enabled: settingsManager.settings.podChangeReminderEnabled
+                )
             }
         }
 

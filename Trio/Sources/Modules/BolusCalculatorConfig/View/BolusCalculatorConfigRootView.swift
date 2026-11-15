@@ -245,6 +245,17 @@ extension BolusCalculatorConfig {
                 )
 
                 Section {
+                    Toggle(isOn: $state.podChangeReminderEnabled) {
+                        Text("Pod Change Reminder")
+                    }
+                } footer: {
+                    Text(
+                        "\"Change pump!\" when the pod is 2 days and 6 hours old, as an alarm that rings until it is stopped. If that falls between 22:00 and 07:00, it rings at 07:00."
+                    )
+                }
+                .listRowBackground(Color.chart)
+
+                Section {
                     VStack {
                         HStack {
                             Toggle(isOn: $state.mealTimeReminderEnabled) {
