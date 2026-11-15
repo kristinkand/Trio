@@ -17,6 +17,13 @@ extension BolusCalculatorConfig {
         @Published var showMealNote: Bool = true
         @Published var showExternalInsulin: Bool = true
         @Published var confirmBolusWhenVeryLowGlucose: Bool = false
+        @Published var showTreatmentChart: Bool = true
+        @Published var showTreatmentFatProtein: Bool = true
+        @Published var showTreatmentBolusOptions: Bool = true
+        @Published var showTreatmentIOB: Bool = true
+        @Published var showTreatmentMealReminder: Bool = true
+        /// Read only here: whether fat and protein can be entered at all (Meal Settings).
+        @Published var useFPUconversion: Bool = false
 
         override func subscribe() {
             units = settingsManager.settings.units
@@ -37,6 +44,12 @@ extension BolusCalculatorConfig {
                 Task { await self.mealTimeReminderService.requestAuthorization() }
             }
             subscribeSetting(\.mealTimeReminderPresets, on: $mealTimeReminderPresets) { mealTimeReminderPresets = $0 }
+            subscribeSetting(\.showTreatmentChart, on: $showTreatmentChart) { showTreatmentChart = $0 }
+            subscribeSetting(\.showTreatmentFatProtein, on: $showTreatmentFatProtein) { showTreatmentFatProtein = $0 }
+            subscribeSetting(\.showTreatmentBolusOptions, on: $showTreatmentBolusOptions) { showTreatmentBolusOptions = $0 }
+            subscribeSetting(\.showTreatmentIOB, on: $showTreatmentIOB) { showTreatmentIOB = $0 }
+            subscribeSetting(\.showTreatmentMealReminder, on: $showTreatmentMealReminder) { showTreatmentMealReminder = $0 }
+            useFPUconversion = settingsManager.settings.useFPUconversion
         }
     }
 }
@@ -44,5 +57,6 @@ extension BolusCalculatorConfig {
 extension BolusCalculatorConfig.StateModel: SettingsObserver {
     func settingsDidChange(_: TrioSettings) {
         units = settingsManager.settings.units
+        useFPUconversion = settingsManager.settings.useFPUconversion
     }
 }

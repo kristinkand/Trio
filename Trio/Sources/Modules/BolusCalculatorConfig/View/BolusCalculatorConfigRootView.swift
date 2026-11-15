@@ -343,3 +343,162 @@ extension BolusCalculatorConfig {
         }
     }
 }
+
+/// Settings › Treatments › Treatment Sheet: which optional parts the treatment sheet shows. Carbs, the
+/// recommendation and the bolus are always there; the rest is picked from a list, as for the Live Activity.
+struct TreatmentSheetConfigView: BaseView {
+    let resolver: Resolver
+
+    @StateObject var state = BolusCalculatorConfig.StateModel()
+
+    @Environment(\.colorScheme) var colorScheme
+    @Environment(AppState.self) var appState
+
+    /// The optional parts, in the order the sheet shows them.
+    enum Item: CaseIterable, Identifiable {
+        case chart
+        case fatProtein
+        case mealTime
+        case note
+        case bolusOptions
+        case iob
+        case mealReminder
+        case externalInsulin
+        case presets
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .chart: String(localized: "Forecast Chart")
+            case .fatProtein: String(localized: "Fat and Protein")
+            case .mealTime: String(localized: "Meal Time")
+            case .note: String(localized: "Meal Note")
+            case .bolusOptions: String(localized: "Reduced Bolus / Super Bolus")
+            case .iob: String(localized: "Insulin on Board (IOB)")
+            case .mealReminder: String(localized: "Remind Me to Eat")
+            case .externalInsulin: String(localized: "External Insulin")
+            case .presets: String(localized: "Meal Presets Button")
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .chart: "chart.xyaxis.line"
+            case .fatProtein: "fork.knife"
+            case .mealTime: "clock"
+            case .note: "square.and.pencil"
+            case .bolusOptions: "slider.horizontal.3"
+            case .iob: "drop"
+            case .mealReminder: "alarm"
+            case .externalInsulin: "syringe"
+            case .presets: "plus.rectangle.on.rectangle"
+            }
+        }
+    }
+
+    private func isShown(_ item: Item) -> Binding<Bool> {
+        switch item {
+        case .chart: $state.showTreatmentChart
+        case .fatProtein: $state.showTreatmentFatProtein
+        case .mealTime: $state.showMealTime
+        case .note: $state.showMealNote
+        case .bolusOptions: $state.showTreatmentBolusOptions
+        case .iob: $state.showTreatmentIOB
+        case .mealReminder: $state.showTreatmentMealReminder
+        case .externalInsulin: $state.showExternalInsulin
+        case .presets: $state.displayPresets
+        }
+    }
+
+    /// Why a part chosen here can't appear yet: the feature behind it is off elsewhere.
+    private func missingFeature(_ item: Item) -> String? {
+        switch item {
+        case .fatProtein where !state.useFPUconversion:
+            String(localized: "Needs Fat and Protein Entries (Meal Settings)")
+        case .bolusOptions where !state.fattyMeals && !state.sweetMeals:
+            String(localized: "Needs Reduced or Super Bolus (Bolus Calculator)")
+        case .mealReminder where !state.mealTimeReminderEnabled:
+            String(localized: "Needs the Meal-Time Reminder (Bolus Calculator)")
+        default:
+            nil
+        }
+    }
+
+    @ViewBuilder private func row(_ item: Item, shown: Bool) -> some View {
+        HStack {
+            Button {
+                withAnimation { isShown(item).wrappedValue = !shown }
+            } label: {
+                Image(systemName: shown ? "minus.circle.fill" : "plus.circle.fill")
+                    .foregroundStyle(shown ? Color.red : Color.green)
+                    .font(.title3)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(shown ? "Remove \(item.title)" : "Add \(item.title)"))
+
+            Image(systemName: item.systemImage)
+                .frame(width: 24)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                if let missing = missingFeature(item) {
+                    Text(missing).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(
+                    [
+                        (String(localized: "Carbs"), "fork.knife.circle"),
+                        (String(localized: "Recommendation"), "wand.and.stars"),
+                        (String(localized: "Bolus"), "drop.fill")
+                    ],
+                    id: \.0
+                ) { title, image in
+                    HStack {
+                        Image(systemName: "lock.fill").foregroundStyle(.secondary).font(.title3)
+                        Image(systemName: image).frame(width: 24).foregroundStyle(.secondary)
+                        Text(title)
+                    }
+                }
+            } header: {
+                Text("Always Shown")
+            }
+            .listRowBackground(Color.chart)
+
+            let shown = Item.allCases.filter { isShown($0).wrappedValue }
+            let available = Item.allCases.filter { !isShown($0).wrappedValue }
+
+            Section {
+                if shown.isEmpty {
+                    Text("Only carbs, the recommendation and the bolus.").foregroundStyle(.secondary)
+                }
+                ForEach(shown) { row($0, shown: true) }
+            } header: {
+                Text("Shown on the Treatment Sheet")
+            } footer: {
+                Text("The sheet keeps its order: the meal entries first, then the bolus.")
+            }
+            .listRowBackground(Color.chart)
+
+            if !available.isEmpty {
+                Section {
+                    ForEach(available) { row($0, shown: false) }
+                } header: {
+                    Text("Available")
+                }
+                .listRowBackground(Color.chart)
+            }
+        }
+        .listSectionSpacing(sectionSpacing)
+        .scrollContentBackground(.hidden).background(appState.trioBackgroundColor(for: colorScheme))
+        .onAppear(perform: configureView)
+        .navigationBarTitle("Treatment Sheet")
+        .navigationBarTitleDisplayMode(.automatic)
+    }
+}

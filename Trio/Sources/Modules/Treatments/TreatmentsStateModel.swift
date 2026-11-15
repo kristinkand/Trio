@@ -83,6 +83,15 @@ extension Treatments {
         var showMealTime: Bool = true
         var showMealNote: Bool = true
         var showExternalInsulin: Bool = true
+        // the sheet's optional parts (Settings › Treatments › Treatment Sheet)
+        var showTreatmentChart: Bool = true
+        var showTreatmentFatProtein: Bool = true
+        var showTreatmentBolusOptions: Bool = true
+        var showTreatmentIOB: Bool = true
+        var showTreatmentMealReminder: Bool = true
+
+        /// Fat and protein can be entered and are chosen for the sheet.
+        var showsFatProtein: Bool { useFPUconversion && showTreatmentFatProtein }
         var confirmBolus: Bool = false
 
         var currentBasal: Decimal = 0
@@ -377,6 +386,11 @@ extension Treatments {
             showMealTime = settings.settings.showMealTime
             showMealNote = settings.settings.showMealNote
             showExternalInsulin = settings.settings.showExternalInsulin
+            showTreatmentChart = settings.settings.showTreatmentChart
+            showTreatmentFatProtein = settings.settings.showTreatmentFatProtein
+            showTreatmentBolusOptions = settings.settings.showTreatmentBolusOptions
+            showTreatmentIOB = settings.settings.showTreatmentIOB
+            showTreatmentMealReminder = settings.settings.showTreatmentMealReminder
             confirmBolus = settings.settings.confirmBolus
             forecastDisplayType = settings.settings.forecastDisplayType
             lowGlucose = settingsManager.settings.low

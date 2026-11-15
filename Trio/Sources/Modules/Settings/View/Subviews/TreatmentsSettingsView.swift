@@ -14,6 +14,7 @@ struct TreatmentsSettingsView: BaseView {
         Form {
             Section {
                 Text("Bolus Calculator").navigationLink(to: .bolusCalculatorConfig, from: self)
+                Text("Treatment Sheet").navigationLink(to: .treatmentSheetConfig, from: self)
                 Text("Quick-Pick Treatments").navigationLink(to: .quickPickTreatmentsConfig, from: self)
                 Text("Meal Settings").navigationLink(to: .mealSettings, from: self)
             }
