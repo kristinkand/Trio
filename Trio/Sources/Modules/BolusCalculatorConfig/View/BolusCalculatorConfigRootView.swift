@@ -1,3 +1,4 @@
+import CoreTransferable
 import SwiftUI
 import Swinject
 
@@ -19,99 +20,6 @@ extension BolusCalculatorConfig {
 
         var body: some View {
             List {
-                SettingInputSection(
-                    decimalValue: $decimalPlaceholder,
-                    booleanValue: $state.displayPresets,
-                    shouldDisplayHint: $shouldDisplayHint,
-                    selectedVerboseHint: Binding(
-                        get: { selectedVerboseHint },
-                        set: {
-                            selectedVerboseHint = $0.map { AnyView($0) }
-                            hintLabel = String(localized: "Display Meal Presets")
-                        }
-                    ),
-                    units: state.units,
-                    type: .boolean,
-                    label: String(localized: "Display Meal Presets"),
-                    miniHint: String(localized: "Allow the creation of saved, preset meals."),
-                    verboseHint: VStack(alignment: .leading, spacing: 10) {
-                        Text("Default: ON").bold()
-                        Text("Enabling this feature allows you to create and save preset meals.")
-                    }
-                )
-
-                SettingInputSection(
-                    decimalValue: $decimalPlaceholder,
-                    booleanValue: $state.showMealTime,
-                    shouldDisplayHint: $shouldDisplayHint,
-                    selectedVerboseHint: Binding(
-                        get: { selectedVerboseHint },
-                        set: {
-                            selectedVerboseHint = $0.map { AnyView($0) }
-                            hintLabel = String(localized: "Show Meal Time")
-                        }
-                    ),
-                    units: state.units,
-                    type: .boolean,
-                    label: String(localized: "Show Meal Time"),
-                    miniHint: String(localized: "Show the time row for meal entries in the bolus calculator."),
-                    verboseHint: VStack(alignment: .leading, spacing: 10) {
-                        Text("Default: ON").bold()
-                        Text(
-                            "Shows the time row in the bolus calculator so a meal can be logged at an earlier or later time."
-                        )
-                        Text(
-                            "When turned off, meals are always logged at the time the bolus calculator was opened."
-                        )
-                    }
-                )
-
-                SettingInputSection(
-                    decimalValue: $decimalPlaceholder,
-                    booleanValue: $state.showMealNote,
-                    shouldDisplayHint: $shouldDisplayHint,
-                    selectedVerboseHint: Binding(
-                        get: { selectedVerboseHint },
-                        set: {
-                            selectedVerboseHint = $0.map { AnyView($0) }
-                            hintLabel = String(localized: "Show Meal Note")
-                        }
-                    ),
-                    units: state.units,
-                    type: .boolean,
-                    label: String(localized: "Show Meal Note"),
-                    miniHint: String(localized: "Show the note field for meal entries in the bolus calculator."),
-                    verboseHint: VStack(alignment: .leading, spacing: 10) {
-                        Text("Default: ON").bold()
-                        Text("Shows the note field in the bolus calculator so a short note can be added to a meal entry.")
-                    }
-                )
-
-                SettingInputSection(
-                    decimalValue: $decimalPlaceholder,
-                    booleanValue: $state.showExternalInsulin,
-                    shouldDisplayHint: $shouldDisplayHint,
-                    selectedVerboseHint: Binding(
-                        get: { selectedVerboseHint },
-                        set: {
-                            selectedVerboseHint = $0.map { AnyView($0) }
-                            hintLabel = String(localized: "Show External Insulin")
-                        }
-                    ),
-                    units: state.units,
-                    type: .boolean,
-                    label: String(localized: "Show External Insulin"),
-                    miniHint: String(localized: "Show the External Insulin option in the bolus calculator."),
-                    verboseHint: VStack(alignment: .leading, spacing: 10) {
-                        Text("Default: ON").bold()
-                        Text(
-                            "Shows the External Insulin option in the bolus calculator for logging insulin given outside the pump, for example with a pen or syringe."
-                        )
-                        Text("When turned off, every bolus entered in the bolus calculator is delivered by the pump.")
-                        Text("Keep this on if you log injections given with a pen or syringe.")
-                    }
-                )
-
                 SettingInputSection(
                     decimalValue: $state.overrideFactor,
                     booleanValue: $booleanPlaceholder,
@@ -355,161 +263,506 @@ extension BolusCalculatorConfig {
     }
 }
 
-/// Settings › Treatments › Treatment Sheet: which optional parts the treatment sheet shows. Carbs, the
-/// recommendation and the bolus are always there; the rest is picked from a list, as for the Live Activity.
+// MARK: - Settings › Treatments › Treatment Sheet
+
+extension TreatmentSheetRow: Transferable {
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .json)
+    }
+
+    var title: String {
+        switch self {
+        case .carbs: String(localized: "Carbs")
+        case .fatProtein: String(localized: "Fat and Protein")
+        case .mealTime: String(localized: "Meal Time")
+        case .note: String(localized: "Meal Note")
+        case .bolusOptions: String(localized: "Reduced / Super Bolus")
+        case .iob: String(localized: "Insulin on Board (IOB)")
+        case .recommendation: String(localized: "Recommendation")
+        case .bolus: String(localized: "Bolus")
+        case .mealReminder: String(localized: "Remind Me to Eat")
+        case .externalInsulin: String(localized: "External Insulin")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .carbs: "fork.knife"
+        case .fatProtein: "takeoutbag.and.cup.and.straw"
+        case .mealTime: "clock"
+        case .note: "square.and.pencil"
+        case .bolusOptions: "slider.horizontal.3"
+        case .iob: "drop"
+        case .recommendation: "wand.and.stars"
+        case .bolus: "drop.fill"
+        case .mealReminder: "alarm"
+        case .externalInsulin: "syringe"
+        }
+    }
+}
+
+extension TreatmentSheetPill: Transferable {
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .json)
+    }
+
+    var title: String {
+        switch self {
+        case .carbs: String(localized: "Carbs Entered")
+        case .currentGlucose: String(localized: "Current Glucose")
+        case .eventualGlucose: String(localized: "Eventual Glucose")
+        case .iob: String(localized: "IOB")
+        case .cob: String(localized: "COB")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .carbs: "fork.knife"
+        case .currentGlucose: "drop.fill"
+        case .eventualGlucose: "arrow.right.circle"
+        case .iob: "syringe"
+        case .cob: "fork.knife.circle"
+        }
+    }
+
+    var sample: String {
+        switch self {
+        case .carbs: "45 g"
+        case .currentGlucose: "120"
+        case .eventualGlucose: "105"
+        case .iob: "1.25 U"
+        case .cob: "30 g"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .carbs: .orange
+        case .currentGlucose: .blue
+        case .eventualGlucose: .primary
+        case .iob: Color.insulin
+        case .cob: Color.loopYellow
+        }
+    }
+}
+
+/// Settings › Treatments › Treatment Sheet: a preview of the sheet to arrange, as for the Live Activity. Drag rows and
+/// pills to move them, drag them up from the lists below to add them, or back down to remove them. Carbs, the
+/// recommendation and the bolus always stay.
 struct TreatmentSheetConfigView: BaseView {
     let resolver: Resolver
 
     @StateObject var state = BolusCalculatorConfig.StateModel()
 
+    @State private var targetedRow: Int?
+    @State private var targetedPill: Int?
+    @State private var isPaletteTargeted = false
+
     @Environment(\.colorScheme) var colorScheme
     @Environment(AppState.self) var appState
 
-    /// The optional parts, in the order the sheet shows them.
-    enum Item: CaseIterable, Identifiable {
-        case chart
-        case fatProtein
-        case mealTime
-        case note
-        case bolusOptions
-        case iob
-        case mealReminder
-        case externalInsulin
-        case presets
+    private var rows: [TreatmentSheetRow] { state.treatmentSheetRows }
+    private var pills: [TreatmentSheetPill] { state.treatmentSheetPills }
+    private var availableRows: [TreatmentSheetRow] { TreatmentSheetRow.defaultOrder.filter { !rows.contains($0) } }
+    private var availablePills: [TreatmentSheetPill] { TreatmentSheetPill.allCases.filter { !pills.contains($0) } }
 
-        var id: Self { self }
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(String(localized: "Treatment Sheet Preview").uppercased())
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading)
 
-        var title: String {
-            switch self {
-            case .chart: String(localized: "Forecast Chart")
-            case .fatProtein: String(localized: "Fat and Protein")
-            case .mealTime: String(localized: "Meal Time")
-            case .note: String(localized: "Meal Note")
-            case .bolusOptions: String(localized: "Reduced Bolus / Super Bolus")
-            case .iob: String(localized: "Insulin on Board (IOB)")
-            case .mealReminder: String(localized: "Remind Me to Eat")
-            case .externalInsulin: String(localized: "External Insulin")
-            case .presets: String(localized: "Meal Presets Button")
+                preview
+
+                HStack(alignment: .top) {
+                    Image(systemName: "info.circle")
+                    Text(
+                        "Drag a row or pill to move it. Drag one up from the lists below to add it, or drop it back onto a list to remove it. Carbs, Recommendation and Bolus always stay."
+                    )
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+
+                palette
+            }
+            .padding()
+        }
+        .scrollContentBackground(.hidden)
+        .background(appState.trioBackgroundColor(for: colorScheme))
+        .onAppear(perform: configureView)
+        .navigationTitle("Treatment Sheet")
+        .navigationBarTitleDisplayMode(.automatic)
+    }
+
+    // MARK: Preview
+
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Close").foregroundStyle(Color.accentColor)
+                Spacer()
+                Text("Treatments").bold()
+                Spacer()
+                Toggle(isOn: $state.displayPresets) {
+                    Text("Presets +").foregroundStyle(state.displayPresets ? Color.accentColor : Color.secondary)
+                }
+                .toggleStyle(.button)
+                .accessibilityLabel(Text("Meal Presets Button"))
+            }
+            .font(.footnote)
+
+            chartPreview
+
+            VStack(spacing: 6) {
+                ForEach(Array(rows.enumerated()), id: \.element) { index, row in
+                    placedRow(row, at: index)
+                }
+                rowDropZone(at: rows.count)
             }
         }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color.chart))
+    }
 
-        var systemImage: String {
-            switch self {
-            case .chart: "chart.xyaxis.line"
-            case .fatProtein: "fork.knife"
-            case .mealTime: "clock"
-            case .note: "square.and.pencil"
-            case .bolusOptions: "slider.horizontal.3"
-            case .iob: "drop"
-            case .mealReminder: "alarm"
-            case .externalInsulin: "syringe"
-            case .presets: "plus.rectangle.on.rectangle"
+    @ViewBuilder private var chartPreview: some View {
+        if state.showTreatmentChart {
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    ForEach(Array(pills.enumerated()), id: \.element) { index, pill in
+                        placedPill(pill, at: index)
+                    }
+                    if pills.count < TreatmentSheetPill.limit {
+                        emptyPillSlot(at: pills.count)
+                    }
+                }
+                ZStack(alignment: .topTrailing) {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.cyan.opacity(0.12))
+                        .frame(height: 70)
+                        .overlay(
+                            Label("Forecast Chart", systemImage: "chart.xyaxis.line")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        )
+                    removeBadge(String(localized: "Forecast Chart")) { state.showTreatmentChart = false }
+                }
             }
+        } else {
+            Button {
+                withAnimation { state.showTreatmentChart = true }
+            } label: {
+                Label("Forecast Chart and Pills", systemImage: "plus")
+                    .font(.footnote)
+                    .frame(maxWidth: .infinity, minHeight: 36)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(style: StrokeStyle(lineWidth: 1, dash: [5])))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
         }
     }
 
-    private func isShown(_ item: Item) -> Binding<Bool> {
-        switch item {
-        case .chart: $state.showTreatmentChart
-        case .fatProtein: $state.showTreatmentFatProtein
-        case .mealTime: $state.showMealTime
-        case .note: $state.showMealNote
-        case .bolusOptions: $state.showTreatmentBolusOptions
-        case .iob: $state.showTreatmentIOB
-        case .mealReminder: $state.showTreatmentMealReminder
-        case .externalInsulin: $state.showExternalInsulin
-        case .presets: $state.displayPresets
+    private func removeBadge(_ title: String, action: @escaping () -> Void) -> some View {
+        Button { withAnimation { action() } } label: {
+            Image(systemName: "trash.circle.fill")
+                .foregroundStyle(Color(UIColor.systemGray2))
+                .background(Circle().fill(Color.white))
+                .font(.title3)
         }
+        .buttonStyle(.plain)
+        .offset(x: 8, y: -8)
+        .accessibilityLabel(Text("Remove \(title)"))
     }
 
-    /// Why a part chosen here can't appear yet: the feature behind it is off elsewhere.
-    private func missingFeature(_ item: Item) -> String? {
-        switch item {
+    private func pillTile(_ pill: TreatmentSheetPill, highlighted: Bool = false) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: pill.systemImage)
+            Text(pill.sample).lineLimit(1)
+        }
+        .font(.caption2)
+        .foregroundStyle(pill.color)
+        .padding(6)
+        .background(RoundedRectangle(cornerRadius: 8).fill(pill.color.opacity(0.2)))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor, lineWidth: highlighted ? 2 : 0))
+    }
+
+    private func placedPill(_ pill: TreatmentSheetPill, at index: Int) -> some View {
+        ZStack(alignment: .topTrailing) {
+            pillTile(pill, highlighted: targetedPill == index)
+            removeBadge(pill.title) { _ = removePill(pill) }
+        }
+        .frame(maxWidth: .infinity)
+        .draggable(pill) { pillTile(pill) }
+        .dropDestination(for: TreatmentSheetPill.self) { dropped, _ in
+            targetedPill = nil
+            guard let dropped = dropped.first else { return false }
+            return placePill(dropped, at: index)
+        } isTargeted: { targetedPill = $0 ? index : nil }
+        .contextMenu {
+            if index > 0 { Button("Move Left") { _ = placePill(pill, at: index - 1) } }
+            if index < pills.count - 1 { Button("Move Right") { _ = placePill(pill, at: index + 2) } }
+            Button("Remove", role: .destructive) { _ = removePill(pill) }
+        }
+        .accessibilityLabel(Text(pill.title))
+        .accessibilityValue(Text("Pill \(index + 1) of \(pills.count)"))
+    }
+
+    private func emptyPillSlot(at index: Int) -> some View {
+        Image(systemName: "plus")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, minHeight: 26)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(style: StrokeStyle(lineWidth: targetedPill == index ? 2 : 1, dash: targetedPill == index ? [] : [4]))
+                    .foregroundStyle(targetedPill == index ? Color.accentColor : Color.secondary)
+            )
+            .dropDestination(for: TreatmentSheetPill.self) { dropped, _ in
+                targetedPill = nil
+                guard let dropped = dropped.first else { return false }
+                return placePill(dropped, at: pills.count)
+            } isTargeted: { targetedPill = $0 ? index : nil }
+            .accessibilityLabel(Text("Empty pill slot"))
+    }
+
+    /// Why a row on the sheet doesn't show yet: its feature is off elsewhere.
+    private func missingFeature(_ row: TreatmentSheetRow) -> String? {
+        switch row {
         case .fatProtein where !state.useFPUconversion:
-            String(localized: "Needs Fat and Protein Entries (Meal Settings)")
+            String(localized: "Shows once Fat and Protein Entries are on (Meal Settings)")
         case .bolusOptions where !state.fattyMeals && !state.sweetMeals:
-            String(localized: "Needs Reduced or Super Bolus (Bolus Calculator)")
+            String(localized: "Shows once Reduced or Super Bolus is on (Bolus Calculator)")
         case .mealReminder where !state.mealTimeReminderEnabled:
-            String(localized: "Needs the Meal-Time Reminder (Bolus Calculator)")
+            String(localized: "Shows once the Meal-Time Reminder is on (Bolus Calculator)")
         default:
             nil
         }
     }
 
-    @ViewBuilder private func row(_ item: Item, shown: Bool) -> some View {
-        HStack {
-            Button {
-                withAnimation { isShown(item).wrappedValue = !shown }
-            } label: {
-                Image(systemName: shown ? "minus.circle.fill" : "plus.circle.fill")
-                    .foregroundStyle(shown ? Color.red : Color.green)
-                    .font(.title3)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(shown ? "Remove \(item.title)" : "Add \(item.title)"))
-
-            Image(systemName: item.systemImage)
-                .frame(width: 24)
+    private func rowTile(_ row: TreatmentSheetRow, highlighted: Bool = false) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: row.systemImage)
+                .frame(width: 22)
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                if let missing = missingFeature(item) {
-                    Text(missing).font(.caption).foregroundStyle(.secondary)
+                Text(row.title).font(.subheadline)
+                if let missing = missingFeature(row) {
+                    Text(missing).font(.caption2).foregroundStyle(.secondary)
                 }
             }
+            Spacer()
+            if row.isRequired {
+                Image(systemName: "lock.fill").font(.caption).foregroundStyle(.secondary)
+            }
+            Image(systemName: "line.3.horizontal").foregroundStyle(.secondary)
         }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemBackground)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.accentColor, lineWidth: highlighted ? 2 : 0))
+        .opacity(missingFeature(row) == nil ? 1 : 0.6)
     }
 
-    var body: some View {
-        List {
-            Section {
-                ForEach(
-                    [
-                        (String(localized: "Carbs"), "fork.knife.circle"),
-                        (String(localized: "Recommendation"), "wand.and.stars"),
-                        (String(localized: "Bolus"), "drop.fill")
-                    ],
-                    id: \.0
-                ) { title, image in
-                    HStack {
-                        Image(systemName: "lock.fill").foregroundStyle(.secondary).font(.title3)
-                        Image(systemName: image).frame(width: 24).foregroundStyle(.secondary)
-                        Text(title)
-                    }
-                }
-            } header: {
-                Text("Always Shown")
-            }
-            .listRowBackground(Color.chart)
-
-            let shown = Item.allCases.filter { isShown($0).wrappedValue }
-            let available = Item.allCases.filter { !isShown($0).wrappedValue }
-
-            Section {
-                if shown.isEmpty {
-                    Text("Only carbs, the recommendation and the bolus.").foregroundStyle(.secondary)
-                }
-                ForEach(shown) { row($0, shown: true) }
-            } header: {
-                Text("Shown on the Treatment Sheet")
-            } footer: {
-                Text("The sheet keeps its order: the meal entries first, then the bolus.")
-            }
-            .listRowBackground(Color.chart)
-
-            if !available.isEmpty {
-                Section {
-                    ForEach(available) { row($0, shown: false) }
-                } header: {
-                    Text("Available")
-                }
-                .listRowBackground(Color.chart)
+    private func placedRow(_ row: TreatmentSheetRow, at index: Int) -> some View {
+        ZStack(alignment: .topTrailing) {
+            rowTile(row, highlighted: targetedRow == index)
+            if !row.isRequired {
+                removeBadge(row.title) { _ = removeRow(row) }
             }
         }
-        .listSectionSpacing(sectionSpacing)
-        .scrollContentBackground(.hidden).background(appState.trioBackgroundColor(for: colorScheme))
-        .onAppear(perform: configureView)
-        .navigationBarTitle("Treatment Sheet")
-        .navigationBarTitleDisplayMode(.automatic)
+        .draggable(row) { rowTile(row).frame(width: 260) }
+        .dropDestination(for: TreatmentSheetRow.self) { dropped, _ in
+            targetedRow = nil
+            guard let dropped = dropped.first else { return false }
+            return placeRow(dropped, at: index)
+        } isTargeted: { targetedRow = $0 ? index : nil }
+        .contextMenu {
+            if index > 0 { Button("Move Up") { _ = placeRow(row, at: index - 1) } }
+            if index < rows.count - 1 { Button("Move Down") { _ = placeRow(row, at: index + 2) } }
+            if !row.isRequired { Button("Remove", role: .destructive) { _ = removeRow(row) } }
+        }
+        .accessibilityLabel(Text(row.title))
+        .accessibilityValue(Text("Row \(index + 1) of \(rows.count)"))
+    }
+
+    private func rowDropZone(at index: Int) -> some View {
+        Text("Drop here to put it last")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, minHeight: 28)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(style: StrokeStyle(lineWidth: targetedRow == index ? 2 : 1, dash: targetedRow == index ? [] : [4]))
+                    .foregroundStyle(targetedRow == index ? Color.accentColor : Color.secondary)
+            )
+            .dropDestination(for: TreatmentSheetRow.self) { dropped, _ in
+                targetedRow = nil
+                guard let dropped = dropped.first else { return false }
+                return placeRow(dropped, at: rows.count)
+            } isTargeted: { targetedRow = $0 ? index : nil }
+    }
+
+    // MARK: Palette
+
+    private var palette: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            pillPalette
+            rowPalette
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 16).fill(Color.gray.opacity(isPaletteTargeted ? 0.25 : 0.1)))
+    }
+
+    private var pillPalette: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "Available Pills").uppercased())
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if availablePills.isEmpty {
+                Text("All pills are on the sheet.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                FlowRow(items: availablePills) { pill in
+                    let canPlace = pills.count < TreatmentSheetPill.limit && state.showTreatmentChart
+                    VStack(spacing: 4) {
+                        pillTile(pill)
+                        Text(pill.title).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    .opacity(canPlace ? 1 : 0.4)
+                    .onTapGesture { if canPlace { _ = placePill(pill, at: pills.count) } }
+                    .draggable(pill) { pillTile(pill) }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel(Text(pill.title))
+                    .accessibilityHint(Text(canPlace ? "Adds this pill above the chart" : "No room for another pill"))
+                }
+            }
+
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .dropDestination(for: TreatmentSheetPill.self) { dropped, _ in
+            isPaletteTargeted = false
+            guard let dropped = dropped.first else { return false }
+            return removePill(dropped)
+        } isTargeted: { isPaletteTargeted = $0 }
+    }
+
+    private var rowPalette: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "Available Rows").uppercased())
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+            if availableRows.isEmpty {
+                Text("All rows are on the sheet.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(availableRows) { row in
+                    rowTile(row)
+                        .onTapGesture { _ = placeRow(row, at: rows.count) }
+                        .draggable(row) { rowTile(row).frame(width: 260) }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint(Text("Adds this row at the end of the sheet"))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .dropDestination(for: TreatmentSheetRow.self) { dropped, _ in
+            isPaletteTargeted = false
+            guard let dropped = dropped.first else { return false }
+            return removeRow(dropped)
+        } isTargeted: { isPaletteTargeted = $0 }
+    }
+
+    // MARK: Changes
+
+    @discardableResult private func placeRow(_ row: TreatmentSheetRow, at index: Int) -> Bool {
+        var items = rows
+        var target = index
+        if let current = items.firstIndex(of: row) {
+            guard current != index else { return false }
+            items.remove(at: current)
+            if current < target { target -= 1 }
+        }
+        items.insert(row, at: min(max(target, 0), items.count))
+        withAnimation { state.treatmentSheetRows = TreatmentSheetRow.normalized(items) }
+        return true
+    }
+
+    @discardableResult private func removeRow(_ row: TreatmentSheetRow) -> Bool {
+        guard !row.isRequired, rows.contains(row) else { return false }
+        withAnimation { state.treatmentSheetRows = rows.filter { $0 != row } }
+        return true
+    }
+
+    @discardableResult private func placePill(_ pill: TreatmentSheetPill, at index: Int) -> Bool {
+        var items = pills
+        var target = index
+        if let current = items.firstIndex(of: pill) {
+            guard current != index else { return false }
+            items.remove(at: current)
+            if current < target { target -= 1 }
+        } else {
+            guard items.count < TreatmentSheetPill.limit else { return false }
+        }
+        items.insert(pill, at: min(max(target, 0), items.count))
+        withAnimation { state.treatmentSheetPills = TreatmentSheetPill.normalized(items) }
+        return true
+    }
+
+    @discardableResult private func removePill(_ pill: TreatmentSheetPill) -> Bool {
+        guard pills.contains(pill) else { return false }
+        withAnimation { state.treatmentSheetPills = pills.filter { $0 != pill } }
+        return true
+    }
+}
+
+/// Items laid out left to right, wrapping onto new lines.
+private struct FlowRow<Item: Identifiable, Content: View>: View {
+    let items: [Item]
+    @ViewBuilder let content: (Item) -> Content
+
+    var body: some View {
+        FlowLayout(spacing: 10) {
+            ForEach(items) { content($0) }
+        }
+    }
+}
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, maxX: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            maxX = max(maxX, x - spacing)
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: proposal.width ?? maxX, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
     }
 }

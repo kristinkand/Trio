@@ -28,21 +28,36 @@ struct ForecastChart: View {
 
     var body: some View {
         VStack {
-            forecastChartLabels
-                .padding(.bottom, 8)
+            if !state.treatmentSheetPills.isEmpty {
+                forecastChartLabels
+                    .padding(.bottom, 8)
+            }
 
             forecastChart
         }
     }
 
+    /// The pills above the chart, in the order chosen in Settings › Treatments › Treatment Sheet.
     private var forecastChartLabels: some View {
-        // Check if this is a backdated entry by comparing with the default date using a tolerance
-        let isBackdated = abs(state.date.timeIntervalSince(state.defaultDate)) > 1.0
+        HStack {
+            ForEach(Array(state.treatmentSheetPills.enumerated()), id: \.element) { index, pill in
+                if index > 0 { Spacer() }
+                forecastChartPill(pill)
+            }
+        }
+    }
 
-        // When backdated, display no carbs as this label is only supposed to show current entered carbs
-        let displayedCarbs = isBackdated ? 0 : state.carbs
+    private func pillBackground(_ color: Color) -> some View {
+        RoundedRectangle(cornerRadius: 10).fill(color.opacity(0.2))
+    }
 
-        return HStack {
+    @ViewBuilder private func forecastChartPill(_ pill: TreatmentSheetPill) -> some View {
+        switch pill {
+        case .carbs:
+            // Check if this is a backdated entry by comparing with the default date using a tolerance
+            let isBackdated = abs(state.date.timeIntervalSince(state.defaultDate)) > 1.0
+            // When backdated, display no carbs as this label is only supposed to show current entered carbs
+            let displayedCarbs = isBackdated ? 0 : state.carbs
             HStack {
                 Image(systemName: "fork.knife")
                 Text("\(displayedCarbs.description) g")
@@ -50,28 +65,19 @@ struct ForecastChart: View {
             .font(.footnote)
             .foregroundStyle(.orange)
             .padding(8)
-            .background {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.orange.opacity(0.2))
-            }
+            .background { pillBackground(.orange) }
 
-            Spacer()
-
+        case .currentGlucose:
             HStack {
                 Image(systemName: "drop.fill")
                 Text(state.currentBG.formatted(withUnits: state.units))
             }
-
             .font(.footnote)
             .foregroundStyle(.blue)
             .padding(8)
-            .background {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.blue.opacity(0.2))
-            }
+            .background { pillBackground(.blue) }
 
-            Spacer()
-
+        case .eventualGlucose:
             HStack {
                 Image(systemName: "arrow.right.circle")
 
@@ -91,10 +97,27 @@ struct ForecastChart: View {
             .font(.footnote)
             .foregroundStyle(.primary)
             .padding(8)
-            .background {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.primary.opacity(0.2))
+            .background { pillBackground(.primary) }
+
+        case .iob:
+            HStack {
+                Image(systemName: "syringe")
+                Text(String(format: "%.2f U", NSDecimalNumber(decimal: state.iob).doubleValue))
             }
+            .font(.footnote)
+            .foregroundStyle(Color.insulin)
+            .padding(8)
+            .background { pillBackground(Color.insulin) }
+
+        case .cob:
+            HStack {
+                Image(systemName: "fork.knife.circle")
+                Text("\(state.cob) g")
+            }
+            .font(.footnote)
+            .foregroundStyle(Color.loopYellow)
+            .padding(8)
+            .background { pillBackground(Color.loopYellow) }
         }
     }
 

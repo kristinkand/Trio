@@ -100,13 +100,11 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var showMealTime: Bool = true
     var showMealNote: Bool = true
     var showExternalInsulin: Bool = true
-    /// The treatment sheet's optional parts (Settings › Treatments › Treatment Sheet): carbs, the recommendation and the
-    /// bolus are always there.
+    /// The treatment sheet's layout (Settings › Treatments › Treatment Sheet): the chart with its pills on top, then
+    /// the rows in this order. Carbs, the recommendation and the bolus are always among them.
     var showTreatmentChart: Bool = true
-    var showTreatmentFatProtein: Bool = true
-    var showTreatmentBolusOptions: Bool = true
-    var showTreatmentIOB: Bool = true
-    var showTreatmentMealReminder: Bool = true
+    var treatmentSheetPills: [TreatmentSheetPill] = TreatmentSheetPill.defaultPills
+    var treatmentSheetRows: [TreatmentSheetRow] = TreatmentSheetRow.defaultOrder
     /// "Change pump!" alarm when the pod is 2 days 6 hours old (Settings › Treatments › Bolus Calculator).
     var podChangeReminderEnabled: Bool = false
     var confirmBolus: Bool = false
@@ -453,20 +451,13 @@ extension TrioSettings: Decodable {
             settings.showTreatmentChart = value
         }
 
-        if let value = try? container.decode(Bool.self, forKey: .showTreatmentFatProtein) {
-            settings.showTreatmentFatProtein = value
+        // read as names, so a part a later build drops (or adds) doesn't lose the whole layout
+        if let raw = try? container.decode([String].self, forKey: .treatmentSheetPills) {
+            settings.treatmentSheetPills = TreatmentSheetPill.normalized(raw.compactMap(TreatmentSheetPill.init(rawValue:)))
         }
 
-        if let value = try? container.decode(Bool.self, forKey: .showTreatmentBolusOptions) {
-            settings.showTreatmentBolusOptions = value
-        }
-
-        if let value = try? container.decode(Bool.self, forKey: .showTreatmentIOB) {
-            settings.showTreatmentIOB = value
-        }
-
-        if let value = try? container.decode(Bool.self, forKey: .showTreatmentMealReminder) {
-            settings.showTreatmentMealReminder = value
+        if let raw = try? container.decode([String].self, forKey: .treatmentSheetRows) {
+            settings.treatmentSheetRows = TreatmentSheetRow.normalized(raw.compactMap(TreatmentSheetRow.init(rawValue:)))
         }
 
         if let value = try? container.decode(Bool.self, forKey: .podChangeReminderEnabled) {
@@ -555,6 +546,80 @@ extension TrioSettings: Decodable {
             settings.isWatchfaceDataEnabled = isWatchfaceDataEnabled
         }
 
+        // before the sheet could be arranged, meal time, note and external insulin each had a switch: what was
+        // switched off stays off
+        if !container.contains(.treatmentSheetRows) {
+            settings.treatmentSheetRows = TreatmentSheetRow.defaultOrder.filter { row in
+                switch row {
+                case .mealTime: settings.showMealTime
+                case .note: settings.showMealNote
+                case .externalInsulin: settings.showExternalInsulin
+                default: true
+                }
+            }
+        }
+
         self = settings
+    }
+}
+
+/// A row of the treatment sheet, in the order the user chose (Settings › Treatments › Treatment Sheet).
+enum TreatmentSheetRow: String, Codable, CaseIterable, Identifiable {
+    case carbs
+    case fatProtein
+    case mealTime
+    case note
+    case bolusOptions
+    case iob
+    case recommendation
+    case bolus
+    case mealReminder
+    case externalInsulin
+
+    var id: String { rawValue }
+
+    /// Always on the sheet: what a treatment needs.
+    var isRequired: Bool { self == .carbs || self == .recommendation || self == .bolus }
+
+    /// The sheet as it was before it could be arranged.
+    static let defaultOrder: [TreatmentSheetRow] = [
+        .carbs, .fatProtein, .mealTime, .note, .bolusOptions, .iob, .recommendation, .bolus, .mealReminder, .externalInsulin
+    ]
+
+    /// Each row once, and the required ones always there (at their usual place when missing).
+    static func normalized(_ rows: [TreatmentSheetRow]) -> [TreatmentSheetRow] {
+        var result: [TreatmentSheetRow] = []
+        for row in rows where !result.contains(row) {
+            result.append(row)
+        }
+        for required in defaultOrder where required.isRequired && !result.contains(required) {
+            // after the row that precedes it by default, if that is there
+            let before = defaultOrder.prefix { $0 != required }.last { result.contains($0) }
+            let index = before.flatMap { result.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
+            result.insert(required, at: index)
+        }
+        return result
+    }
+}
+
+/// A pill above the treatment sheet's chart.
+enum TreatmentSheetPill: String, Codable, CaseIterable, Identifiable {
+    case carbs
+    case currentGlucose
+    case eventualGlucose
+    case iob
+    case cob
+
+    var id: String { rawValue }
+
+    static let limit = 4
+    static let defaultPills: [TreatmentSheetPill] = [.carbs, .currentGlucose, .eventualGlucose]
+
+    static func normalized(_ pills: [TreatmentSheetPill]) -> [TreatmentSheetPill] {
+        var result: [TreatmentSheetPill] = []
+        for pill in pills where !result.contains(pill) && result.count < limit {
+            result.append(pill)
+        }
+        return result
     }
 }
