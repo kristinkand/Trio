@@ -100,6 +100,13 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var showMealTime: Bool = true
     var showMealNote: Bool = true
     var showExternalInsulin: Bool = true
+    /// The treatment sheet's optional parts (Settings › Treatments › Treatment Sheet): carbs, the recommendation and the
+    /// bolus are always there.
+    var showTreatmentChart: Bool = true
+    var showTreatmentFatProtein: Bool = true
+    var showTreatmentBolusOptions: Bool = true
+    var showTreatmentIOB: Bool = true
+    var showTreatmentMealReminder: Bool = true
     var confirmBolus: Bool = false
     var enableQuickPickTreatments: Bool = false
     var useLiveActivity: Bool = false
@@ -438,6 +445,26 @@ extension TrioSettings: Decodable {
 
         if let showExternalInsulin = try? container.decode(Bool.self, forKey: .showExternalInsulin) {
             settings.showExternalInsulin = showExternalInsulin
+        }
+
+        if let value = try? container.decode(Bool.self, forKey: .showTreatmentChart) {
+            settings.showTreatmentChart = value
+        }
+
+        if let value = try? container.decode(Bool.self, forKey: .showTreatmentFatProtein) {
+            settings.showTreatmentFatProtein = value
+        }
+
+        if let value = try? container.decode(Bool.self, forKey: .showTreatmentBolusOptions) {
+            settings.showTreatmentBolusOptions = value
+        }
+
+        if let value = try? container.decode(Bool.self, forKey: .showTreatmentIOB) {
+            settings.showTreatmentIOB = value
+        }
+
+        if let value = try? container.decode(Bool.self, forKey: .showTreatmentMealReminder) {
+            settings.showTreatmentMealReminder = value
         }
 
         if let confirmBolus = try? container.decode(Bool.self, forKey: .confirmBolus) {

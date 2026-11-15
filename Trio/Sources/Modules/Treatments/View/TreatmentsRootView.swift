@@ -248,7 +248,7 @@ extension Treatments {
         /// Determines the next field to focus on based on the current focused field.
         private func nextField(from current: FocusedField) -> FocusedField? {
             // If the fat/protein fields are hidden, skip them in navigation
-            let showFPU = state.useFPUconversion
+            let showFPU = state.showsFatProtein
 
             switch current {
             case .fat:
@@ -264,7 +264,7 @@ extension Treatments {
 
         /// Determines the previous field to focus on based on the current focused field.
         private func previousField(from current: FocusedField) -> FocusedField? {
-            let showFPU = state.useFPUconversion
+            let showFPU = state.showsFatProtein
 
             switch current {
             case .fat:
@@ -320,7 +320,7 @@ extension Treatments {
 
         /// Own view for Reduced Bolus / Super Bolus toggles, the recommendation readout and the Bolus field
         @ViewBuilder private var bolusSection: some View {
-            if state.fattyMeals || state.sweetMeals {
+            if state.showTreatmentBolusOptions, state.fattyMeals || state.sweetMeals {
                 HStack(spacing: 10) {
                     if state.fattyMeals {
                         Toggle(isOn: $state.useFattyMealCorrectionFactor) {
@@ -355,11 +355,13 @@ extension Treatments {
                 }
             }
 
-            HStack {
-                Text("Insulin on Board (IOB)")
-                Spacer()
-                Text(String(format: "%.2f U", NSDecimalNumber(decimal: state.iob).doubleValue))
-                    .foregroundColor(.secondary)
+            if state.showTreatmentIOB {
+                HStack {
+                    Text("Insulin on Board (IOB)")
+                    Spacer()
+                    Text(String(format: "%.2f U", NSDecimalNumber(decimal: state.iob).doubleValue))
+                        .foregroundColor(.secondary)
+                }
             }
 
             HStack {
@@ -425,7 +427,7 @@ extension Treatments {
             }
             .id(FocusedField.bolus)
 
-            if state.mealTimeReminderEnabled {
+            if state.mealTimeReminderEnabled, state.showTreatmentMealReminder {
                 mealTimeReminderRow()
             }
 
@@ -443,16 +445,18 @@ extension Treatments {
                 VStack {
                     ScrollViewReader { proxy in
                         List {
-                            Section {
-                                ForecastChart(state: state)
-                                    .padding(.vertical)
-                            }.listRowBackground(Color.chart)
+                            if state.showTreatmentChart {
+                                Section {
+                                    ForecastChart(state: state)
+                                        .padding(.vertical)
+                                }.listRowBackground(Color.chart)
+                            }
 
                             Section {
                                 carbsTextField()
                                     .id(FocusedField.carbs)
 
-                                if state.useFPUconversion {
+                                if state.showsFatProtein {
                                     proteinAndFat()
                                         .id(FocusedField.fat)
 

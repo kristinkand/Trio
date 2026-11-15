@@ -229,6 +229,12 @@ enum SettingItems {
             path: ["Features", "Treatments", "Bolus Calculator"]
         ),
         SettingItem(
+            title: "Treatment Sheet",
+            view: .treatmentSheetConfig,
+            searchContents: ["Forecast Chart", "Meal Note", "Meal Time", "Meal Presets Button", "External Insulin"],
+            path: ["Features", "Treatments", "Treatment Sheet"]
+        ),
+        SettingItem(
             title: "Quick-Pick Treatments",
             view: .quickPickTreatmentsConfig,
             searchContents: ["Enable Quick-Pick Treatments"],

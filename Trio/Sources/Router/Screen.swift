@@ -30,6 +30,7 @@ enum Screen: Identifiable, Hashable {
     case userInterfaceSettings
     case bolusCalculatorConfig
     case quickPickTreatmentsConfig
+    case treatmentSheetConfig
     case dynamicISF
     case calibrations
     case shortcutsConfig
@@ -141,6 +142,8 @@ extension Screen {
             }
         case .quickPickTreatmentsConfig:
             QuickPickTreatmentsConfig.RootView(resolver: resolver)
+        case .treatmentSheetConfig:
+            TreatmentSheetConfigView(resolver: resolver)
         case .dynamicISF:
             UntetheredSettingsGate(manager: resolver.resolve(UntetheredPhoneManager.self)!) {
                 DynamicSettings.RootView(resolver: resolver)
