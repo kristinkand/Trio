@@ -94,6 +94,9 @@ struct UntetheredSession: Codable, Equatable {
 
     var isIdle: Bool { phase == .idle }
 
+    /// Phone: this session ended with the watch's hand-back. Optional so older saved states load.
+    private(set) var handedBack: Bool?
+
     // MARK: - Phone
 
     mutating func phone(_ event: PhoneEvent, now: Date) -> [Effect] {
@@ -179,6 +182,7 @@ struct UntetheredSession: Codable, Equatable {
              let (.ending, .received(.handback(status), _)):
             phase = .idle
             forced = false
+            handedBack = true
             returnedTempBasal = status?.tempBasal
             returnedHighTemp = status?.runningHighTemp
             return [.takePump, .send(.handbackAck), .reconcile]
@@ -186,6 +190,13 @@ struct UntetheredSession: Codable, Equatable {
         case (.idle, .received(.handback, _)):
             // our acknowledgement got lost; the pump is ours already
             return [.send(.handbackAck)]
+
+        // a takeover reported after the phone gave up on it and took the pump back: the watch stops, and its records
+        // come over (Ponytail's review, 15 November). Only for this session, and not after its hand-back: the watch
+        // sends the report again after a send error, and a copy arriving then is no takeover (Claude Fable's review).
+        // A newer session is the watch starting without the phone.
+        case (.idle, .received(.takeoverComplete, _)) where handedBack != true:
+            return [.send(.revoke), .reconcile]
 
         case (.active, .received(.released, _)),
              (.ending, .received(.released, _)),
@@ -368,5 +379,6 @@ extension UntetheredSession {
         handbackStatus = try container.decodeIfPresent(UntetheredPodStatus?.self, forKey: .handbackStatus)
         handbackOfferedAt = try container.decodeIfPresent(Date.self, forKey: .handbackOfferedAt)
         handbackLetGo = try container.decodeIfPresent(Bool.self, forKey: .handbackLetGo) ?? handbackLetGo
+        handedBack = try container.decodeIfPresent(Bool.self, forKey: .handedBack)
     }
 }
