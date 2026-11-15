@@ -209,10 +209,7 @@ enum SettingItems {
             title: "Bolus Calculator",
             view: .bolusCalculatorConfig,
             searchContents: [
-                "Display Meal Presets",
-                "Show Meal Time",
-                "Show Meal Note",
-                "Show External Insulin",
+                "Pod Change Reminder",
                 "Recommended Bolus Percentage",
                 "Enable Reduced Bolus Factor",
                 "Reduced Bolus Factor",
@@ -231,7 +228,15 @@ enum SettingItems {
         SettingItem(
             title: "Treatment Sheet",
             view: .treatmentSheetConfig,
-            searchContents: ["Forecast Chart", "Meal Note", "Meal Time", "Meal Presets Button", "External Insulin"],
+            searchContents: [
+                "Display Meal Presets",
+                "Show Meal Time",
+                "Show Meal Note",
+                "Show External Insulin",
+                "Forecast Chart",
+                "Pills",
+                "Treatment Sheet Order"
+            ],
             path: ["Features", "Treatments", "Treatment Sheet"]
         ),
         SettingItem(

@@ -18,10 +18,8 @@ extension BolusCalculatorConfig {
         @Published var showExternalInsulin: Bool = true
         @Published var confirmBolusWhenVeryLowGlucose: Bool = false
         @Published var showTreatmentChart: Bool = true
-        @Published var showTreatmentFatProtein: Bool = true
-        @Published var showTreatmentBolusOptions: Bool = true
-        @Published var showTreatmentIOB: Bool = true
-        @Published var showTreatmentMealReminder: Bool = true
+        @Published var treatmentSheetRows: [TreatmentSheetRow] = TreatmentSheetRow.defaultOrder
+        @Published var treatmentSheetPills: [TreatmentSheetPill] = TreatmentSheetPill.defaultPills
         @Published var podChangeReminderEnabled: Bool = false
         /// Read only here: whether fat and protein can be entered at all (Meal Settings).
         @Published var useFPUconversion: Bool = false
@@ -46,10 +44,8 @@ extension BolusCalculatorConfig {
             }
             subscribeSetting(\.mealTimeReminderPresets, on: $mealTimeReminderPresets) { mealTimeReminderPresets = $0 }
             subscribeSetting(\.showTreatmentChart, on: $showTreatmentChart) { showTreatmentChart = $0 }
-            subscribeSetting(\.showTreatmentFatProtein, on: $showTreatmentFatProtein) { showTreatmentFatProtein = $0 }
-            subscribeSetting(\.showTreatmentBolusOptions, on: $showTreatmentBolusOptions) { showTreatmentBolusOptions = $0 }
-            subscribeSetting(\.showTreatmentIOB, on: $showTreatmentIOB) { showTreatmentIOB = $0 }
-            subscribeSetting(\.showTreatmentMealReminder, on: $showTreatmentMealReminder) { showTreatmentMealReminder = $0 }
+            subscribeSetting(\.treatmentSheetRows, on: $treatmentSheetRows) { treatmentSheetRows = $0 }
+            subscribeSetting(\.treatmentSheetPills, on: $treatmentSheetPills) { treatmentSheetPills = $0 }
             subscribeSetting(\.podChangeReminderEnabled, on: $podChangeReminderEnabled) { podChangeReminderEnabled = $0
             } didSet: { [weak self] enabled in
                 guard enabled, let self else { return }

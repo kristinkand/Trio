@@ -85,13 +85,23 @@ extension Treatments {
         var showExternalInsulin: Bool = true
         // the sheet's optional parts (Settings › Treatments › Treatment Sheet)
         var showTreatmentChart: Bool = true
-        var showTreatmentFatProtein: Bool = true
-        var showTreatmentBolusOptions: Bool = true
-        var showTreatmentIOB: Bool = true
-        var showTreatmentMealReminder: Bool = true
+        var treatmentSheetRows: [TreatmentSheetRow] = TreatmentSheetRow.defaultOrder
+        var treatmentSheetPills: [TreatmentSheetPill] = TreatmentSheetPill.defaultPills
+
+        /// The rows the sheet shows: chosen, and their feature on.
+        var visibleSheetRows: [TreatmentSheetRow] {
+            treatmentSheetRows.filter { row in
+                switch row {
+                case .fatProtein: useFPUconversion
+                case .bolusOptions: fattyMeals || sweetMeals
+                case .mealReminder: mealTimeReminderEnabled
+                default: true
+                }
+            }
+        }
 
         /// Fat and protein can be entered and are chosen for the sheet.
-        var showsFatProtein: Bool { useFPUconversion && showTreatmentFatProtein }
+        var showsFatProtein: Bool { visibleSheetRows.contains(.fatProtein) }
         var confirmBolus: Bool = false
 
         var currentBasal: Decimal = 0
@@ -387,10 +397,8 @@ extension Treatments {
             showMealNote = settings.settings.showMealNote
             showExternalInsulin = settings.settings.showExternalInsulin
             showTreatmentChart = settings.settings.showTreatmentChart
-            showTreatmentFatProtein = settings.settings.showTreatmentFatProtein
-            showTreatmentBolusOptions = settings.settings.showTreatmentBolusOptions
-            showTreatmentIOB = settings.settings.showTreatmentIOB
-            showTreatmentMealReminder = settings.settings.showTreatmentMealReminder
+            treatmentSheetRows = settings.settings.treatmentSheetRows
+            treatmentSheetPills = settings.settings.treatmentSheetPills
             confirmBolus = settings.settings.confirmBolus
             forecastDisplayType = settings.settings.forecastDisplayType
             lowGlucose = settingsManager.settings.low
