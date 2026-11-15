@@ -62,3 +62,7 @@
 	path = SyaiKit
 	url = https://github.com/nightscout/SyaiKit
 	branch = trio-next-dev
+[submodule "SibionicsKit"]
+	path = SibionicsKit
+	url = git@github.com:ETolboom/SibionicsKit.git
+	branch = main

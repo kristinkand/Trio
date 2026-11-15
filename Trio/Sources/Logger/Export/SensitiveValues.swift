@@ -4,6 +4,7 @@ import Foundation
 import G7SensorKit
 import LibreTransmitter
 import LoopKit
+import SibionicsKit
 import SyaiKit
 import TidepoolServiceKit
 
@@ -190,6 +191,10 @@ struct SensitiveValues {
             add(credentials.dropFirst().first ?? nil, .secret)
         case let manager as G7CGMManager:
             add(manager.state.transmitterVersion?.serialNumberString, .cgmSerial)
+        case is SibionicsCGMManager:
+            // The account id is the protocol's only per-user secret and lives in
+            // the kit's keychain item, so redact it out of exported logs too.
+            add(SibionicsKeychain.loadAccountID(), .account)
         case is SyaiCGMManager:
             // The account lives in the kit's own keychain item, not in rawState
             guard let account = SyaiKeychain.loadAccount() else { return }

@@ -16,6 +16,10 @@
 		03B15F4D3077CD5400DFEBE4 /* SyaiKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03B15F4C3077CD5400DFEBE4 /* SyaiKitUI.framework */; };
 		03B15F4E3077CD6100DFEBE4 /* SyaiKitUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 03B15F4C3077CD5400DFEBE4 /* SyaiKitUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		03B15F4F3077CD6100DFEBE4 /* SyaiKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 03B15F4A3077CD4B00DFEBE4 /* SyaiKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		57B10C000000000000000B03 /* SibionicsKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57B10C000000000000000B01 /* SibionicsKit.framework */; };
+		57B10C000000000000000B04 /* SibionicsKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57B10C000000000000000B02 /* SibionicsKitUI.framework */; };
+		57B10C000000000000000B05 /* SibionicsKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 57B10C000000000000000B01 /* SibionicsKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		57B10C000000000000000B06 /* SibionicsKitUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 57B10C000000000000000B02 /* SibionicsKitUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		03DE042795C2AFA00C2CCE9E /* WatchLogRingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEA5E2B256AC7F8447B1F1C3 /* WatchLogRingTests.swift */; };
 		041D1E995A6AE92E9289DC49 /* TreatmentsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D1A7CA8C10C4403D4BBFA7 /* TreatmentsDataFlow.swift */; };
 		0998F4E33039C233005A2802 /* CapsuleSpinnerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0998F4E23039C233005A2802 /* CapsuleSpinnerView.swift */; };
@@ -1386,6 +1390,8 @@
 			files = (
 				03B15F4E3077CD6100DFEBE4 /* SyaiKitUI.framework in Embed Frameworks */,
 				03B15F4F3077CD6100DFEBE4 /* SyaiKit.framework in Embed Frameworks */,
+				57B10C000000000000000B05 /* SibionicsKit.framework in Embed Frameworks */,
+				57B10C000000000000000B06 /* SibionicsKitUI.framework in Embed Frameworks */,
 				3B4BA78F2D8DC0EC0069D5B8 /* TidepoolServiceKit.framework in Embed Frameworks */,
 				3B4BA7732D8DBD690069D5B8 /* G7SensorKitUI.framework in Embed Frameworks */,
 				3B4BA76D2D8DBD690069D5B8 /* CGMBLEKitUI.framework in Embed Frameworks */,
@@ -1476,6 +1482,8 @@
 		5CD86951C1C2313AD6D03EAD /* PumpStatusStored+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PumpStatusStored+CoreDataClass.swift"; sourceTree = "<group>"; };
 		03B15F4A3077CD4B00DFEBE4 /* SyaiKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyaiKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		03B15F4C3077CD5400DFEBE4 /* SyaiKitUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SyaiKitUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		57B10C000000000000000B01 /* SibionicsKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SibionicsKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		57B10C000000000000000B02 /* SibionicsKitUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = SibionicsKitUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0A1E8522E7684C6AA742F6E4 /* HomeStateModel+QuickPickTreatments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HomeStateModel+QuickPickTreatments.swift"; sourceTree = "<group>"; };
 		0E30588AFFF04042B9F5AC30 /* GlucoseDistributionByDayPDFChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseDistributionByDayPDFChart.swift; sourceTree = "<group>"; };
 		0CCB6F0602E069F5B4F83EDC /* SensitiveValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensitiveValues.swift; sourceTree = "<group>"; };
@@ -2713,6 +2721,8 @@
 			files = (
 				03B15F4D3077CD5400DFEBE4 /* SyaiKitUI.framework in Frameworks */,
 				03B15F4B3077CD4B00DFEBE4 /* SyaiKit.framework in Frameworks */,
+				57B10C000000000000000B03 /* SibionicsKit.framework in Frameworks */,
+				57B10C000000000000000B04 /* SibionicsKitUI.framework in Frameworks */,
 				CE95BF632BA771BE00DC3DE3 /* LoopTestingKit.framework in Frameworks */,
 				3B4BA7722D8DBD690069D5B8 /* G7SensorKitUI.framework in Frameworks */,
 				3B4BA7742D8DBD690069D5B8 /* LibreTransmitter.framework in Frameworks */,
@@ -3474,6 +3484,8 @@
 			children = (
 				03B15F4C3077CD5400DFEBE4 /* SyaiKitUI.framework */,
 				03B15F4A3077CD4B00DFEBE4 /* SyaiKit.framework */,
+				57B10C000000000000000B01 /* SibionicsKit.framework */,
+				57B10C000000000000000B02 /* SibionicsKitUI.framework */,
 				3E5308A43002BC970075629E /* AccuChekKit.framework */,
 				B6E925122EB3932A0076D719 /* OmnipodKit.framework */,
 				3E54EF2B2E476DA40006F54D /* MedtrumKit.framework */,

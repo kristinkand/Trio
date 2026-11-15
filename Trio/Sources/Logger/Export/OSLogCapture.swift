@@ -26,6 +26,7 @@ enum OSLogCapture {
         "LibreTransmitterManagerV3": ["com.loopkit.LibreTransmitter", "com.loopkit.libre"],
         "LibreLoopCGMManager": ["org.loopkit.LibreLoop"],
         "SyaiCGMManager": ["org.loopkit.SyaiKit"],
+        "SibionicsCGMManager": ["org.loopkit.SibionicsKit", "org.loopkit.SibionicsKitUI"],
         "DexShareClient": ["com.loopkit.ShareClient"]
     ]
 

@@ -22,6 +22,8 @@ import MockKit
 import MockKitUI
 import ObjectiveC
 import OmnipodKit
+import SibionicsKit
+import SibionicsKitUI
 import SyaiKit
 import SyaiKitUI
 import UIKit
@@ -46,6 +48,7 @@ enum DeviceManufacturer: CaseIterable {
     case medtrum
     case roche
     case senseonics
+    case sibionics
     case sooil
     case syai
     case otherSources
@@ -61,6 +64,7 @@ enum DeviceManufacturer: CaseIterable {
         case .medtrum: return "Medtrum"
         case .roche: return "Roche"
         case .senseonics: return "Senseonics"
+        case .sibionics: return "Sibionics"
         case .sooil: return "SOOIL"
         case .syai: return "Syai"
         case .otherSources: return String(localized: "Other Sources", comment: "Device picker section for data relays")
@@ -402,6 +406,14 @@ extension DeviceCatalog {
             manufacturer: .syai,
             name: "Syai Ultra",
             icon: .uiBundle(identifier: "org.loopkit.SyaiKitUI", asset: "sensor")
+        ),
+
+        CGMCatalogEntry(
+            .managed(SibionicsCGMManager.self, id: "SibionicsCGMManager"),
+            manufacturer: .sibionics,
+            name: "Sibionics GS3",
+            // The kit ships no artwork yet, so the row falls back to its glyph.
+            icon: .none
         ),
 
         CGMCatalogEntry(.native(.nightscout), manufacturer: .otherSources, icon: .trio(asset: "owl")),
