@@ -258,7 +258,11 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             return lockedMessages
         }
         if !kept.isEmpty { debug(.watch, "Untethered: taking on \(kept.count) message(s) kept while the saved state was locked") }
-        for payload in kept { receive(payload, replyHandler: nil) }
+        // one after the other and in full, so the pump return below is decided on what they say
+        for payload in kept {
+            guard let envelope = try? UntetheredEnvelope.decode(payload) else { continue }
+            await handle(envelope, replyHandler: nil)
+        }
         updateTimers()
         publish()
         if state.pumpReturnPending { await finishPumpReturn() }
@@ -478,8 +482,19 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         // pump, say) would release the pod beside a state that, once read, says otherwise. Kept and taken on once the
         // state opens: some the watch sends only once, as its release (Ponytail's review, 15 November).
         if UntetheredGate.isLocked {
+            // over the limit, record batches give way first: the watch sends them again, its release it doesn't
+            let isRecords: Bool = {
+                guard let envelope = try? UntetheredEnvelope.decode(payload), case .records = envelope.message else { return false }
+                return true
+            }()
             let kept = lockedMessagesLock.withLock { () -> Bool in
-                guard lockedMessages.count < Self.lockedMessagesLimit else { return false }
+                if lockedMessages.count >= Self.lockedMessagesLimit {
+                    guard !isRecords, let index = lockedMessages.firstIndex(where: { held in
+                        guard let envelope = try? UntetheredEnvelope.decode(held), case .records = envelope.message else { return false }
+                        return true
+                    }) else { return false }
+                    lockedMessages.remove(at: index)
+                }
                 lockedMessages.append(payload)
                 return true
             }
@@ -492,69 +507,73 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             replyHandler?([:])
             return
         }
-        Task { @MainActor in
-            // a session the watch started without the phone: taken on before its records are stored, which would
-            // otherwise be confirmed and dropped as a finished session's. Queued messages arrive in order, so its
-            // end comes after.
-            if self.state.session.isIdle || self.state.session.phase == .starting,
-               envelope.epoch > self.state.session.epoch
-            {
-                let unknownWatchSince = self.state.session.unknownWatchSince
-                defer {
-                    if let unknownWatchSince, self.state.session.epoch == envelope.epoch {
-                        Task { await self.adoptProvisionalAudit(of: unknownWatchSince, epoch: envelope.epoch) }
-                    }
-                }
-                switch envelope.message {
-                case let .statusReport(holding: .some(status)),
-                     let .takeoverComplete(status):
-                    await self.apply(.watchHoldsPump(epoch: envelope.epoch, status: status))
-                case .statusReport(holding: nil) where self.state.session.phase == .starting:
-                    await self.apply(.watchHoldsPump(epoch: envelope.epoch, status: nil))
-                // records alone don't hand the pump over: the watch is asked (Ponytail's review, 15 November). Only
-                // while idle: during the ownership check (`.starting`) the answer to it decides.
-                case .records where self.state.session.isIdle:
-                    await self.apply(.watchRecordsSeen(epoch: envelope.epoch))
-                // a session the phone never knew is over: its later messages then belong to an ended session
-                case .released, .takeoverFailed:
-                    await self.apply(.watchSessionEnded(epoch: envelope.epoch))
-                default: break
+        Task { @MainActor in await self.handle(envelope, replyHandler: replyHandler) }
+    }
+
+    /// One message from the watch, taken on in full; awaited where the order matters (the messages kept while the
+    /// saved state was locked, Claude Fable's review, 15 November).
+    @MainActor private func handle(_ envelope: UntetheredEnvelope, replyHandler: (([String: Any]) -> Void)?) async {
+        // a session the watch started without the phone: taken on before its records are stored, which would
+        // otherwise be confirmed and dropped as a finished session's. Queued messages arrive in order, so its
+        // end comes after.
+        if self.state.session.isIdle || self.state.session.phase == .starting,
+           envelope.epoch > self.state.session.epoch
+        {
+            let unknownWatchSince = self.state.session.unknownWatchSince
+            defer {
+                if let unknownWatchSince, self.state.session.epoch == envelope.epoch {
+                    Task { await self.adoptProvisionalAudit(of: unknownWatchSince, epoch: envelope.epoch) }
                 }
             }
             switch envelope.message {
-            case let .records(records):
-                let stored = await self.ingest(records, epoch: envelope.epoch)
-                // acknowledged as soon as stored, so the watch's backlog stays small while it loops
-                if let replyHandler,
-                   let payload = try? UntetheredEnvelope(epoch: envelope.epoch, message: .recordsStored(stored)).payload()
-                {
-                    replyHandler(payload)
-                } else {
-                    replyHandler?([:])
-                    self.send(.recordsStored(stored), epoch: envelope.epoch)
-                }
-            case .syncDone:
-                replyHandler?([:])
-                await self.finishSync(epoch: envelope.epoch)
-            case .standingGrantRequest:
-                replyHandler?([:])
-                // whatever the fingerprint says: the watch has none
-                self.scheduleStandingGrant(settingsChanged: true, immediately: true)
-            case .startRequest:
-                replyHandler?([:])
-                if let reason = await self.start() {
-                    self.send(.startRefused(reason: reason), epoch: envelope.epoch)
-                }
-            case let .dosingModeChanged(mode):
-                replyHandler?([:])
-                guard envelope.epoch >= self.state.session.epoch else { return }
-                var settings = self.settingsManager.settings
-                guard settings.dosingMode != mode else { return }
-                settings.dosingMode = mode
-                self.settingsManager.settings = settings
-            default:
-                await self.apply(.received(envelope.message, epoch: envelope.epoch), reply: replyHandler)
+            case let .statusReport(holding: .some(status)),
+                 let .takeoverComplete(status):
+                await self.apply(.watchHoldsPump(epoch: envelope.epoch, status: status))
+            case .statusReport(holding: nil) where self.state.session.phase == .starting:
+                await self.apply(.watchHoldsPump(epoch: envelope.epoch, status: nil))
+            // records alone don't hand the pump over: the watch is asked (Ponytail's review, 15 November). Only
+            // while idle: during the ownership check (`.starting`) the answer to it decides.
+            case .records where self.state.session.isIdle:
+                await self.apply(.watchRecordsSeen(epoch: envelope.epoch))
+            // a session the phone never knew is over: its later messages then belong to an ended session
+            case .released, .takeoverFailed:
+                await self.apply(.watchSessionEnded(epoch: envelope.epoch))
+            default: break
             }
+        }
+        switch envelope.message {
+        case let .records(records):
+            let stored = await self.ingest(records, epoch: envelope.epoch)
+            // acknowledged as soon as stored, so the watch's backlog stays small while it loops
+            if let replyHandler,
+               let payload = try? UntetheredEnvelope(epoch: envelope.epoch, message: .recordsStored(stored)).payload()
+            {
+                replyHandler(payload)
+            } else {
+                replyHandler?([:])
+                self.send(.recordsStored(stored), epoch: envelope.epoch)
+            }
+        case .syncDone:
+            replyHandler?([:])
+            await self.finishSync(epoch: envelope.epoch)
+        case .standingGrantRequest:
+            replyHandler?([:])
+            // whatever the fingerprint says: the watch has none
+            self.scheduleStandingGrant(settingsChanged: true, immediately: true)
+        case .startRequest:
+            replyHandler?([:])
+            if let reason = await self.start() {
+                self.send(.startRefused(reason: reason), epoch: envelope.epoch)
+            }
+        case let .dosingModeChanged(mode):
+            replyHandler?([:])
+            guard envelope.epoch >= self.state.session.epoch else { return }
+            var settings = self.settingsManager.settings
+            guard settings.dosingMode != mode else { return }
+            settings.dosingMode = mode
+            self.settingsManager.settings = settings
+        default:
+            await self.apply(.received(envelope.message, epoch: envelope.epoch), reply: replyHandler)
         }
     }
 
@@ -992,9 +1011,19 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
     }
 
+    /// A pump return is being finished (`finishPumpReturn`).
+    private var pumpReturnRunning = false
     /// Reads the pump until it answers, then audits its delivered total against the history before
     /// the loop may dose again.
     @MainActor private func finishPumpReturn() async {
+        // one at a time: a message taken on as the saved state opened can start one beside the launch's own
+        // (Claude Fable's review, 15 November)
+        guard !pumpReturnRunning else {
+            debug(.watch, "Untethered: pump return already under way")
+            return
+        }
+        pumpReturnRunning = true
+        defer { pumpReturnRunning = false }
         guard let odometer = apsManager.pumpManager as? PumpDeliveryOdometer else {
             UntetheredGate.update { $0.pumpReturnPending = false }
             publish()
