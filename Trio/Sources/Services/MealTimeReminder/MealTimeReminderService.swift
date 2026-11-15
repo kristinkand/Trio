@@ -305,7 +305,21 @@ extension Alert.Identifier {
 /// same permission as the meal-time reminder: Settings › Trio › Alarms). Scheduled once per pod from its activation;
 /// a new pod replaces the alarm. Without that permission, a time-sensitive notification at the same time.
 enum PodChangeReminder {
+    /// Whether this build has the reminder. Off: one scheduled before is cancelled at the next pump update.
+    static let isEnabled = false
     static let podAge: TimeInterval = (2 * 24 + 6) * 60 * 60
+    /// A reminder that would fall at night (from 22:00) rings at 07:00 instead, still well before the pod's 72 hours.
+    static let nightStartHour = 22
+    static let morningHour = 7
+
+    /// When the reminder rings for a pod activated then: 2 days 6 hours later, or the next 07:00 when that is at night.
+    static func fireDate(activatedAt: Date, calendar: Calendar = .current) -> Date {
+        let due = activatedAt.addingTimeInterval(podAge)
+        let hour = calendar.component(.hour, from: due)
+        guard hour >= nightStartHour || hour < morningHour else { return due }
+        let day = hour >= nightStartHour ? calendar.date(byAdding: .day, value: 1, to: due) ?? due : due
+        return calendar.date(bySettingHour: morningHour, minute: 0, second: 0, of: day) ?? due
+    }
 
     private static let activationKey = "Trio.podChangeReminder.activatedAt"
     private static let alarmKey = "Trio.podChangeReminder.alarmID"
@@ -317,8 +331,12 @@ enum PodChangeReminder {
     /// At each pump update with the pod's activation: schedules for a pod it hasn't seen, and for a known pod whose
     /// reminder is still a notification once the alarm permission is given.
     static func update(activatedAt: Date) {
+        guard isEnabled else {
+            podRemoved(reason: "not in this build")
+            return
+        }
         let defaults = UserDefaults.standard
-        let fireDate = activatedAt.addingTimeInterval(podAge)
+        let fireDate = PodChangeReminder.fireDate(activatedAt: activatedAt)
         var previous: UUID?
         let known = (defaults.object(forKey: activationKey) as? Date).map { abs($0.timeIntervalSince(activatedAt)) < 1 } ?? false
         if known {
@@ -339,7 +357,7 @@ enum PodChangeReminder {
     }
 
     /// The pod was deactivated: its reminder goes, so a pod taken off early doesn't ring later.
-    static func podRemoved() {
+    static func podRemoved(reason: String = "no pod") {
         let defaults = UserDefaults.standard
         guard defaults.object(forKey: activationKey) != nil else { return }
         defaults.removeObject(forKey: activationKey)
@@ -349,7 +367,7 @@ enum PodChangeReminder {
         #if canImport(AlarmKit)
             if #available(iOS 26.0, *), let previous { try? AlarmManager.shared.cancel(id: previous) }
         #endif
-        debug(.pump, "Pod change reminder: cancelled, no pod")
+        debug(.pump, "Pod change reminder: cancelled, \(reason)")
     }
 
     private static func claim() -> Bool {
