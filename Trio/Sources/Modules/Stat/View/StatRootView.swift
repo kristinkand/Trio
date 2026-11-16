@@ -51,6 +51,11 @@ extension Stat {
                             algorithmAdjustmentsView
                         case .foodImpact:
                             foodImpactView
+                        case .analysis:
+                            SettingsAnalysisView(
+                                units: state.units,
+                                snapshot: { await state.settingsAnalysisSnapshot() }
+                            )
                         }
                     }
                     .padding()

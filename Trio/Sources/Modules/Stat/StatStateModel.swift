@@ -423,6 +423,8 @@ extension Stat.StateModel {
         case algorithmAdjustments
         /// Food impact statistics -- BG excursion tracked per meal, from prebolus through peak to flattening out
         case foodImpact
+        /// Settings checks and scenario detection on stored history
+        case analysis
 
         var id: String { rawValue }
 
@@ -446,6 +448,8 @@ extension Stat.StateModel {
                     localized: "Food Impact",
                     comment: "Title for food impact statistics (BG excursion per meal)"
                 )
+            case .analysis:
+                return String(localized: "Analysis", comment: "Title for the settings analysis")
             }
         }
     }
