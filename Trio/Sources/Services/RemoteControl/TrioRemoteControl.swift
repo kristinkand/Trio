@@ -84,7 +84,7 @@ class TrioRemoteControl: Injectable {
                 await forwardAdjustmentToWatch(commandPayload)
             default:
                 await logError(
-                    "Command rejected: the Apple Watch is running the loop (untethered). Boluses, meals, overrides, temp targets and the profile reach it; this command doesn't.",
+                    "Command rejected: the Apple Watch is running the loop (watch mode). Boluses, meals, overrides, temp targets and the profile reach it; this command doesn't.",
                     payload: commandPayload
                 )
             }
