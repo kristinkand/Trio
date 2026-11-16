@@ -1,11 +1,7 @@
 import SwiftUI
 
-/// Sheet that lets the user build a multi-page PDF report from the Statistics screen: add one or
-/// more (Data type, Chart type) combinations to a working list, sharing a single date Range, then
-/// export them all as one PDF (one page per item). Combinations can be saved as a named preset for
-/// reuse (e.g. a recurring clinician-visit report) and reloaded later; only the chart types still
-/// shown as "Coming soon" on the live Statistics screen (Looping's CGM Connection Trace / Trio
-/// Up-Time, Meals' Meal to Hypo/Hyper) stay disabled here too.
+/// Builds a multi-page PDF report from the Statistics screen. Each enabled chart becomes
+/// one page, in list order, over a shared date range. Selections can be saved as presets.
 struct StatExportMenuView: View {
     let state: Stat.StateModel
 
@@ -13,15 +9,16 @@ struct StatExportMenuView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(AppState.self) private var appState
 
-    @State private var selectedDataType: Stat.StateModel.StatisticViewType = .glucose
     @State private var selectedRange: Stat.StateModel.StatsTimeInterval = .month
-    @State private var selectedGlucoseChartType: Stat.StateModel.GlucoseChartType = .distributionByTime
-    @State private var selectedInsulinChartType: Stat.StateModel.InsulinChartType = .totalDailyDose
-    @State private var selectedLoopingChartType: Stat.StateModel.LoopingChartType = .loopingPerformance
-    @State private var selectedMealChartType: Stat.StateModel.MealChartType = .totalMeals
-    @State private var reportName: String = ""
 
-    @State private var reportItems: [ReportChartType] = []
+    /// Last patient name used, to prefill the export prompt.
+    @State private var patientName: String = ""
+    @State private var showPatientNamePrompt = false
+    @State private var patientNameInput: String = ""
+
+    /// Categories currently expanded to show their charts.
+    @State private var expandedCategories: Set<ReportCategory> = []
+    @State private var selectedCharts: Set<ReportChartType> = []
     @State private var savedPresets: [ReportPreset] = []
     @State private var presetToDelete: ReportPreset?
     @State private var showSavePresetPrompt = false
@@ -31,7 +28,6 @@ struct StatExportMenuView: View {
     @State private var exportedPDFURL: URL?
     @State private var showShareSheet = false
     @State private var exportErrorMessage: String?
-    @State private var showInfo = false
 
     var body: some View {
         NavigationView {
@@ -40,37 +36,21 @@ struct StatExportMenuView: View {
                     savedReportsSection
                 }
 
-                Section(header: Text("Range")) {
-                    ForEach(Stat.StateModel.StatsTimeInterval.allCases) { interval in
-                        optionRow(
-                            title: interval.exportDisplayName,
-                            isSelected: selectedRange == interval,
-                            isEnabled: isRangeEnabled(interval)
-                        ) { selectedRange = interval }
-                    }
-                }
+                rangeSection
 
-                addChartSection
+                includeInReportSection
 
-                reportItemsSection
-
-                Section(
-                    header: Text("Report Details"),
-                    footer: Text("Optionally add a patient name to the report header.")
-                ) {
-                    TextField("Patient name (optional)", text: $reportName)
-
+                Section {
                     Button("Save as Preset…") {
-                        // Presets are a reusable chart/range template, not tied to one patient,
-                        // so don't seed the prompt with the patient name typed above.
+                        // Presets aren't tied to a patient, so don't prefill the name.
                         presetNameInput = ""
                         showSavePresetPrompt = true
                     }
-                    .disabled(reportItems.isEmpty)
+                    .disabled(orderedSelectedCharts.isEmpty)
                 }
             }
             .scrollContentBackground(.hidden).background(appState.trioBackgroundColor(for: colorScheme))
-            .navigationTitle("Export Stats to PDF")
+            .navigationTitle("Export PDF")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -80,15 +60,12 @@ struct StatExportMenuView: View {
                     if isExporting {
                         ProgressView()
                     } else {
-                        Button(exportButtonTitle) { exportPDF() }
-                            .disabled(reportItems.isEmpty)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showInfo = true
-                    } label: {
-                        Image(systemName: "questionmark.circle")
+                        Button("Export") {
+                            // Ask for the patient name on every export, prefilled with the last one.
+                            patientNameInput = patientName
+                            showPatientNamePrompt = true
+                        }
+                        .disabled(orderedSelectedCharts.isEmpty)
                     }
                 }
             }
@@ -107,6 +84,18 @@ struct StatExportMenuView: View {
             } message: {
                 Text("Saves the current range and chart selection for reuse.")
             }
+            .alert("Patient Name", isPresented: $showPatientNamePrompt) {
+                TextField("Name", text: $patientNameInput)
+                    .textContentType(.name)
+                    .textInputAutocapitalization(.words)
+                Button("Cancel", role: .cancel) {}
+                Button("Export") {
+                    savePatientName(patientNameInput)
+                    exportPDF()
+                }
+            } message: {
+                Text("Shown in the report header. Leave blank to omit.")
+            }
             .confirmationDialog(
                 String(
                     localized: "Delete the report preset \"\(presetToDelete?.name ?? "")\"?",
@@ -123,20 +112,19 @@ struct StatExportMenuView: View {
                     ShareSheet(activityItems: [exportedPDFURL])
                 }
             }
-            .sheet(isPresented: $showInfo) {
-                StatExportMenuInfoView(isPresented: $showInfo)
-            }
         }
         .onAppear {
             savedPresets = state.loadReportPresets()
+            patientName = state.loadReportPatientName() ?? ""
         }
-        .onChange(of: selectedGlucoseChartType) { _, newValue in
-            // A single-day box/bar plot isn't meaningful, so bump off the "Day" range —
-            // mirrors the same restriction already enforced on the live Statistics screen.
-            if newValue == .percentileByDay || newValue == .distributionByDay, selectedRange == .day {
-                selectedRange = .week
-            }
-        }
+    }
+
+    // MARK: - Patient Name
+
+    private func savePatientName(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        patientName = trimmed
+        state.saveReportPatientName(trimmed)
     }
 
     // MARK: - Saved Reports
@@ -172,10 +160,12 @@ struct StatExportMenuView: View {
     }
 
     private func loadPreset(_ preset: ReportPreset) {
-        // A preset is just a reusable range/chart template, not tied to a patient, so loading
-        // one leaves the Patient name field alone.
-        selectedRange = preset.range
-        reportItems = preset.chartTypes
+        // Presets don't include a patient name, so leave it unchanged.
+        withAnimation {
+            selectedCharts = Set(preset.chartTypes)
+            expandedCategories = Set(preset.chartTypes.map(\.category))
+            selectedRange = preset.range
+        }
     }
 
     private func confirmDeletePreset() {
@@ -190,204 +180,150 @@ struct StatExportMenuView: View {
         let trimmedName = presetNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
 
-        let preset = ReportPreset(name: trimmedName, range: selectedRange, chartTypes: reportItems)
+        let preset = ReportPreset(name: trimmedName, range: selectedRange, chartTypes: orderedSelectedCharts)
         state.saveReportPreset(preset)
         savedPresets = state.loadReportPresets()
     }
 
-    // MARK: - Report Items
+    // MARK: - Range
 
-    /// Hidden entirely until the first chart is added — an empty list with instructional text
-    /// reads as one more thing to parse, whereas a section that simply appears once there's
-    /// something in it doubles as its own confirmation that "Add to Report" worked.
-    @ViewBuilder private var reportItemsSection: some View {
-        if !reportItems.isEmpty {
-            Section(header: Text("Report Items (\(reportItems.count))")) {
-                ForEach(reportItems) { item in
-                    HStack {
-                        Text(item.dataType.displayName)
-                            .foregroundStyle(Color.secondary)
-                        Text("·")
-                            .foregroundStyle(Color.secondary)
-                        Text(item.displayName)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            reportItems.removeAll { $0 == item }
-                        } label: {
-                            Label("Delete", systemImage: "trash.fill")
-                        }
-                        .tint(.red)
-                    }
-                }
-                .onMove { indices, newOffset in
-                    reportItems.move(fromOffsets: indices, toOffset: newOffset)
+    /// Same D / W / M / 3 M picker as the Statistics screen.
+    private var rangeSection: some View {
+        Section(header: Text("Range")) {
+            Picker("Range", selection: $selectedRange) {
+                ForEach(Stat.StateModel.StatsTimeInterval.allCases) { interval in
+                    Text(interval.displayName).tag(interval)
                 }
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
         }
     }
 
-    private var exportButtonTitle: String {
-        reportItems.isEmpty ? String(localized: "Export") : String(localized: "Export (\(reportItems.count))")
+    /// Per-day charts are disabled for the single-day range but stay selected, so a longer
+    /// range restores them.
+    private func isAvailable(_ chart: ReportChartType) -> Bool {
+        !(selectedRange == .day && chart.isPerDay)
     }
 
-    /// The `ReportChartType` corresponding to whatever is currently staged in the Data/Chart Type
-    /// pickers below, or `nil` if the staged chart type isn't exportable yet ("Coming soon").
-    private var currentSelection: ReportChartType? {
-        switch selectedDataType {
-        case .glucose:
-            switch selectedGlucoseChartType {
-            case .distributionByTime: return .glucoseDistributionByTime
-            case .percentileByTime: return .glucosePercentileByTime
-            case .percentileByDay: return .glucosePercentileByDay
-            case .distributionByDay: return .glucoseDistributionByDay
-            case .glycemiaRiskIndex: return .glucoseGlycemiaRiskIndex
+    // MARK: - Include in Report
+
+    /// Indent for chart rows under their data type.
+    private static let chartRowInset: CGFloat = 20
+
+    /// One expandable row per category with a toggle per chart. Collapsed rows show the
+    /// selected count.
+    private var includeInReportSection: some View {
+        Section(
+            header: Text("Include"),
+            footer: Group {
+                if orderedSelectedCharts.contains(where: { !$0.usesDateRange }) {
+                    Text("Therapy settings show the current schedules. The range doesn't apply to them.")
+                }
             }
-        case .insulin:
-            switch selectedInsulinChartType {
-            case .totalDailyDose: return .insulinTotalDailyDose
-            case .bolusDistribution: return .insulinBolusDistribution
-            }
-        case .looping:
-            return selectedLoopingChartType == .loopingPerformance ? .loopingPerformance : nil
-        case .meals:
-            return selectedMealChartType == .totalMeals ? .mealsTotalMeals : nil
-        case .algorithmAdjustments:
-            // Not yet exportable to PDF reports.
-            return nil
-        case .foodImpact:
-            // Not yet exportable to PDF reports.
-            return nil
-        }
-    }
+        ) {
+            ForEach(ReportCategory.exportOrder) { category in
+                categoryRow(for: category)
 
-    private var isCurrentSelectionAdded: Bool {
-        currentSelection.map(reportItems.contains) ?? false
-    }
-
-    private func addCurrentSelectionToReport() {
-        guard let selection = currentSelection, !reportItems.contains(selection) else { return }
-        reportItems.append(selection)
-    }
-
-    // MARK: - Add Chart
-
-    /// Data type, Chart type, and the "Add to Report" action all live in one section so the
-    /// relationship between picking a combination and adding it is visible at a glance, instead
-    /// of being split across separate Form sections with the button that acts on them floating
-    /// on its own underneath.
-    private var addChartSection: some View {
-        Section(header: Text("Add a Chart")) {
-            subHeader("Data")
-            ForEach(Stat.StateModel.StatisticViewType.allCases) { type in
-                optionRow(
-                    title: type.displayName,
-                    isSelected: selectedDataType == type,
-                    isEnabled: true
-                ) { selectedDataType = type }
-            }
-
-            subHeader("Chart Type")
-            chartTypeRows
-
-            Button {
-                addCurrentSelectionToReport()
-            } label: {
-                HStack {
-                    Text("Add to Report")
-                    Spacer()
-                    if isCurrentSelectionAdded {
-                        Text("Added")
-                            .font(.caption)
-                            .foregroundStyle(Color.secondary)
+                if expandedCategories.contains(category) {
+                    ForEach(chartOptions(for: category), id: \.title) { option in
+                        chartRow(title: option.title, chart: option.chart)
                     }
                 }
             }
-            .disabled(currentSelection == nil || isCurrentSelectionAdded)
         }
     }
 
-    private func subHeader(_ title: LocalizedStringKey) -> some View {
-        Text(title)
-            .font(.caption)
-            .fontWeight(.semibold)
-            .foregroundStyle(Color.secondary)
-            .padding(.top, 4)
-    }
+    private func categoryRow(for category: ReportCategory) -> some View {
+        let isExpanded = expandedCategories.contains(category)
+        let selectedCount = orderedSelectedCharts.filter { $0.category == category }.count
 
-    @ViewBuilder private var chartTypeRows: some View {
-        switch selectedDataType {
-        case .glucose:
-            ForEach(Stat.StateModel.GlucoseChartType.allCases, id: \.self) { type in
-                optionRow(
-                    title: type.displayName,
-                    isSelected: selectedGlucoseChartType == type,
-                    isEnabled: true
-                ) { selectedGlucoseChartType = type }
+        return Button {
+            withAnimation {
+                if isExpanded {
+                    expandedCategories.remove(category)
+                } else {
+                    expandedCategories.insert(category)
+                }
             }
-        case .insulin:
-            ForEach(Stat.StateModel.InsulinChartType.allCases, id: \.self) { type in
-                optionRow(
-                    title: type.displayName,
-                    isSelected: selectedInsulinChartType == type,
-                    isEnabled: true
-                ) { selectedInsulinChartType = type }
+        } label: {
+            HStack {
+                Text(category.displayName)
+                    .foregroundStyle(Color.primary)
+                Spacer()
+                if selectedCount > 0 {
+                    Text(chartCountText(selectedCount))
+                        .foregroundStyle(Color.secondary)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Color.secondary)
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
             }
-        case .looping:
-            ForEach(Stat.StateModel.LoopingChartType.allCases, id: \.self) { type in
-                optionRow(
-                    title: type.displayName,
-                    isSelected: selectedLoopingChartType == type,
-                    isEnabled: type == .loopingPerformance
-                ) { selectedLoopingChartType = type }
-            }
-        case .meals:
-            ForEach(Stat.StateModel.MealChartType.allCases, id: \.self) { type in
-                optionRow(
-                    title: type.displayName,
-                    isSelected: selectedMealChartType == type,
-                    isEnabled: type == .totalMeals
-                ) { selectedMealChartType = type }
-            }
-        case .algorithmAdjustments:
-            // Not yet exportable to PDF reports.
-            optionRow(title: String(localized: "Algorithm Adjustments"), isSelected: false, isEnabled: false) {}
-        case .foodImpact:
-            // Not yet exportable to PDF reports.
-            optionRow(title: String(localized: "Food Impact"), isSelected: false, isEnabled: false) {}
+            .contentShape(Rectangle())
         }
+        .accessibilityValue(isExpanded ? Text("Expanded") : Text("Collapsed"))
     }
 
-    /// A single-day box/bar plot isn't meaningful for the by-day glucose charts, so the "Day"
-    /// range is disabled whenever the working report contains one — same restriction already
-    /// enforced on the live Statistics screen (`StatRootView.intervalOptions`).
-    private func isRangeEnabled(_ interval: Stat.StateModel.StatsTimeInterval) -> Bool {
-        guard interval == .day else { return true }
-        return !reportItems.contains(.glucosePercentileByDay) && !reportItems.contains(.glucoseDistributionByDay)
-    }
-
-    @ViewBuilder private func optionRow(
-        title: String,
-        isSelected: Bool,
-        isEnabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
+    @ViewBuilder private func chartRow(title: String, chart: ReportChartType?) -> some View {
+        if let chart {
+            // A disabled Toggle only dims its switch, so grey the title explicitly to match.
+            Toggle(isOn: isSelectedBinding(for: chart)) {
+                Text(title)
+                    .foregroundStyle(isAvailable(chart) ? Color.primary : Color.secondary)
+            }
+            .disabled(!isAvailable(chart))
+            .padding(.leading, Self.chartRowInset)
+        } else {
             HStack {
                 Text(title)
-                    .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
+                    .foregroundStyle(Color.secondary)
                 Spacer()
-                if !isEnabled {
-                    Text("Coming soon")
-                        .font(.caption)
-                        .foregroundStyle(Color.secondary)
-                } else if isSelected {
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(Color.accentColor)
+                Text("Coming soon")
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+            }
+            .padding(.leading, Self.chartRowInset)
+        }
+    }
+
+    private func isSelectedBinding(for chart: ReportChartType) -> Binding<Bool> {
+        Binding(
+            get: { selectedCharts.contains(chart) && isAvailable(chart) },
+            set: { isOn in
+                if isOn {
+                    selectedCharts.insert(chart)
+                } else {
+                    selectedCharts.remove(chart)
                 }
             }
+        )
+    }
+
+    /// All chart types the Statistics screen offers for `category`, in order. `chart` is `nil`
+    /// for ones not exportable yet.
+    private func chartOptions(for category: ReportCategory) -> [(title: String, chart: ReportChartType?)] {
+        switch category {
+        case .glucose:
+            return Stat.StateModel.GlucoseChartType.allCases.map { ($0.displayName, ReportChartType($0)) }
+        case .insulin:
+            return Stat.StateModel.InsulinChartType.allCases.map { ($0.displayName, ReportChartType($0)) }
+        case .looping:
+            return Stat.StateModel.LoopingChartType.allCases.map { ($0.displayName, ReportChartType($0)) }
+        case .meals:
+            return Stat.StateModel.MealChartType.allCases.map { ($0.displayName, ReportChartType($0)) }
+        case .therapySettings:
+            return ReportChartType.therapySettings.map { ($0.displayName, $0) }
         }
-        .disabled(!isEnabled)
+    }
+
+    /// Selected charts available for the current range, in page order.
+    private var orderedSelectedCharts: [ReportChartType] {
+        ReportCategory.exportOrder
+            .flatMap { chartOptions(for: $0).compactMap(\.chart) }
+            .filter { selectedCharts.contains($0) && isAvailable($0) }
     }
 
     // MARK: - Export
@@ -396,7 +332,7 @@ struct StatExportMenuView: View {
         isExporting = true
         Task { @MainActor in
             let reportMetadata = state.prepareReportMetadata()
-            let trimmedReportName = reportName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedReportName = patientName
             let periodStart = selectedRange.periodStart
             let periodEnd = Date()
             let widenedInterval = Stat.StateModel.StatsTimeIntervalWithToday(rawValue: selectedRange.rawValue) ?? .month
@@ -406,7 +342,7 @@ struct StatExportMenuView: View {
             let fileName = "Trio-Statistics-\(formatter.string(from: Date()))"
 
             var pages: [AnyView] = []
-            for item in reportItems {
+            for item in orderedSelectedCharts {
                 pages.append(await buildPage(
                     for: item,
                     widenedInterval: widenedInterval,
@@ -429,8 +365,7 @@ struct StatExportMenuView: View {
         }
     }
 
-    /// Builds a single PDF page for one report item: fetches/prepares that chart type's data and
-    /// wraps it in the shared `StatPDFPage` header/footer.
+    /// Builds one PDF page for a report item.
     @MainActor private func buildPage(
         for chartType: ReportChartType,
         widenedInterval: Stat.StateModel.StatsTimeIntervalWithToday,
@@ -439,7 +374,7 @@ struct StatExportMenuView: View {
         periodStart: Date,
         periodEnd: Date
     ) async -> AnyView {
-        let dataTypeDisplayName = chartType.dataType.displayName
+        let dataTypeDisplayName = chartType.category.displayName
         let chartTypeDisplayName = chartType.displayName
 
         func page(@ViewBuilder content: () -> some View) -> some View {
@@ -452,6 +387,7 @@ struct StatExportMenuView: View {
                 periodEnd: periodEnd,
                 generatedAt: Date(),
                 reportMetadata: reportMetadata,
+                showsDateRange: chartType.usesDateRange,
                 content: content
             )
         }
@@ -545,13 +481,28 @@ struct StatExportMenuView: View {
                     useFPUconversion: data.useFPUconversion
                 )
             })
+
+        case .therapyBasalRates:
+            let data = state.prepareTherapyScheduleExportData(for: .basalRates)
+            return AnyView(page { TherapySchedulePDFContent(data: data) })
+
+        case .therapyGlucoseTargets:
+            let data = state.prepareTherapyScheduleExportData(for: .glucoseTargets)
+            return AnyView(page { TherapySchedulePDFContent(data: data) })
+
+        case .therapyCarbRatios:
+            let data = state.prepareTherapyScheduleExportData(for: .carbRatios)
+            return AnyView(page { TherapySchedulePDFContent(data: data) })
+
+        case .therapyInsulinSensitivities:
+            let data = state.prepareTherapyScheduleExportData(for: .insulinSensitivities)
+            return AnyView(page { TherapySchedulePDFContent(data: data) })
         }
     }
 }
 
 extension Stat.StateModel.StatsTimeInterval {
-    /// A full-word display name suitable for the export menu and PDF header
-    /// (`displayName` on this type is an abbreviation meant for the segmented picker).
+    /// Full-word name for the export menu and PDF header. `displayName` is the short picker label.
     var exportDisplayName: String {
         switch self {
         case .day:
@@ -565,9 +516,8 @@ extension Stat.StateModel.StatsTimeInterval {
         }
     }
 
-    /// The start of this range, using the same fixed offsets as the app's own stats predicates
-    /// (e.g. `NSPredicate.glucoseForStatsWeek`), so the PDF header's displayed date range matches
-    /// what was actually fetched.
+    /// Start of this range, using the same offsets as the stats predicates
+    /// (e.g. `NSPredicate.glucoseForStatsWeek`) so the header matches the fetched data.
     var periodStart: Date {
         switch self {
         case .day:
