@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// The shared printable A4 page chrome for every Statistics PDF export: title, report name,
-/// data/chart-type/range subtitle, generation timestamp, hardware/software/settings metadata,
-/// and footer. Callers supply the chart-specific body as `content`, forced to light,
-/// print-friendly styling so the export looks the same regardless of the device's color scheme.
+/// Shared A4 page layout for Statistics PDF exports: header, metadata and footer around
+/// `content`. Always rendered in light mode so output doesn't depend on the device theme.
 struct StatPDFPage<Content: View>: View {
     let reportName: String
     let dataTypeDisplayName: String
@@ -13,6 +11,8 @@ struct StatPDFPage<Content: View>: View {
     let periodEnd: Date
     let generatedAt: Date
     let reportMetadata: Stat.StateModel.ReportMetadata
+    /// Off for pages that show current settings rather than data from the range.
+    let showsDateRange: Bool
     let content: Content
 
     init(
@@ -24,6 +24,7 @@ struct StatPDFPage<Content: View>: View {
         periodEnd: Date,
         generatedAt: Date,
         reportMetadata: Stat.StateModel.ReportMetadata,
+        showsDateRange: Bool = true,
         @ViewBuilder content: () -> Content
     ) {
         self.reportName = reportName
@@ -34,6 +35,7 @@ struct StatPDFPage<Content: View>: View {
         self.periodEnd = periodEnd
         self.generatedAt = generatedAt
         self.reportMetadata = reportMetadata
+        self.showsDateRange = showsDateRange
         self.content = content()
     }
 
@@ -68,9 +70,15 @@ struct StatPDFPage<Content: View>: View {
                     .font(.headline)
             }
 
-            Text("\(dataTypeDisplayName) · \(chartTypeDisplayName) · \(rangeDisplayName) (\(dateRangeText))")
-                .font(.subheadline)
-                .foregroundStyle(Color.secondary)
+            Group {
+                if showsDateRange {
+                    Text("\(dataTypeDisplayName) · \(chartTypeDisplayName) · \(rangeDisplayName) (\(dateRangeText))")
+                } else {
+                    Text("\(dataTypeDisplayName) · \(chartTypeDisplayName)")
+                }
+            }
+            .font(.subheadline)
+            .foregroundStyle(Color.secondary)
 
             Text("Generated \(generatedAt.formatted(date: .abbreviated, time: .shortened))")
                 .font(.caption)
