@@ -8,8 +8,15 @@ final class CriticalAlertAudioPlayer {
     private var player: AVAudioPlayer?
     private var stopTimer: Timer?
     private var vibrationTimer: Timer?
+    private var volumeObservation: NSKeyValueObservation?
+    private var onVolumeButtonPressed: (() -> Void)?
+    private var hasTriggeredVolumeSnooze = false
+    /// Counts the playbacks, so a delayed start of the button observation never attaches to a later one.
+    private var playback = 0
 
     private let vibrationInterval: TimeInterval = 2.0
+    /// After the booster's change, before a volume change counts as a button press: its KVO arrives a little later.
+    private static let observationDelay: TimeInterval = 0.5
     /// System volume floor for critical alarms. The alarm has to be audible
     /// with the ringer down, but forcing 100% wakes the whole household and
     /// leaves the user no way to turn it down. Raise only up to this floor;
@@ -54,9 +61,15 @@ final class CriticalAlertAudioPlayer {
     /// `handleAcknowledgement` in `BaseTrioAlertManager` can end it sooner.
     /// `.playback` audio session gives the app a privileged background state
     /// so the alarm plays even if the user has the screen locked.
-    func play(soundNamed soundName: String = "critical.caf") {
+    ///
+    /// - Parameter onVolumeButtonPressed: Invoked (once per playback, on the
+    ///   main thread) if a hardware volume-button press is detected while
+    ///   this alarm is sounding — see `startVolumeButtonObservation`.
+    func play(soundNamed soundName: String = "critical.caf", onVolumeButtonPressed: (() -> Void)? = nil) {
         stop()
 
+        self.onVolumeButtonPressed = onVolumeButtonPressed
+        hasTriggeredVolumeSnooze = false
         startVibration()
         // Bounds vibration if the audio setup below fails; re-armed to the
         // sound's burst length once it is known.
@@ -79,7 +92,17 @@ final class CriticalAlertAudioPlayer {
             // silent switch.
             try session.setCategory(.playback, mode: .default, options: [.duckOthers, .mixWithOthers])
             try session.setActive(true, options: [])
-            volumeBooster.boost(to: minimumSystemVolume)
+            // The button observation starts only once the booster's own change is in: the booster moves the system
+            // volume a moment after the alarm starts, which read as a button press and snoozed the alarm at once
+            // (31 October, 04:08:31 and 14:03:38: forecasted-low alarms snoozed 50 and 70 ms after they began).
+            playback &+= 1
+            let current = playback
+            volumeBooster.boost(to: minimumSystemVolume) { [weak self] in
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.observationDelay) { [weak self] in
+                    guard let self, current == self.playback, self.player != nil else { return }
+                    self.startVolumeButtonObservation(session: session)
+                }
+            }
 
             let p = try AVAudioPlayer(contentsOf: url)
             p.numberOfLoops = -1
@@ -116,8 +139,40 @@ final class CriticalAlertAudioPlayer {
         }
     }
 
+    /// Lets the user snooze the currently-sounding alarm with a hardware
+    /// volume button instead of unlocking the phone and opening Trio.
+    /// `AVAudioSession.outputVolume` only delivers KVO changes to an app
+    /// holding an active audio session, so this observation is only ever
+    /// live while our own critical audio is actually playing — it's torn
+    /// down again in `stop()`.
+    ///
+    /// Two caveats worth knowing: `SystemVolumeBooster` already pushes the
+    /// system volume to max the moment this alarm starts, so a volume-UP
+    /// press has no headroom left to register a change — in practice only
+    /// volume-DOWN reliably triggers this. And there's no public API to
+    /// intercept the button without also moving the real system volume, so
+    /// the press will audibly/visibly change it as a side effect.
+    private func startVolumeButtonObservation(session: AVAudioSession) {
+        let start = session.outputVolume
+        volumeObservation = session.observe(\.outputVolume, options: [.new]) { [weak self] _, change in
+            // only a change from the volume the alarm settled at is a press
+            guard let new = change.newValue, abs(new - start) > 0.001 else { return }
+            DispatchQueue.main.async {
+                self?.handleVolumeButtonPress()
+            }
+        }
+    }
+
+    private func handleVolumeButtonPress() {
+        guard !hasTriggeredVolumeSnooze else { return }
+        hasTriggeredVolumeSnooze = true
+        info(.alerts, "Volume button pressed during critical alarm, snoozing")
+        onVolumeButtonPressed?()
+    }
+
     /// Stop playback if any. Safe to call when not playing.
     func stop() {
+        playback &+= 1
         guard player != nil || stopTimer != nil || vibrationTimer != nil else { return }
         player?.stop()
         player = nil
@@ -125,6 +180,9 @@ final class CriticalAlertAudioPlayer {
         stopTimer = nil
         vibrationTimer?.invalidate()
         vibrationTimer = nil
+        volumeObservation?.invalidate()
+        volumeObservation = nil
+        onVolumeButtonPressed = nil
         volumeBooster.restore()
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         debug(.alerts, "Critical alert audio stopped")
@@ -152,13 +210,17 @@ final class CriticalAlertAudioPlayer {
     private var targetVolume: Float?
     private var generation = 0
 
-    func boost(to target: Float) {
-        guard let window = Self.activeWindow() else { return }
+    /// - Parameter done: called once the volume is where it stays (raised, or left as it was), not for a boost a
+    ///   later one replaced
+    func boost(to target: Float, done: @escaping () -> Void = {}) {
+        guard let window = Self.activeWindow() else { return done() }
         attach(to: window)
         generation &+= 1
         let gen = generation
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self, gen == self.generation, let slider = self.slider() else { return }
+            guard let self, gen == self.generation else { return }
+            defer { done() }
+            guard let slider = self.slider() else { return }
             let current = slider.value
             guard current < target else { return }
             self.savedVolume = current
