@@ -318,6 +318,9 @@ final class BaseCarbsStorage: CarbsStorage, Injectable {
         // Nightscout `_id` values are not UUIDs and are replaced.
         newItem.id = entry.id.flatMap(UUID.init(uuidString:)) ?? UUID()
         newItem.isFPU = false
+        // this fork's bolus tags on the meal (Super Bolus, Reduced Bolus)
+        newItem.isSuperBolus = entry.isSuperBolus
+        newItem.isReducedBolus = entry.isReducedBolus
         newItem.isUploadedToNS = areFetchedFromRemote ? true : false
         newItem.isUploadedToHealth = false
         newItem.isUploadedToTidepool = false
