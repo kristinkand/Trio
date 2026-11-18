@@ -14,6 +14,10 @@ extension Date {
         Calendar.current.date(byAdding: .day, value: -1, to: Date())!
     }
 
+    static var twoDaysAgo: Date {
+        Calendar.current.date(byAdding: .day, value: -2, to: Date())!
+    }
+
     static var oneHourAgo: Date {
         Calendar.current.date(byAdding: .minute, value: -60, to: Date())!
     }

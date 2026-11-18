@@ -1147,6 +1147,7 @@
 		CA0924000000000000000004 /* GRIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0924000000000000000003 /* GRIView.swift */; };
 		CA0924000000000000000006 /* GRICalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0924000000000000000005 /* GRICalculatorTests.swift */; };
 		FF42480CF46A31D00C817D8C /* WatchLogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D79872B74ADDBDD11682D0 /* WatchLogEntry.swift */; };
+		B874DD975FCE16BFD7D9337C /* PreviousDayGlucoseChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */; };
 		6D58D168F03780DA23CB2E52 /* QuickPickTreatmentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7DA23B64976670AC36D9E84 /* QuickPickTreatmentsTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -2384,6 +2385,7 @@
 		CA0924000000000000000001 /* GRICalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRICalculator.swift; sourceTree = "<group>"; };
 		CA0924000000000000000003 /* GRIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRIView.swift; sourceTree = "<group>"; };
 		CA0924000000000000000005 /* GRICalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRICalculatorTests.swift; sourceTree = "<group>"; };
+		A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PreviousDayGlucoseChartView.swift; sourceTree = "<group>"; };
 		71A58E19DE23455CB842C50C /* CGMSensorStateLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGMSensorStateLogTests.swift; sourceTree = "<group>"; };
 		6EFF860E684B4C9488D438DD /* NightscoutImportRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutImportRoundTripTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -4424,6 +4426,7 @@
 				58D08B332C8DF9A700AA37D3 /* CobIobChart.swift */,
 				58D08B372C8DFB6000AA37D3 /* BasalChart.swift */,
 				58D08B392C8DFECD00AA37D3 /* TempTargets.swift */,
+				A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */,
 			);
 			path = ChartElements;
 			sourceTree = "<group>";
@@ -6573,6 +6576,7 @@
 				AC05A906087DD32A509439F2 /* SendReportView.swift in Sources */,
 				32DC31248CF9E5D252CB85DF /* AppAttestClient.swift in Sources */,
 				C25C56F3172AC94B9048CCED /* SentReports.swift in Sources */,
+				B874DD975FCE16BFD7D9337C /* PreviousDayGlucoseChartView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
