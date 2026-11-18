@@ -42,13 +42,15 @@ struct GlucoseDistributionPDFContent: View {
     }
 }
 
-/// PDF page for the Glucose Percentile (AGP) export.
+/// PDF page for the Glucose Percentile (AGP) export, with the same percentage-distribution summary (sector chart
+/// and metrics row) as the Glucose Distribution page: the PDF page is meant to read on its own.
 struct GlucosePercentilePDFContent: View {
     let glucose: [GlucoseStored]
     let highLimit: Decimal
     let timeInRangeType: TimeInRangeType
     let units: GlucoseUnits
     let hourlyStats: [HourlyStats]
+    let eA1cDisplayUnit: EstimatedA1cDisplayUnit
 
     var body: some View {
         GlucosePercentileChart(
@@ -59,6 +61,26 @@ struct GlucosePercentilePDFContent: View {
             hourlyStats: hourlyStats,
             isToday: false
         )
+
+        Divider()
+
+        VStack(spacing: 16) {
+            GlucoseSectorChart(
+                highLimit: highLimit,
+                units: units,
+                glucose: glucose,
+                timeInRangeType: timeInRangeType,
+                showChart: true
+            )
+
+            Divider()
+
+            GlucoseMetricsView(
+                units: units,
+                eA1cDisplayUnit: eA1cDisplayUnit,
+                glucose: glucose
+            )
+        }
     }
 }
 
