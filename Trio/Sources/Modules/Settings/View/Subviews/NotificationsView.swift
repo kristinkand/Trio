@@ -58,6 +58,8 @@ struct NotificationsView: BaseView {
                     notificationsEnabledStatus
 
                     manageNotifications
+
+                    criticalAlertsToggle
                 }
             ).listRowBackground(Color.chart)
 
@@ -118,6 +120,7 @@ struct NotificationsView: BaseView {
         .background(appState.trioBackgroundColor(for: colorScheme))
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.automatic)
+        .onAppear(perform: configureView)
     }
 }
 
