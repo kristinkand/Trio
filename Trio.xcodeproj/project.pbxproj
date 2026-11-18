@@ -1147,7 +1147,14 @@
 		CA0924000000000000000004 /* GRIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0924000000000000000003 /* GRIView.swift */; };
 		CA0924000000000000000006 /* GRICalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0924000000000000000005 /* GRICalculatorTests.swift */; };
 		FF42480CF46A31D00C817D8C /* WatchLogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D79872B74ADDBDD11682D0 /* WatchLogEntry.swift */; };
+		24CAB8DA4DDD9EBC3927100F /* PlacementLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 549C7DECD1D5D4F229C31E8F /* PlacementLocation.swift */; };
+		3028D55417F5BB8DCCBA6BD3 /* PlacementLogStored+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34A64E10B7B28677405C828B /* PlacementLogStored+CoreDataProperties.swift */; };
+		4A7B9A041C2B90316CE54285 /* HistoryRootView+AddPlacementLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7EB4ADBBEA2BA8E4343B437 /* HistoryRootView+AddPlacementLog.swift */; };
+		9A6E020D508C1F44D36489E8 /* PlacementLogStored+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A7B4DAF1EA060E53BF5C907 /* PlacementLogStored+Helper.swift */; };
+		AF7C392EB80FBC40F1DB9B04 /* PlacementLogStored+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738E916BA181A88612D9C5C3 /* PlacementLogStored+CoreDataClass.swift */; };
+		B0BFE937DB95073963C15384 /* PlacementLogStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D5DE0B1353F5C301AD2899 /* PlacementLogStorage.swift */; };
 		B874DD975FCE16BFD7D9337C /* PreviousDayGlucoseChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */; };
+		BC0C6D754800A02468582A81 /* HistoryRootView+PlacementLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC19555AAE96D83BAB2A6783 /* HistoryRootView+PlacementLog.swift */; };
 		EA3EE728BA0246EDE8E36333 /* WidgetBobble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AA7BD8AC0094CCBBCE699C /* WidgetBobble.swift */; };
 		6D58D168F03780DA23CB2E52 /* QuickPickTreatmentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7DA23B64976670AC36D9E84 /* QuickPickTreatmentsTests.swift */; };
 /* End PBXBuildFile section */
@@ -2386,8 +2393,15 @@
 		CA0924000000000000000001 /* GRICalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRICalculator.swift; sourceTree = "<group>"; };
 		CA0924000000000000000003 /* GRIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRIView.swift; sourceTree = "<group>"; };
 		CA0924000000000000000005 /* GRICalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRICalculatorTests.swift; sourceTree = "<group>"; };
+		34A64E10B7B28677405C828B /* PlacementLogStored+CoreDataProperties.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "PlacementLogStored+CoreDataProperties.swift"; sourceTree = "<group>"; };
+		4A7B4DAF1EA060E53BF5C907 /* PlacementLogStored+Helper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "PlacementLogStored+Helper.swift"; sourceTree = "<group>"; };
 		57AA7BD8AC0094CCBBCE699C /* WidgetBobble.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetBobble.swift; sourceTree = "<group>"; };
+		549C7DECD1D5D4F229C31E8F /* PlacementLocation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlacementLocation.swift; sourceTree = "<group>"; };
+		738E916BA181A88612D9C5C3 /* PlacementLogStored+CoreDataClass.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "PlacementLogStored+CoreDataClass.swift"; sourceTree = "<group>"; };
 		A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PreviousDayGlucoseChartView.swift; sourceTree = "<group>"; };
+		C3D5DE0B1353F5C301AD2899 /* PlacementLogStorage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlacementLogStorage.swift; sourceTree = "<group>"; };
+		F7EB4ADBBEA2BA8E4343B437 /* HistoryRootView+AddPlacementLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryRootView+AddPlacementLog.swift"; sourceTree = "<group>"; };
+		FC19555AAE96D83BAB2A6783 /* HistoryRootView+PlacementLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryRootView+PlacementLog.swift"; sourceTree = "<group>"; };
 		71A58E19DE23455CB842C50C /* CGMSensorStateLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGMSensorStateLogTests.swift; sourceTree = "<group>"; };
 		6EFF860E684B4C9488D438DD /* NightscoutImportRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutImportRoundTripTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -2535,6 +2549,8 @@
 				BD175EFE000010000000000B /* HistoryRootView+Filters.swift */,
 				BD175EFE000010000000000C /* HistoryRootView+AddGlucose.swift */,
 				BD175EFE000010000000000D /* HistoryRootView+Confirmations.swift */,
+				FC19555AAE96D83BAB2A6783 /* HistoryRootView+PlacementLog.swift */,
+				F7EB4ADBBEA2BA8E4343B437 /* HistoryRootView+AddPlacementLog.swift */,
 			);
 			path = View;
 			sourceTree = "<group>";
@@ -3390,6 +3406,7 @@
 				DD3078672D42F5CE00DE0490 /* WatchGlucoseObject.swift */,
 				BD432CA02D2F4E3300D1EB79 /* WatchMessageKeys.swift */,
 				BDA25EFC2D261BF200035F34 /* WatchState.swift */,
+				549C7DECD1D5D4F229C31E8F /* PlacementLocation.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -3451,6 +3468,7 @@
 				5864E8582C42CFAE00294306 /* DeterminationStorage.swift */,
 				BD4D73A12D15A4220052227B /* TDDStorage.swift */,
 				7A11AC0DE00000000000000B /* ScheduledBasalInference.swift */,
+				C3D5DE0B1353F5C301AD2899 /* PlacementLogStorage.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -3863,6 +3881,7 @@
 				BDB899892C565D0B006F3298 /* CarbsGlucose+helper.swift */,
 				58A3D5432C96DE11003F90FC /* TempTargetStored+Helper.swift */,
 				BD793CB12CE8032E00D669AC /* TempTargetRunStored.swift */,
+				4A7B4DAF1EA060E53BF5C907 /* PlacementLogStored+Helper.swift */,
 			);
 			path = Helper;
 			sourceTree = "<group>";
@@ -5166,6 +5185,8 @@
 				491D6FBA2D56741C00C49F67 /* TempTargetRunStored+CoreDataProperties.swift */,
 				491D6FBB2D56741C00C49F67 /* TempTargetStored+CoreDataClass.swift */,
 				491D6FBC2D56741C00C49F67 /* TempTargetStored+CoreDataProperties.swift */,
+				738E916BA181A88612D9C5C3 /* PlacementLogStored+CoreDataClass.swift */,
+				34A64E10B7B28677405C828B /* PlacementLogStored+CoreDataProperties.swift */,
 			);
 			path = "Classes+Properties";
 			sourceTree = "<group>";
@@ -6580,6 +6601,13 @@
 				32DC31248CF9E5D252CB85DF /* AppAttestClient.swift in Sources */,
 				C25C56F3172AC94B9048CCED /* SentReports.swift in Sources */,
 				B874DD975FCE16BFD7D9337C /* PreviousDayGlucoseChartView.swift in Sources */,
+				24CAB8DA4DDD9EBC3927100F /* PlacementLocation.swift in Sources */,
+				AF7C392EB80FBC40F1DB9B04 /* PlacementLogStored+CoreDataClass.swift in Sources */,
+				3028D55417F5BB8DCCBA6BD3 /* PlacementLogStored+CoreDataProperties.swift in Sources */,
+				9A6E020D508C1F44D36489E8 /* PlacementLogStored+Helper.swift in Sources */,
+				B0BFE937DB95073963C15384 /* PlacementLogStorage.swift in Sources */,
+				BC0C6D754800A02468582A81 /* HistoryRootView+PlacementLog.swift in Sources */,
+				4A7B9A041C2B90316CE54285 /* HistoryRootView+AddPlacementLog.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

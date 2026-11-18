@@ -53,6 +53,10 @@ extension Date {
     static var threeMonthsAgo: Date {
         Calendar.current.date(byAdding: .month, value: -3, to: Date())!
     }
+
+    static var sixMonthsAgo: Date {
+        Calendar.current.date(byAdding: .month, value: -6, to: Date())!
+    }
 }
 
 extension NSPredicate {

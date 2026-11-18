@@ -37,6 +37,7 @@ enum History {
         case meals
         case glucose
         case adjustments
+        case placementLog
 
         var id: String { rawValue }
 
@@ -50,6 +51,8 @@ enum History {
                 return String(localized: "Glucose", comment: "History Mode")
             case .adjustments:
                 return String(localized: "Adjustments", comment: "History Mode")
+            case .placementLog:
+                return String(localized: "Placements", comment: "History Mode")
             }
         }
     }
