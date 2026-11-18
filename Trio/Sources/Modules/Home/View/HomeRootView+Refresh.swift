@@ -49,9 +49,14 @@ extension Home.RootView {
         } else if pullOffset > 4 {
             let progress = min(pullOffset / HomeLayout.refreshTriggerDistance, 1)
             HStack(spacing: 8) {
-                Image(systemName: "arrow.down")
-                    .rotationEffect(.degrees(progress * 180))
-                Text("Pull down to force loop")
+                if isForcingLoop {
+                    ProgressView()
+                    Text("Forcing loop…")
+                } else {
+                    Image(systemName: "arrow.down")
+                        .rotationEffect(.degrees(progress * 180))
+                    Text("Pull down to force loop")
+                }
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -87,8 +92,9 @@ extension Home.RootView {
                 try? await Task.sleep(for: .milliseconds(200))
             }
             // Minimum visible duration.
-            if Date().timeIntervalSince(start) < 1 {
-                try? await Task.sleep(for: .seconds(1))
+            let elapsed = Date().timeIntervalSince(start)
+            if elapsed < 1 {
+                try? await Task.sleep(for: .seconds(1 - elapsed))
             }
             withAnimation(.easeInOut(duration: 0.25)) { isForcingLoop = false }
         }
