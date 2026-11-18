@@ -33,6 +33,14 @@ extension DeviceAlarms {
 
         var body: some View {
             List {
+                Section {
+                    Toggle("Mute All Device Alarm Sounds", isOn: $store.muteAllSounds)
+                } footer: {
+                    Text(
+                        "Device Alarms still fire and show as banners and in History, but stay silent — including Critical — no matter what each severity's own Sound setting below says."
+                    )
+                }.listRowBackground(Color.chart)
+
                 ForEach(DeviceAlertSeverity.allCases) { severity in
                     Section {
                         VStack(alignment: .leading, spacing: 5) {

@@ -347,7 +347,7 @@ final class BaseTrioAlertManager: TrioAlertManager, Injectable {
             // toggle can't demote a Critical alarm or promote a Normal one
             // past what the catalog says it is.
             interruptionLevel: config.overridesSilenceAndDND ? .critical : entry.interruptionLevel,
-            sound: config.playsSound ? .sound(name: config.soundFilename) : nil,
+            sound: playsSound ? .sound(name: config.soundFilename) : nil,
             metadata: alert.metadata
         )
     }
