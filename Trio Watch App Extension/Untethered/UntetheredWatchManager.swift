@@ -1973,19 +1973,23 @@ extension Optional {
 /// Elias Maurer's fallback loop (EJM0/Trio feat/direct-to-watch, 84ad4da and 7943e43 to 5444214), built here on
 /// this branch's own parts: the watch reader supplies the readings and Start Without Phone does the start. With
 /// Settings › Apple Watch › Start by Itself When iPhone Stops on (it needs Allow Start Without iPhone), the watch starts
-/// untethered mode by itself once the phone's newest reading is about 15 minutes old, the watch read three of its own, and
-/// nobody used the pod across the watch's three looks at it, about 10 minutes; once per outage. When the phone is in reach
-/// again for a minute, it hands back by itself.
+/// untethered mode by itself once the phone's newest reading is about 20 minutes old, the watch read three of its own, and
+/// nobody used the pod between the watch's two looks at it, about 10 minutes apart; once per outage. When the phone is in
+/// reach again for a minute, it hands back by itself.
 extension UntetheredWatchManager {
     /// The start: the phone's newest reading this old, three of the watch's own newer, and the pod's witness agreeing
     /// over `fallbackWitnessSpan`. Two looks 5 minutes apart held only the phone loop already known to be missed: on
     /// 12 November at 07:31 the watch took over beside a looping phone whose 07:26 reading was missed and whose 07:31
     /// one came 22 s after the watch's (fresh eyes: Claude Fable's review of the same day).
     static let fallbackPhoneSilence: TimeInterval = 14.5 * 60
-    /// The looks that found nobody must reach back this far: the window then holds a full phone cycle that isn't
-    /// already known to be missed.
-    /// Test branch: one window; 4, not 4.5, as a slow first look and a fast second can make it 263 s (Fable).
-    static let fallbackWitnessSpan: TimeInterval = 4 * 60
+    /// The looks that found nobody must reach back this far. A looping phone with nothing to change doesn't use the pod
+    /// at every loop: OmnipodKit reads the pod's status only once it is over 6 minutes old (`isPumpDataStale`), so such
+    /// a phone is at the pod every second loop, 10 minutes apart. Two looks 4 minutes apart fell between two of them,
+    /// and the watch took over beside a phone that looped (18 November: the phone at the pod at 14:50 and 15:00, not at
+    /// 14:55 or 15:05; looks at 15:00:57 and 15:05:40, a takeover at 15:05). The two looks are now one reading pair
+    /// apart, which always holds one of the phone's visits; 9 minutes, as a slow first look and a fast second can make
+    /// the 10 minutes a little shorter.
+    static let fallbackWitnessSpan: TimeInterval = 9 * 60
     /// The watch's own readings newer than the phone's newest, for the start.
     static let fallbackOwnReadings = 3
     /// An automatic start only from a copy at most this old when the phone went silent: an older one says
@@ -1993,12 +1997,13 @@ extension UntetheredWatchManager {
     /// 12 November). Measured to the phone's last sign, so the outage itself doesn't age it out. Start Without Phone by
     /// hand still takes any copy younger than insulin's action time.
     static let fallbackCopyMaxAge: TimeInterval = 60 * 60
-    /// The first look at the pod: the phone's newest reading this old, one of the watch's own newer. Test branch: two
-    /// looks instead of three, the first at about 10 minutes; each look costs a looping phone its next pod command.
-    /// The window then is 5 minutes again, so a look in the phone's pod slot weighs more (Fable, 12 November).
+    /// The first look at the pod: the phone's newest reading this old, one of the watch's own newer. Two looks, as each
+    /// costs a looping phone its next pod command (12 November: a 1.4 U bolus held back), the first at about 10 minutes.
     static let fallbackProbeAfter: TimeInterval = 9.5 * 60
-    /// The second look counts only this long after the first: a phone that loops talks to the pod in between.
-    static let fallbackWitnessGap: TimeInterval = 3 * 60
+    /// The second look comes only this long after the first, at the second reading after it: a phone that loops is at
+    /// the pod in between, even with nothing to change (`fallbackWitnessSpan`). The reading 5 minutes after the first
+    /// look brings no look.
+    static let fallbackWitnessGap: TimeInterval = 9 * 60
     /// Each look waits this long after the reading, so the phone's loop for the same reading is already done.
     static let fallbackProbeDelay: TimeInterval = 15
     /// How long a look keeps trying to reach the pod, as a takeover does (reads 8 s apart).
