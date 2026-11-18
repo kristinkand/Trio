@@ -1148,6 +1148,7 @@
 		CA0924000000000000000006 /* GRICalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0924000000000000000005 /* GRICalculatorTests.swift */; };
 		FF42480CF46A31D00C817D8C /* WatchLogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D79872B74ADDBDD11682D0 /* WatchLogEntry.swift */; };
 		B874DD975FCE16BFD7D9337C /* PreviousDayGlucoseChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */; };
+		EA3EE728BA0246EDE8E36333 /* WidgetBobble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AA7BD8AC0094CCBBCE699C /* WidgetBobble.swift */; };
 		6D58D168F03780DA23CB2E52 /* QuickPickTreatmentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7DA23B64976670AC36D9E84 /* QuickPickTreatmentsTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -2385,6 +2386,7 @@
 		CA0924000000000000000001 /* GRICalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRICalculator.swift; sourceTree = "<group>"; };
 		CA0924000000000000000003 /* GRIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRIView.swift; sourceTree = "<group>"; };
 		CA0924000000000000000005 /* GRICalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRICalculatorTests.swift; sourceTree = "<group>"; };
+		57AA7BD8AC0094CCBBCE699C /* WidgetBobble.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetBobble.swift; sourceTree = "<group>"; };
 		A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PreviousDayGlucoseChartView.swift; sourceTree = "<group>"; };
 		71A58E19DE23455CB842C50C /* CGMSensorStateLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGMSensorStateLogTests.swift; sourceTree = "<group>"; };
 		6EFF860E684B4C9488D438DD /* NightscoutImportRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutImportRoundTripTests.swift; sourceTree = "<group>"; };
@@ -3928,6 +3930,7 @@
 				6B1A8D232B14D91700E76752 /* Assets.xcassets */,
 				6B1A8D252B14D91700E76752 /* Info.plist */,
 				DDCEBF5A2CC1B76400DF4C36 /* LiveActivity+Helper.swift */,
+				57AA7BD8AC0094CCBBCE699C /* WidgetBobble.swift */,
 			);
 			path = LiveActivity;
 			sourceTree = "<group>";
@@ -6722,6 +6725,7 @@
 				DDCEBF5B2CC1B76400DF4C36 /* LiveActivity+Helper.swift in Sources */,
 				6B1A8D1E2B14D91600E76752 /* LiveActivityBundle.swift in Sources */,
 				6B1A8D202B14D91600E76752 /* LiveActivity.swift in Sources */,
+				EA3EE728BA0246EDE8E36333 /* WidgetBobble.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
