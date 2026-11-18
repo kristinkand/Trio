@@ -1156,7 +1156,9 @@
 		B874DD975FCE16BFD7D9337C /* PreviousDayGlucoseChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */; };
 		BC0C6D754800A02468582A81 /* HistoryRootView+PlacementLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC19555AAE96D83BAB2A6783 /* HistoryRootView+PlacementLog.swift */; };
 		2426DAC2CCEF457293A7D7E6 /* AlgorithmAdjustmentsChartsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A954B9748CF94F5CB4DB115C /* AlgorithmAdjustmentsChartsView.swift */; };
+		F3CCF679D51C12F8A8CACEEC /* MealImpactListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF7BC09EEBAFBA798C919474 /* MealImpactListView.swift */; };
 		147B19FE15C04618979716BC /* AlgorithmAdjustmentsSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E205B40CFD9C4C2192CB17F5 /* AlgorithmAdjustmentsSetup.swift */; };
+		8F2347CB1A39AF9DF67291D6 /* MealImpactSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2D51FB2CD566AE269464B4 /* MealImpactSetup.swift */; };
 		EA3EE728BA0246EDE8E36333 /* WidgetBobble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AA7BD8AC0094CCBBCE699C /* WidgetBobble.swift */; };
 		6D58D168F03780DA23CB2E52 /* QuickPickTreatmentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7DA23B64976670AC36D9E84 /* QuickPickTreatmentsTests.swift */; };
 /* End PBXBuildFile section */
@@ -2402,7 +2404,9 @@
 		738E916BA181A88612D9C5C3 /* PlacementLogStored+CoreDataClass.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "PlacementLogStored+CoreDataClass.swift"; sourceTree = "<group>"; };
 		A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PreviousDayGlucoseChartView.swift; sourceTree = "<group>"; };
 		A954B9748CF94F5CB4DB115C /* AlgorithmAdjustmentsChartsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlgorithmAdjustmentsChartsView.swift; sourceTree = "<group>"; };
+		FF7BC09EEBAFBA798C919474 /* MealImpactListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealImpactListView.swift; sourceTree = "<group>"; };
 		E205B40CFD9C4C2192CB17F5 /* AlgorithmAdjustmentsSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlgorithmAdjustmentsSetup.swift; sourceTree = "<group>"; };
+		7A2D51FB2CD566AE269464B4 /* MealImpactSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealImpactSetup.swift; sourceTree = "<group>"; };
 		C3D5DE0B1353F5C301AD2899 /* PlacementLogStorage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlacementLogStorage.swift; sourceTree = "<group>"; };
 		F7EB4ADBBEA2BA8E4343B437 /* HistoryRootView+AddPlacementLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryRootView+AddPlacementLog.swift"; sourceTree = "<group>"; };
 		FC19555AAE96D83BAB2A6783 /* HistoryRootView+PlacementLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryRootView+PlacementLog.swift"; sourceTree = "<group>"; };
@@ -4270,6 +4274,7 @@
 				DDCAE9772D79F98600B1BB51 /* Looping */,
 				10AF8EE6558343259FAE9483 /* Export */,
 				96FEF429EFC1422CAB1FDBEE /* Algorithm */,
+				F3B7EBAA0AE7B00B037C8943 /* MealImpact */,
 			);
 			path = ViewElements;
 			sourceTree = "<group>";
@@ -4287,6 +4292,7 @@
 				F1718DA686EA4E8F87B0A729 /* ExportSetup.swift */,
 				C40E9F8C6CEB4A308060A821 /* ReportPresetSetup.swift */,
 				E205B40CFD9C4C2192CB17F5 /* AlgorithmAdjustmentsSetup.swift */,
+				7A2D51FB2CD566AE269464B4 /* MealImpactSetup.swift */,
 			);
 			path = "StatStateModel+Setup";
 			sourceTree = "<group>";
@@ -5368,6 +5374,14 @@
 				A954B9748CF94F5CB4DB115C /* AlgorithmAdjustmentsChartsView.swift */,
 			);
 			path = Algorithm;
+			sourceTree = "<group>";
+		};
+		F3B7EBAA0AE7B00B037C8943 /* MealImpact */ = {
+			isa = PBXGroup;
+			children = (
+				FF7BC09EEBAFBA798C919474 /* MealImpactListView.swift */,
+			);
+			path = MealImpact;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -6615,7 +6629,9 @@
 				32DC31248CF9E5D252CB85DF /* AppAttestClient.swift in Sources */,
 				C25C56F3172AC94B9048CCED /* SentReports.swift in Sources */,
 				2426DAC2CCEF457293A7D7E6 /* AlgorithmAdjustmentsChartsView.swift in Sources */,
+				F3CCF679D51C12F8A8CACEEC /* MealImpactListView.swift in Sources */,
 				147B19FE15C04618979716BC /* AlgorithmAdjustmentsSetup.swift in Sources */,
+				8F2347CB1A39AF9DF67291D6 /* MealImpactSetup.swift in Sources */,
 				B874DD975FCE16BFD7D9337C /* PreviousDayGlucoseChartView.swift in Sources */,
 				24CAB8DA4DDD9EBC3927100F /* PlacementLocation.swift in Sources */,
 				AF7C392EB80FBC40F1DB9B04 /* PlacementLogStored+CoreDataClass.swift in Sources */,
