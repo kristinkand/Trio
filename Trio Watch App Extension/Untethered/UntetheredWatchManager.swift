@@ -90,6 +90,11 @@ import WatchKit
     @ObservationIgnored var handbackRequestedAt: Date?
     /// How many Pod Not Reachable notices this stall has brought; from the second on the watch vibrates harder.
     @ObservationIgnored var podLinkNoticeCount = 0
+    /// The session pod's background links cut from the watch's own side right after connecting, newest last
+    /// (`noteBackgroundLinkCut`); emptied by a link that gets through.
+    @ObservationIgnored var backgroundLinkCuts: [Date] = []
+    /// When "Restart the Watch" was last said.
+    @ObservationIgnored var restartWatchNoticeAt: Date?
     /// When loops failed at the pod's link (the pod dropped it, or wasn't reached): two since the last loop shorten
     /// the wait before the pump goes back to the phone (`podLinkDropLimit`).
     @ObservationIgnored var podLinkFailures: [Date] = []
