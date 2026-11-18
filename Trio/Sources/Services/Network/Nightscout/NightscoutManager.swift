@@ -19,6 +19,7 @@ protocol NightscoutManager: GlucoseSource {
     func uploadTempTargets() async
     func uploadProfiles() async throws
     @discardableResult func uploadNoteTreatment(note: String) async -> Bool
+    func uploadWeekendProfileEvent(_ event: NightscoutExercise, replacingPrevious: Bool) async
     func importSettings() async -> ScheduledNightscoutProfile?
     var cgmURL: URL? { get }
 }
@@ -78,7 +79,8 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
         reachabilityManager.isReachable
     }
 
-    private var isUploadEnabled: Bool {
+    // `internal` (not `private`) so `NightscoutManager+WeekendProfile.swift` can read it too.
+    var isUploadEnabled: Bool {
         settingsManager.settings.isUploadEnabled
     }
 
@@ -90,7 +92,8 @@ final class BaseNightscoutManager: NightscoutManager, Injectable {
         settingsManager.settings.uploadGlucose
     }
 
-    private var nightscoutAPI: NightscoutAPI? {
+    // `internal` (not `private`) so `NightscoutManager+WeekendProfile.swift` can read it too.
+    var nightscoutAPI: NightscoutAPI? {
         guard let urlString = keychain.getValue(String.self, forKey: NightscoutConfig.Config.urlKey),
               let url = URL(string: urlString),
               let secret = keychain.getValue(String.self, forKey: NightscoutConfig.Config.secretKey)

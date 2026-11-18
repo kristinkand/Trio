@@ -104,6 +104,10 @@ struct CommandPayload: Decodable, Sendable {
             }
         case .cancelOverride:
             description += "Cancel Override command."
+        case .startWeekendProfile:
+            description += "Start Profile command."
+        case .stopWeekendProfile:
+            description += "Stop Profile command."
         case .unknown:
             description += "Unknown command."
         }
@@ -129,6 +133,8 @@ extension TrioRemoteControl {
         case meal
         case startOverride = "start_override"
         case cancelOverride = "cancel_override"
+        case startWeekendProfile = "start_weekend_profile"
+        case stopWeekendProfile = "stop_weekend_profile"
         case deleteMeal = "delete_meal"
         case editMeal = "edit_meal"
         /// Command types from newer senders decode to this case and are rejected with an ack.
@@ -156,6 +162,10 @@ extension TrioRemoteControl {
                 return "Start Override"
             case .cancelOverride:
                 return "Cancel Override"
+            case .startWeekendProfile:
+                return "Start Profile"
+            case .stopWeekendProfile:
+                return "Stop Profile"
             case .deleteMeal:
                 return "Delete Meal"
             case .editMeal:

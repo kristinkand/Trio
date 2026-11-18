@@ -1149,6 +1149,7 @@
 		FF42480CF46A31D00C817D8C /* WatchLogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D79872B74ADDBDD11682D0 /* WatchLogEntry.swift */; };
 		24CAB8DA4DDD9EBC3927100F /* PlacementLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 549C7DECD1D5D4F229C31E8F /* PlacementLocation.swift */; };
 		3028D55417F5BB8DCCBA6BD3 /* PlacementLogStored+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34A64E10B7B28677405C828B /* PlacementLogStored+CoreDataProperties.swift */; };
+		878EF76C0EFB5EC48DAF9CA0 /* NightscoutManager+WeekendProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B04404A866806E62812B2B78 /* NightscoutManager+WeekendProfile.swift */; };
 		4A7B9A041C2B90316CE54285 /* HistoryRootView+AddPlacementLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7EB4ADBBEA2BA8E4343B437 /* HistoryRootView+AddPlacementLog.swift */; };
 		9A6E020D508C1F44D36489E8 /* PlacementLogStored+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A7B4DAF1EA060E53BF5C907 /* PlacementLogStored+Helper.swift */; };
 		AF7C392EB80FBC40F1DB9B04 /* PlacementLogStored+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738E916BA181A88612D9C5C3 /* PlacementLogStored+CoreDataClass.swift */; };
@@ -1159,6 +1160,12 @@
 		F3CCF679D51C12F8A8CACEEC /* MealImpactListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF7BC09EEBAFBA798C919474 /* MealImpactListView.swift */; };
 		147B19FE15C04618979716BC /* AlgorithmAdjustmentsSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E205B40CFD9C4C2192CB17F5 /* AlgorithmAdjustmentsSetup.swift */; };
 		8F2347CB1A39AF9DF67291D6 /* MealImpactSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2D51FB2CD566AE269464B4 /* MealImpactSetup.swift */; };
+		708AC30CD202B79FE677F124 /* TrioRemoteControl+WeekendProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB7A1A6E85A708C590EF8A11 /* TrioRemoteControl+WeekendProfile.swift */; };
+		7E304B5F46F5D6C0D3681DC0 /* AdjustmentsStateModel+WeekendProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = C277F920A8DC20F7F5F0CAD5 /* AdjustmentsStateModel+WeekendProfile.swift */; };
+		7DDBF513AD992C5FBCA68E95 /* AdjustmentsProvider+WeekendProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A9E0E112A36B270E752C313 /* AdjustmentsProvider+WeekendProfile.swift */; };
+		E65F8866467027CD3D490165 /* WeekendProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */; };
+		BF4A82E6D4AB4B328B057976 /* WeekendProfileSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */; };
+		41DAFD84B0E1DE70A9D74C2C /* WeekendScheduleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA13DF48FA7D84A9C4E74C6 /* WeekendScheduleEditor.swift */; };
 		EA3EE728BA0246EDE8E36333 /* WidgetBobble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AA7BD8AC0094CCBBCE699C /* WidgetBobble.swift */; };
 		6D58D168F03780DA23CB2E52 /* QuickPickTreatmentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7DA23B64976670AC36D9E84 /* QuickPickTreatmentsTests.swift */; };
 /* End PBXBuildFile section */
@@ -2398,6 +2405,7 @@
 		CA0924000000000000000003 /* GRIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRIView.swift; sourceTree = "<group>"; };
 		CA0924000000000000000005 /* GRICalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRICalculatorTests.swift; sourceTree = "<group>"; };
 		34A64E10B7B28677405C828B /* PlacementLogStored+CoreDataProperties.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "PlacementLogStored+CoreDataProperties.swift"; sourceTree = "<group>"; };
+		B04404A866806E62812B2B78 /* NightscoutManager+WeekendProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NightscoutManager+WeekendProfile.swift"; sourceTree = "<group>"; };
 		4A7B4DAF1EA060E53BF5C907 /* PlacementLogStored+Helper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "PlacementLogStored+Helper.swift"; sourceTree = "<group>"; };
 		57AA7BD8AC0094CCBBCE699C /* WidgetBobble.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetBobble.swift; sourceTree = "<group>"; };
 		549C7DECD1D5D4F229C31E8F /* PlacementLocation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlacementLocation.swift; sourceTree = "<group>"; };
@@ -2408,6 +2416,12 @@
 		E205B40CFD9C4C2192CB17F5 /* AlgorithmAdjustmentsSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlgorithmAdjustmentsSetup.swift; sourceTree = "<group>"; };
 		7A2D51FB2CD566AE269464B4 /* MealImpactSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealImpactSetup.swift; sourceTree = "<group>"; };
 		C3D5DE0B1353F5C301AD2899 /* PlacementLogStorage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlacementLogStorage.swift; sourceTree = "<group>"; };
+		CB7A1A6E85A708C590EF8A11 /* TrioRemoteControl+WeekendProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TrioRemoteControl+WeekendProfile.swift"; sourceTree = "<group>"; };
+		C277F920A8DC20F7F5F0CAD5 /* AdjustmentsStateModel+WeekendProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdjustmentsStateModel+WeekendProfile.swift"; sourceTree = "<group>"; };
+		8A9E0E112A36B270E752C313 /* AdjustmentsProvider+WeekendProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AdjustmentsProvider+WeekendProfile.swift"; sourceTree = "<group>"; };
+		316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendProfileStore.swift; sourceTree = "<group>"; };
+		62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendProfileSection.swift; sourceTree = "<group>"; };
+		8AA13DF48FA7D84A9C4E74C6 /* WeekendScheduleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendScheduleEditor.swift; sourceTree = "<group>"; };
 		F7EB4ADBBEA2BA8E4343B437 /* HistoryRootView+AddPlacementLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryRootView+AddPlacementLog.swift"; sourceTree = "<group>"; };
 		FC19555AAE96D83BAB2A6783 /* HistoryRootView+PlacementLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryRootView+PlacementLog.swift"; sourceTree = "<group>"; };
 		71A58E19DE23455CB842C50C /* CGMSensorStateLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGMSensorStateLogTests.swift; sourceTree = "<group>"; };
@@ -5003,6 +5017,7 @@
 				0480CC863D1BBC71668F34B3 /* TrioRemoteControl+MealMutation.swift */,
 				DD32CF972CC82460003686D6 /* TrioRemoteControl+Bolus.swift */,
 				DD9ECB672CA99F4500AA7C45 /* TrioRemoteControl.swift */,
+				CB7A1A6E85A708C590EF8A11 /* TrioRemoteControl+WeekendProfile.swift */,
 			);
 			path = RemoteControl;
 			sourceTree = "<group>";
@@ -5051,6 +5066,7 @@
 				3811DE9725C9D88300A708ED /* NightscoutManager.swift */,
 				38FE826C25CC8461001FF17A /* NightscoutAPI.swift */,
 				DD906BF52EA6AAE900262772 /* BaseNightscoutManager+Subscribers.swift */,
+				B04404A866806E62812B2B78 /* NightscoutManager+WeekendProfile.swift */,
 			);
 			path = Nightscout;
 			sourceTree = "<group>";
@@ -5131,6 +5147,9 @@
 				DDD163112C4C689900CD525A /* AdjustmentsStateModel.swift */,
 				DDD163132C4C68D300CD525A /* AdjustmentsProvider.swift */,
 				DDD163152C4C690300CD525A /* AdjustmentsDataFlow.swift */,
+				C277F920A8DC20F7F5F0CAD5 /* AdjustmentsStateModel+WeekendProfile.swift */,
+				8A9E0E112A36B270E752C313 /* AdjustmentsProvider+WeekendProfile.swift */,
+				316F8FA1082A53722E9C558F /* WeekendProfileStore.swift */,
 			);
 			path = Adjustments;
 			sourceTree = "<group>";
@@ -5142,6 +5161,8 @@
 				DDD163172C4C694000CD525A /* AdjustmentsRootView.swift */,
 				BD793CAD2CE7660C00D669AC /* Overrides */,
 				BD793CAE2CE7661D00D669AC /* TempTargets */,
+				62CB8B6BB62369AF9BB7B4EB /* WeekendProfileSection.swift */,
+				8AA13DF48FA7D84A9C4E74C6 /* WeekendScheduleEditor.swift */,
 			);
 			path = View;
 			sourceTree = "<group>";
@@ -6628,10 +6649,17 @@
 				AC05A906087DD32A509439F2 /* SendReportView.swift in Sources */,
 				32DC31248CF9E5D252CB85DF /* AppAttestClient.swift in Sources */,
 				C25C56F3172AC94B9048CCED /* SentReports.swift in Sources */,
+				878EF76C0EFB5EC48DAF9CA0 /* NightscoutManager+WeekendProfile.swift in Sources */,
 				2426DAC2CCEF457293A7D7E6 /* AlgorithmAdjustmentsChartsView.swift in Sources */,
 				F3CCF679D51C12F8A8CACEEC /* MealImpactListView.swift in Sources */,
+				7DDBF513AD992C5FBCA68E95 /* AdjustmentsProvider+WeekendProfile.swift in Sources */,
 				147B19FE15C04618979716BC /* AlgorithmAdjustmentsSetup.swift in Sources */,
 				8F2347CB1A39AF9DF67291D6 /* MealImpactSetup.swift in Sources */,
+				BF4A82E6D4AB4B328B057976 /* WeekendProfileSection.swift in Sources */,
+				41DAFD84B0E1DE70A9D74C2C /* WeekendScheduleEditor.swift in Sources */,
+				708AC30CD202B79FE677F124 /* TrioRemoteControl+WeekendProfile.swift in Sources */,
+				7E304B5F46F5D6C0D3681DC0 /* AdjustmentsStateModel+WeekendProfile.swift in Sources */,
+				E65F8866467027CD3D490165 /* WeekendProfileStore.swift in Sources */,
 				B874DD975FCE16BFD7D9337C /* PreviousDayGlucoseChartView.swift in Sources */,
 				24CAB8DA4DDD9EBC3927100F /* PlacementLocation.swift in Sources */,
 				AF7C392EB80FBC40F1DB9B04 /* PlacementLogStored+CoreDataClass.swift in Sources */,
