@@ -76,6 +76,15 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             }
             .store(in: &subscriptions)
 
+        // readings marked unreliable (or the setting turned off) go to the watch too
+        UnsureGlucoseStore.shared.$readings
+            .dropFirst()
+            .receive(on: DispatchQueue.global(qos: .background))
+            .sink { [weak self] _ in
+                self?.scheduleWatchStatePush()
+            }
+            .store(in: &subscriptions)
+
         iobService.iobPublisher
             .receive(on: DispatchQueue.global(qos: .background))
             .sink { [weak self] _ in
@@ -543,6 +552,14 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
 
         dictionary[WatchMessageKeys.forecastData] = forecastData
+        dictionary[WatchMessageKeys.unsureGlucoseValues] = UnsureGlucoseStore.shared.snapshot.map { reading in
+            [
+                "glucose": state.units == .mgdL
+                    ? Double(reading.mgdl)
+                    : Double(truncating: Decimal(reading.mgdl).asMmolL as NSNumber),
+                "date": reading.date.timeIntervalSince1970
+            ]
+        }
         return dictionary
     }
 

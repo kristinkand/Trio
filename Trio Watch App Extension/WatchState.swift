@@ -23,6 +23,9 @@ import WatchConnectivity
     var trend: String? = ""
     var delta: String? = "--"
     var glucoseValues: [(date: Date, glucose: Double, color: Color)] = []
+    /// Readings the sensor marked unreliable, in the user's units: hollow orange dots on the chart, and the newest
+    /// in orange with a warning sign while it is newer than the last reliable reading. Never used.
+    var unsureGlucoseValues: [(date: Date, glucose: Double)] = []
     var minYAxisValue: Decimal = 39
     var maxYAxisValue: Decimal = 200
     var cob: String? = "--"
@@ -612,6 +615,16 @@ import WatchConnectivity
 
         if let glucoseValues = Self.glucoseValues(from: message) {
             self.glucoseValues = glucoseValues
+        }
+
+        if let unsureData = message[WatchMessageKeys.unsureGlucoseValues] as? [[String: Any]] {
+            unsureGlucoseValues = unsureData.compactMap { data in
+                guard let glucose = data["glucose"] as? Double,
+                      let timestamp = data["date"] as? TimeInterval
+                else { return nil }
+                return (Date(timeIntervalSince1970: timestamp), glucose)
+            }
+            .sorted { $0.date < $1.date }
         }
 
         if let minYAxisValue = message[WatchMessageKeys.minYAxisValue] {
