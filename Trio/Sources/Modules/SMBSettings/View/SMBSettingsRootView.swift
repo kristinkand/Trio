@@ -323,6 +323,48 @@ extension SMBSettings {
                 )
 
                 SettingInputSection(
+                    decimalValue: $decimalPlaceholder,
+                    booleanValue: $state.useNightSMBMinutes,
+                    shouldDisplayHint: $shouldDisplayHint,
+                    selectedVerboseHint: Binding(
+                        get: { selectedVerboseHint },
+                        set: {
+                            selectedVerboseHint = $0.map { AnyView($0) }
+                            hintLabel = String(localized: "Night SMB and UAM Minutes")
+                        }
+                    ),
+                    units: state.units,
+                    type: .boolean,
+                    label: String(localized: "Night SMB and UAM Minutes"),
+                    miniHint: String(localized: "Different Max SMB and UAM Basal Minutes during the night."),
+                    verboseHint: VStack(alignment: .leading, spacing: 10) {
+                        Text("Default: OFF").bold()
+                        Text(
+                            "From the start hour until the end hour, the night values replace Max SMB Basal Minutes and Max UAM Basal Minutes. The rest of the day, the regular values apply. The night can run past midnight."
+                        )
+                        Text("An Override with its own SMB and UAM minutes still takes precedence.")
+                        Text("Home shows which values are in use.")
+                    }
+                )
+
+                if state.useNightSMBMinutes {
+                    Section {
+                        Picker("Night Starts", selection: $state.nightStartHour) {
+                            ForEach(0 ..< 24, id: \.self) { Text(hourText($0)).tag($0) }
+                        }
+                        Picker("Night Ends", selection: $state.nightEndHour) {
+                            ForEach(0 ..< 24, id: \.self) { Text(hourText($0)).tag($0) }
+                        }
+                        Stepper(value: $state.nightSMBBasalMinutes, in: 15 ... 180, step: 5) {
+                            LabeledContent("Night Max SMB Basal Minutes", value: minutesText(state.nightSMBBasalMinutes))
+                        }
+                        Stepper(value: $state.nightUAMSMBBasalMinutes, in: 15 ... 180, step: 5) {
+                            LabeledContent("Night Max UAM Basal Minutes", value: minutesText(state.nightUAMSMBBasalMinutes))
+                        }
+                    }
+                }
+
+                SettingInputSection(
                     decimalValue: $state.maxDeltaBGthreshold,
                     booleanValue: $booleanPlaceholder,
                     shouldDisplayHint: $shouldDisplayHint,
@@ -372,5 +414,16 @@ extension SMBSettings {
             .navigationBarTitleDisplayMode(.automatic)
             .settingsHighlightScroll()
         }
+    }
+}
+
+extension SMBSettings.RootView {
+    private func hourText(_ hour: Int) -> String {
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
+    private func minutesText(_ minutes: Decimal) -> String {
+        Duration(minutes: minutes).formattedTimeSpan(.minutes)
     }
 }

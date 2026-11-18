@@ -32,6 +32,11 @@ struct Preferences: JSON, Equatable {
     var allowSMBWithHighTemptarget: Bool = false
     var maxSMBBasalMinutes: Decimal = 30
     var maxUAMSMBBasalMinutes: Decimal = 30
+    var useNightSMBMinutes: Bool = false
+    var nightStartHour: Int = 22
+    var nightEndHour: Int = 7
+    var nightSMBBasalMinutes: Decimal = 30
+    var nightUAMSMBBasalMinutes: Decimal = 30
     var smbInterval: Decimal = 3
     var bolusIncrement: Decimal = 0.1
     var curve: InsulinCurve = .rapidActing
@@ -88,6 +93,11 @@ extension Preferences {
         case allowSMBWithHighTemptarget = "allowSMB_with_high_temptarget"
         case maxSMBBasalMinutes
         case maxUAMSMBBasalMinutes
+        case useNightSMBMinutes
+        case nightStartHour
+        case nightEndHour
+        case nightSMBBasalMinutes
+        case nightUAMSMBBasalMinutes
         case smbInterval = "SMBInterval"
         case bolusIncrement = "bolus_increment"
         case curve
@@ -248,6 +258,26 @@ extension Preferences: Decodable {
             preferences.maxUAMSMBBasalMinutes = maxUAMSMBBasalMinutes
         }
 
+        if let useNightSMBMinutes = try? container.decode(Bool.self, forKey: .useNightSMBMinutes) {
+            preferences.useNightSMBMinutes = useNightSMBMinutes
+        }
+
+        if let nightStartHour = try? container.decode(Int.self, forKey: .nightStartHour) {
+            preferences.nightStartHour = nightStartHour
+        }
+
+        if let nightEndHour = try? container.decode(Int.self, forKey: .nightEndHour) {
+            preferences.nightEndHour = nightEndHour
+        }
+
+        if let nightSMBBasalMinutes = try? container.decode(Decimal.self, forKey: .nightSMBBasalMinutes) {
+            preferences.nightSMBBasalMinutes = nightSMBBasalMinutes
+        }
+
+        if let nightUAMSMBBasalMinutes = try? container.decode(Decimal.self, forKey: .nightUAMSMBBasalMinutes) {
+            preferences.nightUAMSMBBasalMinutes = nightUAMSMBBasalMinutes
+        }
+
         if let smbInterval = try? container.decode(Decimal.self, forKey: .smbInterval) {
             preferences.smbInterval = smbInterval
         }
@@ -329,5 +359,24 @@ extension Preferences: Decodable {
         }
 
         self = preferences
+    }
+}
+
+extension Preferences {
+    /// Whether `date` falls in the night window: from the start hour up to, not including, the end hour, across
+    /// midnight when the start is later. Off, or with start and end the same, it never does.
+    func isNightForSMB(at date: Date) -> Bool {
+        guard useNightSMBMinutes, nightStartHour != nightEndHour, let hour = date.hourInLocalTime else { return false }
+        return nightStartHour < nightEndHour
+            ? hour >= nightStartHour && hour < nightEndHour
+            : hour >= nightStartHour || hour < nightEndHour
+    }
+
+    /// The SMB and UAM minutes for `date`: the night values inside the night window, the regular ones outside it.
+    /// An override with its own minutes still takes precedence in the algorithm.
+    func smbMinutes(at date: Date) -> (smb: Decimal, uam: Decimal) {
+        isNightForSMB(at: date)
+            ? (nightSMBBasalMinutes, nightUAMSMBBasalMinutes)
+            : (maxSMBBasalMinutes, maxUAMSMBBasalMinutes)
     }
 }
