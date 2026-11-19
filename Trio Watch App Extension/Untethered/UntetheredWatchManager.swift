@@ -85,6 +85,10 @@ import WatchKit
     @ObservationIgnored var startCopyIssuedAt: Date?
     /// watchOS ended the running loop's background time: it starts no further pod command.
     @ObservationIgnored var loopHoldExpired = false
+    /// The pod read started at the sensor's link-up, for the loop of that reading (`prefetchPodData`).
+    @ObservationIgnored var podPrefetch: (task: Task<Date?, Never>, at: Date)?
+    /// An SMB left for the next reading late in a wake: the next one goes, however late (`enact`).
+    @ObservationIgnored var smbDeferredAt: Date?
     /// A treatment came in while a loop ran; its determination follows.
     @ObservationIgnored var isDeterminationPending = false
     /// A mode changed while a loop ran; its constrained determination and enactment follow.
@@ -190,6 +194,7 @@ import WatchKit
         // every stored property is set before a method of self runs: Swift refuses `adoptSavedState()` first
         data = store.data
         adoptSavedState()
+        G7WatchAcquisition.onLinkUp = { DispatchQueue.main.async { UntetheredWatchManager.shared.prefetchPodData() } }
     }
 
     /// Takes on the saved state: at launch, and when a state locked at launch opens later.

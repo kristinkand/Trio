@@ -82,9 +82,15 @@ extension UntetheredWatchManager {
             var explained = true
             var podReached = true
             if enacts, !self.loopHoldExpired {
-                let synced = await withCheckedContinuation { (continuation: CheckedContinuation<Date?, Never>) in
-                    pump.ensureCurrentPumpData { continuation.resume(returning: $0) }
+                let synced: Date?
+                if let prefetch = self.podPrefetch, Date().timeIntervalSince(prefetch.at) < 60 {
+                    synced = await prefetch.task.value
+                } else {
+                    synced = await withCheckedContinuation { (continuation: CheckedContinuation<Date?, Never>) in
+                        pump.ensureCurrentPumpData { continuation.resume(returning: $0) }
+                    }
                 }
+                self.podPrefetch = nil
                 // pod data older than the kit's own 6 minutes: the pod didn't answer this loop
                 podReached = synced.map { Date().timeIntervalSince($0) <= 6 * 60 } ?? false
                 // before the determination, so its IOB counts what the records miss
@@ -364,11 +370,13 @@ extension UntetheredWatchManager {
         // a pod command watchOS can freeze half-way is what leaves the pod link stuck (2026-10-19 08:09,
         // 2026-10-20 02:25 and 12:11): none starts once the loop has no background time left
         guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
+        var sentTemp = false
         if let rate = determination.rate, let duration = determination.duration {
             try await pump.enactTempBasal(
                 unitsPerHour: rate.nearestDouble,
                 for: TimeInterval(truncating: duration as NSNumber) * 60
             )
+            sentTemp = true
         }
         // as the phone: no SMB on top of a bolus still running, e.g. the meal bolus just started
         if data.grant?.dosingMode == dosingMode, let units = determination.units, units > 0,
@@ -376,9 +384,42 @@ extension UntetheredWatchManager {
         {
             guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
             guard mayDose else { throw UntetheredWatchError.noPump }
+            // Test (19 November): pod messages past ~10 s from the sensor's link-up count toward a watchOS limit that
+            // cuts all of Trio's links near 200. After a temp basal late in a background wake, the SMB waits for the
+            // next reading, which works it out again; only once in a row, so no SMB waits longer than one reading.
+            let sinceLinkUp = G7WatchAcquisition.lastLinkUpAt.map { Date().timeIntervalSince($0) } ?? .infinity
+            let deferredLast = smbDeferredAt.map { Date().timeIntervalSince($0) < 8 * 60 } ?? false
+            if sentTemp, !deferredLast, sinceLinkUp > 5, sinceLinkUp < 60,
+               WKApplication.shared().applicationState != .active
+            {
+                smbDeferredAt = Date()
+                Task {
+                    await WatchLogger.shared.log(
+                        String(format: "⌚️ Untethered: SMB %@ U left for the next reading, %.1f s into the wake", "\(units)", sinceLinkUp),
+                        force: true
+                    )
+                }
+                return true
+            }
+            smbDeferredAt = nil
             try await pump.enactBolus(units: units.nearestDouble, automatic: true)
         }
         return true
+    }
+
+    /// Test (19 November): the pod read at the sensor's link-up instead of after the reading, about 1.5 s earlier in
+    /// the ~10 s of Bluetooth watchOS gives a background wake. The loop of that reading takes its result.
+    func prefetchPodData() {
+        guard data.session.phase == .active, !data.podEnded, mayDose, !isLooping, let pump = pumpManager,
+              WKApplication.shared().applicationState != .active,
+              podPrefetch.map({ Date().timeIntervalSince($0.at) > 60 }) ?? true else { return }
+        let task = Task { @MainActor in
+            await withCheckedContinuation { (continuation: CheckedContinuation<Date?, Never>) in
+                pump.ensureCurrentPumpData { continuation.resume(returning: $0) }
+            }
+        }
+        podPrefetch = (task, Date())
+        Task { await WatchLogger.shared.log("⌚️ Untethered: pod read at the sensor's link-up") }
     }
 
     /// The watch may still command the pod: the session runs (a hand-back until its last stage) and the phone isn't
