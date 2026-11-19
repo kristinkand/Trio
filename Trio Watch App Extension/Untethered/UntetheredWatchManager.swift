@@ -1105,6 +1105,7 @@ import WatchKit
     static let sessionRefreshDelay: TimeInterval = 7 * 60
 
     func recheckCGM() {
+        Self.logDeliveredNotifications()
         watchCGMRecheckAcquisition(cgmManager)
         // on a wake with the phone away, too: the phone takes it once it is back
         WatchState.shared.reportBatteryIfChanged()
