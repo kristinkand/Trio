@@ -64,6 +64,10 @@ enum UntetheredAlgorithm {
         }
 
         OrefPipeline.prepareForDosing(&profile, supportedBasalRates: inputs.supportedBasalRates, dosingMode: grant.dosingMode)
+        // night or day SMB/UAM minutes, as on the phone
+        let smbMinutes = grant.preferences.smbMinutes(at: now)
+        profile.maxSMBBasalMinutes = smbMinutes.smb
+        profile.maxUAMSMBBasalMinutes = smbMinutes.uam
         let preferences = OrefPipeline.determinationPreferences(
             basePreferences,
             dosingMode: grant.dosingMode,

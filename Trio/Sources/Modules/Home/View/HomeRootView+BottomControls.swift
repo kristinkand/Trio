@@ -132,14 +132,31 @@ extension Home.RootView {
             }
         }
 
+        // the override keeps the day or night minutes unless it sets its own
+        let dayNightLabel = latestOverride.smbIsOff || latestOverride.advancedSettings ? "" : (smbDayNightLabel ?? "")
         let otherComponents = [percentString, targetString, smbToggleString]
-        let components = ([durationLabel.text] + otherComponents + [smbMinuteLabel.text, uamMinuteLabel.text])
+        let components = ([durationLabel.text] + otherComponents + [smbMinuteLabel.text, uamMinuteLabel.text, dayNightLabel])
             .filter { !$0.isEmpty }
-        let spokenComponents = ([durationLabel.spoken] + otherComponents + [smbMinuteLabel.spoken, uamMinuteLabel.spoken])
+        let spokenComponents = ([durationLabel.spoken] + otherComponents + [
+            smbMinuteLabel.spoken,
+            uamMinuteLabel.spoken,
+            dayNightLabel
+        ])
             .filter { !$0.isEmpty }
 
         guard !components.isEmpty else { return nil }
         return (components.joined(separator: ", "), spokenComponents.joined(separator: ", "))
+    }
+
+    /// With night SMB/UAM minutes set up: which ones the loop uses now, "Night: SMB 15m, UAM 15m".
+    var smbDayNightLabel: String? {
+        guard let preferences = state.settingsManager?.preferences, preferences.useNightSMBMinutes else { return nil }
+        let minutes = preferences.smbMinutes(at: state.timerDate)
+        let smb = Duration(minutes: minutes.smb).formattedTimeSpan(.minutes)
+        let uam = Duration(minutes: minutes.uam).formattedTimeSpan(.minutes)
+        return preferences.isNightForSMB(at: state.timerDate)
+            ? String(localized: "Night: SMB \(smb), UAM \(uam)")
+            : String(localized: "Day: SMB \(smb), UAM \(uam)")
     }
 
     var tempTargetString: (text: String, spoken: String)? {
@@ -183,8 +200,8 @@ extension Home.RootView {
             }
         }
 
-        let components = [targetString, durationString].filter { !$0.isEmpty }
-        let spokenComponents = [targetString, spokenDurationString].filter { !$0.isEmpty }
+        let components = [targetString, durationString, smbDayNightLabel ?? ""].filter { !$0.isEmpty }
+        let spokenComponents = [targetString, spokenDurationString, smbDayNightLabel ?? ""].filter { !$0.isEmpty }
 
         guard !components.isEmpty else { return nil }
         return (components.joined(separator: ", "), spokenComponents.joined(separator: ", "))
@@ -322,7 +339,7 @@ extension Home.RootView {
                     .font(.subheadline).fontWeight(.medium)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text("Profile at \(1.0.formatted(.wholePercent))")
+                Text(smbDayNightLabel ?? String(localized: "Profile at \(1.0.formatted(.wholePercent))"))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)

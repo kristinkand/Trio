@@ -20,6 +20,11 @@ extension SMBSettings {
         @Published var bolusIncrement: Decimal = 0.1 // get this from pump, dafuq?: Bool = false
         @Published var enableUAM: Bool = false
         @Published var maxUAMSMBBasalMinutes: Decimal = 30
+        @Published var useNightSMBMinutes: Bool = false
+        @Published var nightStartHour: Int = 22
+        @Published var nightEndHour: Int = 7
+        @Published var nightSMBBasalMinutes: Decimal = 30
+        @Published var nightUAMSMBBasalMinutes: Decimal = 30
 
         override func subscribe() {
             units = settingsManager.settings.units
@@ -38,6 +43,12 @@ extension SMBSettings {
             subscribePreferencesSetting(\.bolusIncrement, on: $bolusIncrement) { bolusIncrement = $0 }
             subscribePreferencesSetting(\.enableUAM, on: $enableUAM) { enableUAM = $0 }
             subscribePreferencesSetting(\.maxUAMSMBBasalMinutes, on: $maxUAMSMBBasalMinutes) { maxUAMSMBBasalMinutes = $0 }
+            subscribePreferencesSetting(\.useNightSMBMinutes, on: $useNightSMBMinutes) { useNightSMBMinutes = $0 }
+            subscribePreferencesSetting(\.nightStartHour, on: $nightStartHour) { nightStartHour = $0 }
+            subscribePreferencesSetting(\.nightEndHour, on: $nightEndHour) { nightEndHour = $0 }
+            subscribePreferencesSetting(\.nightSMBBasalMinutes, on: $nightSMBBasalMinutes) { nightSMBBasalMinutes = $0 }
+            subscribePreferencesSetting(\.nightUAMSMBBasalMinutes, on: $nightUAMSMBBasalMinutes) {
+                nightUAMSMBBasalMinutes = $0 }
         }
     }
 }

@@ -317,6 +317,10 @@ final class OpenAPS {
         // injected here rather than baked into profile.json, so it can never go stale and the JS parity goldens
         // compare what they always did
         OrefPipeline.prepareForDosing(&profile, supportedBasalRates: supportedBasalRates, dosingMode: dosingMode)
+        // night or day SMB/UAM minutes, picked per run, so profile.json keeps the regular ones
+        let smbMinutes = storedPreferences.smbMinutes(at: clock)
+        profile.maxSMBBasalMinutes = smbMinutes.smb
+        profile.maxUAMSMBBasalMinutes = smbMinutes.uam
         let basalProfile = try JSONBridge.basalProfile(from: rawBasalProfile)
         let autosens = try JSONBridge.autosens(from: rawAutosens.isEmpty ? .null : rawAutosens)
         let trioCustomOrefVariables = try JSONBridge.trioCustomOrefVariables(from: rawTrioCustomOrefVariables)
