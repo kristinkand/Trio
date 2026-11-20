@@ -58,7 +58,8 @@ struct Preferences: JSON, Equatable {
     var enableSMB_high_bg_target: Decimal = 110
     var threshold_setting: Decimal = 60
     var updateInterval: Decimal = 20
-    var boostMode: BoostMode = .off
+    // Shadow until the person picks: Boost logs what it would dose, the dosing stays stock Trio
+    var boostMode: BoostMode = .shadow
     // Boost DynISF (V1) — used to compute a Boost-flavoured ISF in active mode. Defaults match AAPS.
     var boostUseTdd: Bool = false
     // With TDD-based ISF off, let oref autosens adapt ISF, basal, target and carbohydrate absorption
