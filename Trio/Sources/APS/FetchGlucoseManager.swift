@@ -524,6 +524,134 @@ extension BaseFetchGlucoseManager {
             warning(.cgm, "Glucose smoothing failed", error: error)
         }
     }
+
+    // Adaptive Smoothing (tim2000s/Trio dev) stays for its tests and the sensor-change signal, but glucose is
+    // smoothed as before, by GlucoseSmoothing, so the phone and the watch in watch mode smooth alike.
+
+    /// Persistent smoother instance, reused across fetch cycles so the learned measurement-noise state
+    /// (`learnedR`, innovation windows, session counters) carries forward between calls. This matches
+    /// AndroidAPS — whose smoothing plugin is a singleton that persists `learnedR` across cycles — and
+    /// the Python reference, which keeps the same state as instance members. Constructing a fresh
+    /// `UnscentedKalmanFilter()` each cycle (the previous behaviour) left `lastProcessedTimestamp` at 0
+    /// every call, so `shouldResetLearning` took the clean-start path every cycle and the filter never
+    /// persisted — diverging from AAPS by up to ~15 mg/dL on real data. The core is documented as
+    /// "one instance carries the learned state across calls"; it is not thread-safe, so access is
+    /// serialised by `smootherLock` (fetch cycles are already serialised via `glucoseStoreAndHeartLock`
+    /// and the Core Data context queue — the lock is belt-and-braces).
+    private static let smootherLock = NSLock()
+    /// UserDefaults key for the smoother's learned state — mirrors AAPS persisting `learnedR` etc. to
+    /// preferences so learning survives an app restart.
+    private static let ukfStateKey = "adaptiveSmoothing.ukfPersistedState"
+    /// Set by `notifySensorChange()` (from the CGM sensor-start event), consumed on the next smooth —
+    /// the Trio analogue of AAPS's SENSOR_CHANGE therapy-event reset.
+    private static var pendingSensorChange = false
+    /// Persisted state is reloaded from UserDefaults exactly once, on the first smooth after launch.
+    private static var didRestoreUkfState = false
+    private static var sharedSmoother = makeSharedSmoother()
+
+    /// Build a smoother wired to the sensor-change signal. The closure is consumed once per `smooth()`
+    /// call (inside `smootherLock`), so a sensor change scheduled between cycles resets learning on the
+    /// next pass, exactly as AAPS's `checkForSensorChange` does.
+    private static func makeSharedSmoother() -> UnscentedKalmanFilter {
+        UnscentedKalmanFilter(sensorChangedSinceLastCall: {
+            let changed = pendingSensorChange
+            pendingSensorChange = false
+            return changed
+        })
+    }
+
+    /// Signal that the CGM sensor was replaced, so the next smoothing pass resets learned state (matches
+    /// AAPS resetting on a SENSOR_CHANGE therapy event). Wired from the CGM sensor-start path.
+    static func notifySensorChange() {
+        smootherLock.lock()
+        pendingSensorChange = true
+        smootherLock.unlock()
+    }
+
+    /// Reset the persistent smoother to a clean-start instance and clear its persisted state. Used by
+    /// tests for isolation; `didRestoreUkfState = true` so the fresh instance is not re-seeded from disk.
+    static func resetSharedSmoother() {
+        smootherLock.lock()
+        sharedSmoother = makeSharedSmoother()
+        pendingSensorChange = false
+        didRestoreUkfState = true
+        UserDefaults.standard.removeObject(forKey: ukfStateKey)
+        smootherLock.unlock()
+    }
+
+    /// Adaptive Smoothing — the sole glucose smoother (it replaced the double-exponential one). Runs
+    /// the engine (an Unscented Kalman Filter core) over the window (reversed to the newest-first order
+    /// it requires) and writes `smoothedGlucose`. The engine fail-safes internally: `smooth()` floors
+    /// every point at 39 and fills any point it can't model with the raw value, so there's no separate
+    /// fallback pass — a reading it leaves unset simply falls back to `glucose` in oref.
+    /// Runs on the context queue. Static to avoid self-capture.
+    static func applyAdaptiveSmoothingAndStore(glucoseReadings data: [GlucoseStored]) {
+        // Minimum stored smoothed glucose (mg/dL).
+        let minimumSmoothedGlucose: Decimal = 39
+
+        // `data` arrives OLDEST-first: fetchGlucose fetches date-descending for the limit, then
+        // REVERSES before returning (see fetchGlucose). The UKF requires NEWEST-first (data[0] = most
+        // recent) — fed oldest-first, findDataSegments sees negative time-diffs, forms no segment, and
+        // copies raw (the filter goes inert). So reverse here. Pairing keeps write-back aligned.
+        let pairs: [(GlucoseStored, InMemoryGlucoseValue)] = data.reversed().compactMap { g in
+            guard let date = g.date else { return nil }
+            return (g, InMemoryGlucoseValue(timestamp: Int64(date.timeIntervalSince1970 * 1000), value: Double(g.glucose)))
+        }
+
+        guard !pairs.isEmpty else { return }
+
+        // AAPS feeds its smoother 5-min-BUCKETED data, not raw readings. Bucketing regularises
+        // sub-2-min-spaced backfills/catch-ups onto a 5-min grid, which prevents `findDataSegments`
+        // from breaking the segment and re-initialising the filter from a raw value (the "V-spike"
+        // glitch). The UKF core is unchanged — this is pure preprocessing, so per-call parity holds.
+        let bucketed = GlucoseBucketing.bucketed(pairs.map(\.1))
+
+        // Reuse the persistent smoother (see `sharedSmoother`) so learned state carries across cycles,
+        // as it does in AAPS. Serialised because the core is not thread-safe.
+        smootherLock.lock()
+        // Once per launch, re-seed from the last saved state so learning survives an app restart
+        // (mirrors AAPS `loadPersistedParameters`). Fail-safe: a missing/corrupt store just starts clean.
+        if !didRestoreUkfState {
+            if let saved = UserDefaults.standard.data(forKey: ukfStateKey),
+               let state = try? JSONDecoder().decode(UnscentedKalmanFilter.PersistedState.self, from: saved)
+            {
+                sharedSmoother.restore(state)
+            }
+            didRestoreUkfState = true
+        }
+        let grid = sharedSmoother.smooth(bucketed)
+        // Persist the updated learned state (mirrors AAPS saving after each smooth).
+        if let encoded = try? JSONEncoder().encode(sharedSmoother.persistedState) {
+            UserDefaults.standard.set(encoded, forKey: ukfStateKey)
+        }
+        smootherLock.unlock()
+
+        guard !grid.isEmpty else { return }
+
+        // Write-back: AAPS displays bucketed data directly, but Trio stores `smoothedGlucose` per
+        // `GlucoseStored` row (it also feeds dosing via oref's `recalculated = smoothed ?? value`). So
+        // each raw row samples the smoothed grid at its own timestamp by linear interpolation.
+        for (stored, raw) in pairs {
+            guard let s = GlucoseBucketing.interpolatedSmoothed(at: raw.timestamp, grid: grid) else { continue }
+            // Round to whole mg/dL (ties away from zero), floor at 39, store as NSDecimalNumber.
+            let rounded = Decimal(s).rounded(toPlaces: 0)
+            let clamped = max(rounded, minimumSmoothedGlucose)
+            stored.smoothedGlucose = clamped as NSDecimalNumber
+        }
+
+        // Observability: summarise the newest reading (raw vs consumed smoothed value + trend + counts).
+        if let newestRaw = pairs.first?.1,
+           let smoothedValue = GlucoseBucketing.interpolatedSmoothed(at: newestRaw.timestamp, grid: grid)
+        {
+            let stored = pairs.first?.0.smoothedGlucose?.doubleValue
+            debug(
+                .cgm,
+                "Adaptive smoothing (n=\(pairs.count) buckets=\(bucketed.count)): raw=\(Int(newestRaw.value)) " +
+                    "out=\(String(format: "%.1f", smoothedValue)) stored=\(stored.map { String(format: "%.0f", $0) } ?? "nil") " +
+                    "trend=\(grid.first?.trendArrow.rawValue ?? "none")"
+            )
+        }
+    }
 }
 
 /// The newest reading the phone's own CGM delivered. The phone's watch state also carries the readings it stored

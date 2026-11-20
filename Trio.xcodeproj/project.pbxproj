@@ -7,6 +7,39 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		72DACED0929602AB98C089E9 /* ActivityClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3247963A5E1919B5555E9397 /* ActivityClassifier.swift */; };
+		C858EBA55A0C75B9BBCB39A8 /* ActivityLoadTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E469DC3B11FE76BA04A2CB /* ActivityLoadTracker.swift */; };
+		6CC2FFF2399D69DECAA14C00 /* AggressionBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B919EF759A497F2BD9B847 /* AggressionBudget.swift */; };
+		B1E9A48E1A3EBBF6E41C7FC7 /* BoostMlFeatureBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E1F29C48E26BF8C24CB390 /* BoostMlFeatureBuilder.swift */; };
+		C87B2A04CB557ED985F0ECF3 /* BoostTreeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCA0CD612D1F2146C043010F /* BoostTreeModel.swift */; };
+		36271BA515417EB7D732F8E5 /* BoostV5AutoConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251F42431AAF1DB153B46C64 /* BoostV5AutoConfig.swift */; };
+		A68CD02F5D7ADE37BD672AF9 /* BoostV5AutoConfigApply.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07D55CABFDA29819F3083458 /* BoostV5AutoConfigApply.swift */; };
+		DC778AB1FDA5D269008BB9B4 /* BoostV5Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 712393DDF91D0A58F4E1F3BE /* BoostV5Engine.swift */; };
+		EE3C528A4B2A5D23C35AC679 /* BoostV1Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE5EFB8EB3C48CCA0992E33 /* BoostV1Engine.swift */; };
+		0D909248F4DE863DBB5E0427 /* BoostV5Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE529480EE2B465AB4E9AF4 /* BoostV5Store.swift */; };
+		CEB1C795C0B3743368612E3E /* CircadianISF.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C65E4DC20B224B954E57CA /* CircadianISF.swift */; };
+		47160D7BE976A948395EB9C5 /* DynIsf.swift in Sources */ = {isa = PBXBuildFile; fileRef = D63E8362C1C690634B3A760A /* DynIsf.swift */; };
+		AE0B8BDDE4958163AB2E4F6B /* ConfirmTranche.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF954BACF54A4E66A2F9D886 /* ConfirmTranche.swift */; };
+		6D5BA38F410D75819C8F7EA0 /* HrSourceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FF867EB72F8DF29A1503BCD /* HrSourceResolver.swift */; };
+		FA89053DA452C59F9234FCFB /* IsfShadowEma.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B47C0D3212501122B86F02C /* IsfShadowEma.swift */; };
+		060BC70EC893A2A089B105D2 /* MealHypothesis.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE9DA82D44166E0A9570DE7F /* MealHypothesis.swift */; };
+		9F855DBB8273D28A21EFD3F1 /* MealSignalScore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208583DB86528274FF3E204F /* MealSignalScore.swift */; };
+		950E1336FC9056E56AAC5C7E /* MealTimeLearner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7199F79A232E39232FA882E /* MealTimeLearner.swift */; };
+		3FF5D2F1EFBBE96643C2FC34 /* NightMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33FDF272DA348FAC2F1C41AC /* NightMode.swift */; };
+		F11370811DFCEC725A64C101 /* PostExerciseRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 183892722B49A6018645F874 /* PostExerciseRecovery.swift */; };
+		0AEF02C44A79CA7C2F3B3778 /* SafetyGates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 621F1DA0758AAA87D5E16203 /* SafetyGates.swift */; };
+		EF59BF61066E2254C62193F8 /* SleepHistoryTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB9CFFADE814B1A1282D1F39 /* SleepHistoryTracker.swift */; };
+		95C439A2FF066D1149B6FC4F /* SleepStateDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88726CFD6D563A80384465C9 /* SleepStateDetector.swift */; };
+		BEDE2BFE925CB3620C9A971C /* StepSourceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A0EA74245DF3B8F0800B45 /* StepSourceResolver.swift */; };
+		6DD7D2C482E9AF79360B0863 /* BoostActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 657DA561613933051DD4D438 /* BoostActivityStore.swift */; };
+		312CAF63EA5B1C93BC51E3DC /* BoostComposedFloorGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730960A064CEEABDC3D99E57 /* BoostComposedFloorGate.swift */; };
+		58792AE4BCC4F0B88CF98F94 /* BoostTrialSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16606D4C218C42C6898F0699 /* BoostTrialSeed.swift */; };
+		F62439B7CE6D760592B49290 /* BoostRedriveStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A5FA91F3264A6EB1FD7AF1 /* BoostRedriveStore.swift */; };
+		2E9CF455CC1D4BE92A85AB6F /* BoostISF.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6B30D3333A6B7F58389A947 /* BoostISF.swift */; };
+		CB5A6D2B0B36CBBB973B65E4 /* BoostMLModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 737D5FE82DA7838B2C7CDFE1 /* BoostMLModels.swift */; };
+		4155BD41F8C80DF41A35C2A9 /* BoostMealTimeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88B16885B4F291F9FF4BDED2 /* BoostMealTimeStore.swift */; };
+		1A84DEB7DA2E05CC39C84627 /* BoostV5Adapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FF09F15E5D166A2E57B66BB /* BoostV5Adapter.swift */; };
+		908FC0732B6F0F8062F363E7 /* BoostV1Determination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72788F47FB804BA093159C0E /* BoostV1Determination.swift */; };
 		0EE3091BCB5620EA4AA5A757 /* TherapyProfileRemoteValuesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4827A4B7DD2D3BFD529DE267 /* TherapyProfileRemoteValuesTests.swift */; };
 		1994FB53A99174972EF458B0 /* TrioRemoteControlProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1042483A35E77F38E714A9C2 /* TrioRemoteControlProfileTests.swift */; };
 		662B8B7A520F2A09917A1F48 /* TrioRemoteControl+Profile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35347DB1DA2F240DA37B5571 /* TrioRemoteControl+Profile.swift */; };
@@ -42,6 +75,7 @@
 		23BC6810CD4E614321C5AA72 /* ScheduledProfileSwitchStored+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0669F3EC1F8E65B633A86062 /* ScheduledProfileSwitchStored+CoreDataClass.swift */; };
 		F7361D20819BCD0FC873359F /* TherapyProfileSwitchStored+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = D55D7250C668CF0271872F1B /* TherapyProfileSwitchStored+CoreDataProperties.swift */; };
 		427F942885860F08A6DAAEF8 /* TherapyProfileSwitchStored+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E0499D9EBA46A6FFE262D30 /* TherapyProfileSwitchStored+CoreDataClass.swift */; };
+		6D58D168F03780DA23CB2E52 /* QuickPickTreatmentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7DA23B64976670AC36D9E84 /* QuickPickTreatmentsTests.swift */; };
 		477F2885616B2839D22FF0A4 /* PumpStatusStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C7EA1FA38A1728182C949F4 /* PumpStatusStorageTests.swift */; };
 		3A627606ABC518974CC60B55 /* PumpStatusStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E3EA2038BADFBCBC8801A4 /* PumpStatusStorage.swift */; };
 		4AB6E54D1659F6137A70BF74 /* PumpStatusStored+helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE4D8D4BA1BD69A89CA1C13 /* PumpStatusStored+helper.swift */; };
@@ -56,6 +90,7 @@
 		0998F4E33039C233005A2802 /* CapsuleSpinnerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0998F4E23039C233005A2802 /* CapsuleSpinnerView.swift */; };
 		0564226A038878780EF834EE /* AlertColdStartReplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73955E4A9E02D75D56359D21 /* AlertColdStartReplay.swift */; };
 		0AEE7647C251481C935F78A4 /* GlucosePercentileByDayPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0865B3A9AD5E4C11972DEE8E /* GlucosePercentileByDayPDFChart.swift */; };
+		0B426FFA7AAB28BA084E040F /* MealHypothesis.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE9DA82D44166E0A9570DE7F /* MealHypothesis.swift */; };
 		0D9A5E34A899219C5C4CDFAF /* HistoryStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9455FA2D92E77A6C4AFED8A3 /* HistoryStateModel.swift */; };
 		10DAA318F47843A4B894173D /* ContainerResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98546920BB7247B0AC73449A /* ContainerResolutionTests.swift */; };
 		10C13662926D99DC9EDB0990 /* DeviceLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 260A8D718D2B6656B925FD08 /* DeviceLogStore.swift */; };
@@ -112,6 +147,9 @@
 		2D5DFD6C90037128EA3DF5A9 /* DeviceLogStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161D44BBD9BB82CE0AF6B4EC /* DeviceLogStoreTests.swift */; };
 		32DC31248CF9E5D252CB85DF /* AppAttestClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB83AD877D530A73EA814672 /* AppAttestClient.swift */; };
 		34FE8396746DEA09AC163FBD /* ReportDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86102A94E45ED0F04390C951 /* ReportDraft.swift */; };
+		27838269360C50954F9C0A6F /* SleepHistoryTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB9CFFADE814B1A1282D1F39 /* SleepHistoryTracker.swift */; };
+		334A89123AFDD2879CA2E22F /* BoostV5AutoConfigApply.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07D55CABFDA29819F3083458 /* BoostV5AutoConfigApply.swift */; };
+		37CAFDBF56D56CE79A89A585 /* hypo_risk_model.json in Resources */ = {isa = PBXBuildFile; fileRef = B7573B72F244DEE93CB37310 /* hypo_risk_model.json */; };
 		3811DE0B25C9D32F00A708ED /* BaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3811DE0725C9D32E00A708ED /* BaseView.swift */; };
 		3811DE0C25C9D32F00A708ED /* BaseProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3811DE0825C9D32F00A708ED /* BaseProvider.swift */; };
 		3811DE1025C9D37700A708ED /* Swinject in Frameworks */ = {isa = PBXBuildFile; productRef = 3811DE0F25C9D37700A708ED /* Swinject */; };
@@ -272,6 +310,7 @@
 		38FEF3FC2737E53800574A46 /* MainStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FEF3FB2737E53800574A46 /* MainStateModel.swift */; };
 		38FEF3FE2738083E00574A46 /* CGMSettingsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FEF3FD2738083E00574A46 /* CGMSettingsProvider.swift */; };
 		38FEF413273B317A00574A46 /* HKUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38FEF412273B317A00574A46 /* HKUnit.swift */; };
+		396F181A7486B16DB4FE70D3 /* BoostActivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 657DA561613933051DD4D438 /* BoostActivityStore.swift */; };
 		3B0B4E6C2DE1439F005C6627 /* LockedResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0B4E6B2DE1439A005C6627 /* LockedResolver.swift */; };
 		3B139EF32DF06CE100D40797 /* AutosensGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B139EF22DF06CDC00D40797 /* AutosensGenerator.swift */; };
 		3B1C5C292D68E1E3004E9273 /* IobCalculation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B1C5C242D68E1E3004E9273 /* IobCalculation.swift */; };
@@ -368,6 +407,7 @@
 		3BAE87702E480BE100FCA8D2 /* ForecastResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BAE876F2E480BE100FCA8D2 /* ForecastResults.swift */; };
 		3BBB76AA2E01C70B0040977D /* MealCob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BBB76A92E01C7070040977D /* MealCob.swift */; };
 		3BBC22632DF5B94100169236 /* AutosensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BBC22622DF5B93900169236 /* AutosensTests.swift */; };
+		B0057150A11F2026BA5E0002 /* BoostISFAutosensTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0057150A11F2026BA5E0001 /* BoostISFAutosensTests.swift */; };
 		3BC07D6F3017B837004F96AF /* DecimalExtensions+SwiftUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BC07D6E3017B830004F96AF /* DecimalExtensions+SwiftUI.swift */; };
 		3BC26E552D7418830066ACD6 /* IobSuspendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BC26E542D7418830066ACD6 /* IobSuspendTests.swift */; };
 		3BCA5F7C2DC7B16400A7EAC7 /* pumphistory-with-external.json in Resources */ = {isa = PBXBuildFile; fileRef = 3BCA5F7B2DC7B15400A7EAC7 /* pumphistory-with-external.json */; };
@@ -383,6 +423,7 @@
 		3BEF6AB32D97316F0076089D /* MealTotalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BEF6AB22D97316A0076089D /* MealTotalTests.swift */; };
 		3BF424C72DF4805A0017CFD9 /* AutosensError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BF424C62DF480550017CFD9 /* AutosensError.swift */; };
 		3BF92F3A2D86F1AA006B545A /* iob-error-log.json in Resources */ = {isa = PBXBuildFile; fileRef = 3BF92F392D86F1AA006B545A /* iob-error-log.json */; };
+		3CAB77EE67F6707363817C22 /* BoostV5Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE529480EE2B465AB4E9AF4 /* BoostV5Store.swift */; };
 		3E28F2AB2EB5337F00FB9EEB /* ConnectIQ in Frameworks */ = {isa = PBXBuildFile; productRef = 3E28F2AA2EB5337F00FB9EEB /* ConnectIQ */; };
 		3E5308A53002BC970075629E /* AccuChekKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3E5308A43002BC970075629E /* AccuChekKit.framework */; };
 		3E5308A63002BC970075629E /* AccuChekKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 3E5308A43002BC970075629E /* AccuChekKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -415,7 +456,11 @@
 		49C782A72F73D9870062B0DD /* AlertEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49C782A62F73D9870062B0DD /* AlertEntry.swift */; };
 		4A7B9A041C2B90316CE54285 /* HistoryRootView+AddPlacementLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7EB4ADBBEA2BA8E4343B437 /* HistoryRootView+AddPlacementLog.swift */; };
 		4A3C7DA31A04D14F83DC2957 /* CGMSensorStateLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A58E19DE23455CB842C50C /* CGMSensorStateLogTests.swift */; };
+		4C8FB9B88D1E3F3048E359A1 /* DynIsf.swift in Sources */ = {isa = PBXBuildFile; fileRef = D63E8362C1C690634B3A760A /* DynIsf.swift */; };
+		0933953413114AEEA9E211B3 /* ConfirmTranche.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF954BACF54A4E66A2F9D886 /* ConfirmTranche.swift */; };
+		4D4A76587157CCAE43546A45 /* meal_likelihood_model.json in Resources */ = {isa = PBXBuildFile; fileRef = 2874791B21667B982F4853A7 /* meal_likelihood_model.json */; };
 		5075C1608E6249A51495C422 /* TargetsEditorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BDEA2DC60EDE0A3CA54DC73 /* TargetsEditorProvider.swift */; };
+		51B012820CBDA5471BFE742B /* SafetyGates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 621F1DA0758AAA87D5E16203 /* SafetyGates.swift */; };
 		53F2382465BF74DB1A967C8B /* PumpConfigProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8630D58BDAD6D9C650B9B39 /* PumpConfigProvider.swift */; };
 		581516A42BCED84A00BF67D7 /* DebuggingIdentifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581516A32BCED84A00BF67D7 /* DebuggingIdentifiers.swift */; };
 		581516A92BCEEDF800BF67D7 /* NSPredicates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581516A82BCEEDF800BF67D7 /* NSPredicates.swift */; };
@@ -459,11 +504,17 @@
 		5E12FE0E2EBC0000000000C1 /* LibreLoop.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5E12FE0E2EBC0000000000A1 /* LibreLoop.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5E12FE0E2EBC0000000000C2 /* LibreLoopUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5E12FE0E2EBC0000000000A2 /* LibreLoopUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5E12FE112EBC0000000000B2 /* RoundWhiteDiscKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5E12FE112EBC0000000000B1 /* RoundWhiteDiscKit */; };
+		6169D5AECA7019C4C802DE30 /* BoostComposedFloorGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730960A064CEEABDC3D99E57 /* BoostComposedFloorGate.swift */; };
+		669BA4A89CBD4B67A6C07B8E /* BoostTrialSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16606D4C218C42C6898F0699 /* BoostTrialSeed.swift */; };
+		42647536C7234F0E92331B8B /* BoostRedriveStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A5FA91F3264A6EB1FD7AF1 /* BoostRedriveStore.swift */; };
 		63E890B4D951EAA91C071D5C /* BasalProfileEditorStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFF91130F2FCCC7EBBA11AD /* BasalProfileEditorStateModel.swift */; };
 		642F76A05A4FF530463A9FD0 /* NightscoutConfigRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8782B44544F38F2B2D82C38E /* NightscoutConfigRootView.swift */; };
 		65070A332BFDCB83006F213F /* TidepoolStartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65070A322BFDCB83006F213F /* TidepoolStartView.swift */; };
+		6602AF03B191DB0024F9AA9A /* ActivityLoadTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E469DC3B11FE76BA04A2CB /* ActivityLoadTracker.swift */; };
 		6632A0DC746872439A858B44 /* ISFEditorDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79BDA519C9B890FD9A5DFCF3 /* ISFEditorDataFlow.swift */; };
 		68C740CD1E234F7D86D9698B /* PDFReportContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDC22EFD3F0E4C368F84B116 /* PDFReportContent.swift */; };
+		683F95E1AED0564B9BBFC5BA /* StepSourceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A0EA74245DF3B8F0800B45 /* StepSourceResolver.swift */; };
+		693E88CC801F2553515C3FFC /* ActivityClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3247963A5E1919B5555E9397 /* ActivityClassifier.swift */; };
 		69A31254F2451C20361D172F /* TreatmentsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 223EC0494F55A91E3EA69EF4 /* TreatmentsStateModel.swift */; };
 		69B9A368029F7EB39F525422 /* CarbRatioEditorStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64AA5E04A2761F6EEA6568E1 /* CarbRatioEditorStateModel.swift */; };
 		6B1A8D192B14D91600E76752 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6B1A8D182B14D91600E76752 /* WidgetKit.framework */; };
@@ -607,6 +658,8 @@
 		6EADD581738D64431902AC0A /* (null) in Sources */ = {isa = PBXBuildFile; };
 		70626159394D4A2EAE7534FE /* ReportPresetSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E9F8C6CEB4A308060A821 /* ReportPresetSetup.swift */; };
 		711C0CB42CAABE788916BC9D /* ManualTempBasalDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96653287EDB276A111288305 /* ManualTempBasalDataFlow.swift */; };
+		6F1838F3F0A7AF1D15A93FA7 /* NightMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33FDF272DA348FAC2F1C41AC /* NightMode.swift */; };
+		6F530702020CF8840DF828A6 /* BoostV5AutoConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251F42431AAF1DB153B46C64 /* BoostV5AutoConfig.swift */; };
 		71D44AAB2CA5F5EA0036EE9E /* AlertPermissionsChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71D44AAA2CA5F5EA0036EE9E /* AlertPermissionsChecker.swift */; };
 		72F1BD388F42FCA6C52E4500 /* ConfigEditorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44080E4709E3AE4B73054563 /* ConfigEditorProvider.swift */; };
 		745DE5731CAFAA455ADE9987 /* HomeRootView+Refresh.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6B0D72EF99686C1469EC17 /* HomeRootView+Refresh.swift */; };
@@ -630,12 +683,18 @@
 		7A11AC0DE000000000000116 /* GlassChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000016 /* GlassChrome.swift */; };
 		7A11AC0DE00000000000011D /* PumpEventPredicateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE00000000000001D /* PumpEventPredicateTests.swift */; };
 		7A11AC0DE000000000000171 /* GlassActionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11AC0DE000000000000170 /* GlassActionSheet.swift */; };
+		753CD96BE6A4BC05A41D2791 /* BoostActivityMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ACC67959A8589D3E0BCB163 /* BoostActivityMonitor.swift */; };
+		79EEE89832BBA5D02E253115 /* BoostMealTimeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88B16885B4F291F9FF4BDED2 /* BoostMealTimeStore.swift */; };
 		7F7B756BE8543965D9FDF1A2 /* HistoryDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A401509D21F7F35D4E109EDA /* HistoryDataFlow.swift */; };
 		87F4D02B8D4D4D329BA291D2 /* QuickPickTreatmentsConfigStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91711E7CA54747EFAD6540EE /* QuickPickTreatmentsConfigStateModel.swift */; };
 		88AB39B23C9552BD6E0C9461 /* ISFEditorRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBB3BAE7494CB771ABAC7B8B /* ISFEditorRootView.swift */; };
 		8A1FDB0F8F204562AE279B38 /* StatPDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E990CD1DE0254085B2DF1C2A /* StatPDFExporter.swift */; };
+		88F296D2099F0CC303F0CD3C /* HrSourceResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FF867EB72F8DF29A1503BCD /* HrSourceResolver.swift */; };
+		897E7BDE461014310A97DA76 /* BoostV5Adapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FF09F15E5D166A2E57B66BB /* BoostV5Adapter.swift */; };
+		3812380FDDDF4B319511814B /* BoostV1Determination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72788F47FB804BA093159C0E /* BoostV1Determination.swift */; };
 		8A91342A2D63D9A1007F8874 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 8A9134292D63D9A1007F8874 /* Localizable.xcstrings */; };
 		8A91342C2D63D9A2007F8874 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 8A91342B2D63D9A2007F8874 /* InfoPlist.xcstrings */; };
+		8B2892C005C3E481143D5D88 /* BoostISF.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6B30D3333A6B7F58389A947 /* BoostISF.swift */; };
 		8B759CFCF47B392BB365C251 /* BasalProfileEditorDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F94DD2853CF42BA4E30616 /* BasalProfileEditorDataFlow.swift */; };
 		9702FF92A09C53942F20D7EA /* TargetsEditorRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DD795BA46B193644D48138C /* TargetsEditorRootView.swift */; };
 		9825E5E923F0B8FA80C8C7C7 /* NightscoutConfigStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A48AE3AC813A49A517846A /* NightscoutConfigStateModel.swift */; };
@@ -643,8 +702,16 @@
 		9A6E020D508C1F44D36489E8 /* PlacementLogStored+Helper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A7B4DAF1EA060E53BF5C907 /* PlacementLogStored+Helper.swift */; };
 		9EF830BA68774C318E48DEE7 /* ReportChartType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCB1C4B675D4B39BA0DAF8D /* ReportChartType.swift */; };
 		A03A3B2EFC8F4F82948B6ABC /* GlucoseDistributionByDayPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E30588AFFF04042B9F5AC30 /* GlucoseDistributionByDayPDFChart.swift */; };
+		9A1D14A8F10EAE89C6825FCB /* UkfOrderingRegressionTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B1600583BF6F6C8CEB4245 /* UkfOrderingRegressionTest.swift */; };
+		995A1AF983058239277008FC /* MealTimeLearner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7199F79A232E39232FA882E /* MealTimeLearner.swift */; };
+		9A7913A91AEFD947FA33F686 /* BoostTreeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCA0CD612D1F2146C043010F /* BoostTreeModel.swift */; };
+		9E9124FA42352DD6D69C96E1 /* BoostV5Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 712393DDF91D0A58F4E1F3BE /* BoostV5Engine.swift */; };
+		3D1F428D7F8F4DF2BE286069 /* BoostV1Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE5EFB8EB3C48CCA0992E33 /* BoostV1Engine.swift */; };
 		A33352ED40476125EBAC6EE0 /* CarbRatioEditorDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E22146D3DF4853786C78132 /* CarbRatioEditorDataFlow.swift */; };
 		AABB00022C54389F00211FAC /* TreatmentsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00012C54389F00211FAC /* TreatmentsSettingsView.swift */; };
+		AC0F1A2B3C4D5E6F70819201 /* InMemoryGlucoseValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0F1A2B3C4D5E6F70819202 /* InMemoryGlucoseValue.swift */; };
+		AC0F1A2B3C4D5E6F70819203 /* UnscentedKalmanFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0F1A2B3C4D5E6F70819204 /* UnscentedKalmanFilter.swift */; };
+		AC0F1A2B3C4D5E6F70819206 /* GlucoseBucketing.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0F1A2B3C4D5E6F70819205 /* GlucoseBucketing.swift */; };
 		AC19EF2C94084B5BA0175D1D /* SettingsSearchHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B83503461B4F8D97B30115 /* SettingsSearchHighlight.swift */; };
 		AD3D2CD42CD01B9EB8F26522 /* PumpConfigDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF65DA88F972B56090AD6AC3 /* PumpConfigDataFlow.swift */; };
 		AF7C392EB80FBC40F1DB9B04 /* PlacementLogStored+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 738E916BA181A88612D9C5C3 /* PlacementLogStored+CoreDataClass.swift */; };
@@ -655,6 +722,7 @@
 		E1B0A5D00000000000000002 /* EnactBolusAmountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B0A5D00000000000000001 /* EnactBolusAmountTests.swift */; };
 		B015AFF32E600000000D7351 /* AdjustmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B015AFF12E600000000D7351 /* AdjustmentManager.swift */; };
 		B015AFF52E600000000D7351 /* AdjustmentManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B015AFF42E600000000D7351 /* AdjustmentManagerTests.swift */; };
+		B3F6A5AE04AB97F5EB3B9193 /* MealSignalScore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208583DB86528274FF3E204F /* MealSignalScore.swift */; };
 		B63C9D934FC54853BC4EF29A /* NightscoutUploadSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E61A0885164081B57C357C /* NightscoutUploadSerializer.swift */; };
 		B6E925132EB3932A0076D719 /* OmnipodKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B6E925122EB3932A0076D719 /* OmnipodKit.framework */; };
 		B6E925142EB3932A0076D719 /* OmnipodKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B6E925122EB3932A0076D719 /* OmnipodKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -833,13 +901,8 @@
 		BD249D882D42FC0000412DEB /* BolusStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D872D42FBFB00412DEB /* BolusStatsView.swift */; };
 		BD249D8A2D42FC1200412DEB /* GlucosePercentileChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D892D42FC0E00412DEB /* GlucosePercentileChart.swift */; };
 		BD249D8C2D42FC2C00412DEB /* GlucoseDistributionChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D8B2D42FC2500412DEB /* GlucoseDistributionChart.swift */; };
-		8A1FDB0F8F204562AE279B38 /* StatPDFExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E990CD1DE0254085B2DF1C2A /* StatPDFExporter.swift */; };
 		E01D388D1E0F4EE692AA8F4D /* StatPDFReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02611957B2F410C8B666FEA /* StatPDFReportView.swift */; };
 		FA42F917796547D98B0D5A6F /* StatExportMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B93730071F48FBBB14BD54 /* StatExportMenuView.swift */; };
-		0AEE7647C251481C935F78A4 /* GlucosePercentileByDayPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0865B3A9AD5E4C11972DEE8E /* GlucosePercentileByDayPDFChart.swift */; };
-		A03A3B2EFC8F4F82948B6ABC /* GlucoseDistributionByDayPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E30588AFFF04042B9F5AC30 /* GlucoseDistributionByDayPDFChart.swift */; };
-		1B542772CCDD47F2A841798D /* InsulinTDDPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 227961C75B8B4E9793CB4BFA /* InsulinTDDPDFChart.swift */; };
-		B550DF2E53E840FFBBEE19C1 /* InsulinBolusPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 610AA4C16F7145C0B6FC0147 /* InsulinBolusPDFChart.swift */; };
 		02F9F6D77C744064A84499EC /* MealsPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D88CA823E44925B05569EE /* MealsPDFChart.swift */; };
 		17A95D14C9FBC83CB033516E /* TherapySchedulePDFContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCCC475E3AC4B4CABA4234D /* TherapySchedulePDFContent.swift */; };
 		BD249D8E2D42FC3900412DEB /* LoopBarChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D8D2D42FC3600412DEB /* LoopBarChartView.swift */; };
@@ -855,10 +918,6 @@
 		8F2347CB1A39AF9DF67291D6 /* MealImpactSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2D51FB2CD566AE269464B4 /* MealImpactSetup.swift */; };
 		BD249D9D2D42FCF500412DEB /* MealStatsSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D9C2D42FCF300412DEB /* MealStatsSetup.swift */; };
 		BD249D9F2D42FD0600412DEB /* StackedChartSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249D9E2D42FD0200412DEB /* StackedChartSetup.swift */; };
-		6304CC3280554DC28A2B8C59 /* ExportSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1718DA686EA4E8F87B0A729 /* ExportSetup.swift */; };
-		9EF830BA68774C318E48DEE7 /* ReportChartType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCB1C4B675D4B39BA0DAF8D /* ReportChartType.swift */; };
-		68C740CD1E234F7D86D9698B /* PDFReportContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDC22EFD3F0E4C368F84B116 /* PDFReportContent.swift */; };
-		70626159394D4A2EAE7534FE /* ReportPresetSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40E9F8C6CEB4A308060A821 /* ReportPresetSetup.swift */; };
 		BD249DA12D42FD1200412DEB /* TDDSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249DA02D42FD1000412DEB /* TDDSetup.swift */; };
 		BD249DA72D42FE4600412DEB /* Calendar+GlucoseStatsChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD249DA62D42FE3800412DEB /* Calendar+GlucoseStatsChart.swift */; };
 		BD2B464E0745FBE7B79913F4 /* NightscoutConfigProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BF768BD6264FF7D71D66767 /* NightscoutConfigProvider.swift */; };
@@ -957,6 +1016,7 @@
 		BDFF7A882D25F97D0016C40C /* TrioMainWatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFF7A842D25F97D0016C40C /* TrioMainWatchView.swift */; };
 		BDFF7A892D25F97D0016C40C /* TrioWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFF7A852D25F97D0016C40C /* TrioWatchApp.swift */; };
 		BDFF7A8B2D25F97D0016C40C /* Unit Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFF7A8A2D25F97D0016C40C /* Unit Tests.swift */; };
+		BE4220EE00FEBA92CFE1E101 /* IsfShadowEma.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B47C0D3212501122B86F02C /* IsfShadowEma.swift */; };
 		C1A0DE000000000000000000 /* BloodGlucose+LoopKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A0DE000000000000000001 /* BloodGlucose+LoopKit.swift */; };
 		C1A0DE000000000000000002 /* PumpHistoryEvent+LoopKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A0DE000000000000000003 /* PumpHistoryEvent+LoopKit.swift */; };
 		C1A0DE000000000000000004 /* CarbsEntry+LoopKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A0DE000000000000000005 /* CarbsEntry+LoopKit.swift */; };
@@ -1048,6 +1108,7 @@
 		DB0BB002000000000000000E /* ReleaseNotesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0BB002000000000000000D /* ReleaseNotesService.swift */; };
 		DB0BB0020000000000000010 /* ReleaseNotesSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0BB002000000000000000F /* ReleaseNotesSheetView.swift */; };
 		DB0BB0030000000000000002 /* ReleaseNotesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0BB0030000000000000001 /* ReleaseNotesListView.swift */; };
+		DB75BABF0D4F32B95CD31397 /* CircadianISF.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C65E4DC20B224B954E57CA /* CircadianISF.swift */; };
 		DBA5254DBB2586C98F61220C /* ISFEditorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F9F137F126D9F8DEB799F26 /* ISFEditorProvider.swift */; };
 		DC01A00B2E9F100000000002 /* DeviceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC01A00A2E9F100000000001 /* DeviceCatalog.swift */; };
 		DC01A0102E9F100000000007 /* DevicePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC01A00F2E9F100000000006 /* DevicePickerView.swift */; };
@@ -1283,11 +1344,11 @@
 		E00EEC0727368630002FF094 /* APSAssembly.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00EEC0127368630002FF094 /* APSAssembly.swift */; };
 		E00EEC0827368630002FF094 /* NetworkAssembly.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00EEC0227368630002FF094 /* NetworkAssembly.swift */; };
 		E013D872273AC6FE0014109C /* GlucoseSimulatorSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E013D871273AC6FE0014109C /* GlucoseSimulatorSource.swift */; };
-		E01D388D1E0F4EE692AA8F4D /* StatPDFReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02611957B2F410C8B666FEA /* StatPDFReportView.swift */; };
 		E0CC2C5C275B9F0F00A7BC71 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E0CC2C5B275B9DAE00A7BC71 /* HealthKit.framework */; };
 		E0D4F80527513ECF00BDF1FE /* HealthKitSample.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D4F80427513ECF00BDF1FE /* HealthKitSample.swift */; };
 		E13B7DAB2A435F57066AF02E /* TargetsEditorStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F58DDD71F0E795464FA3F0 /* TargetsEditorStateModel.swift */; };
 		E39E418C56A5A46B61D960EE /* ConfigEditorStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D5B4F8B4194BB7E260EF251 /* ConfigEditorStateModel.swift */; };
+		E3C4E54ACCCC7A55016417DC /* SleepStateDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88726CFD6D563A80384465C9 /* SleepStateDetector.swift */; };
 		E592A3702CEEC01E009A472C /* ContactTrickEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E592A36F2CEEC01E009A472C /* ContactTrickEntry.swift */; };
 		E592A3772CEEC038009A472C /* ContactImageStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E592A3752CEEC038009A472C /* ContactImageStateModel.swift */; };
 		E592A3782CEEC038009A472C /* ContactImageDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E592A3732CEEC038009A472C /* ContactImageDataFlow.swift */; };
@@ -1295,6 +1356,10 @@
 		E592A37A2CEEC038009A472C /* ContactImageProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E592A3742CEEC038009A472C /* ContactImageProvider.swift */; };
 		E974172296125A5AE99E634C /* PumpConfigRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AD22C985B79A2F0D2EA3D9D /* PumpConfigRootView.swift */; };
 		EA3EE728BA0246EDE8E36333 /* WidgetBobble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AA7BD8AC0094CCBBCE699C /* WidgetBobble.swift */; };
+		ECF244952D74199E8F9D8588 /* PostExerciseRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 183892722B49A6018645F874 /* PostExerciseRecovery.swift */; };
+		F0255A455F1FBE0A73B54229 /* BoostMlFeatureBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E1F29C48E26BF8C24CB390 /* BoostMlFeatureBuilder.swift */; };
+		F4BAE4D306BE52B2F5818D45 /* AggressionBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B919EF759A497F2BD9B847 /* AggressionBudget.swift */; };
+		F5BD276B8F36EB2260BC5435 /* BoostMLModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 737D5FE82DA7838B2C7CDFE1 /* BoostMLModels.swift */; };
 		F5CA3DB1F9DC8B05792BBFAA /* CGMSettingsDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B5C0607505A38F256BF99A /* CGMSettingsDataFlow.swift */; };
 		F5F7E6C1B7F098F59EB67EC5 /* TargetsEditorDataFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA49538D56989D8DA6FCF538 /* TargetsEditorDataFlow.swift */; };
 		F816825E28DB441200054060 /* HeartBeatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F816825D28DB441200054060 /* HeartBeatManager.swift */; };
@@ -1304,7 +1369,6 @@
 		F90692D1274B99B60037068D /* HealthKitProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90692D0274B99B60037068D /* HealthKitProvider.swift */; };
 		F90692D3274B9A130037068D /* AppleHealthKitRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90692D2274B9A130037068D /* AppleHealthKitRootView.swift */; };
 		F90692D6274B9A450037068D /* HealthKitStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90692D5274B9A450037068D /* HealthKitStateModel.swift */; };
-		FA42F917796547D98B0D5A6F /* StatExportMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B93730071F48FBBB14BD54 /* StatExportMenuView.swift */; };
 		FA630397F76B582C8D8681A7 /* BasalProfileEditorProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42369F66CF91F30624C0B3A6 /* BasalProfileEditorProvider.swift */; };
 		FA6B58486AE2496F9F8589C6 /* QuickPickTreatmentsConfigProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EEC5C2927FA4C5DA61A1A40 /* QuickPickTreatmentsConfigProvider.swift */; };
 		FAB1E00000000000000000C1 /* ParityHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAB1E00000000000000000B1 /* ParityHarness.swift */; };
@@ -1352,8 +1416,6 @@
 		CA0924000000000000000002 /* GRICalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0924000000000000000001 /* GRICalculator.swift */; };
 		CA0924000000000000000004 /* GRIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0924000000000000000003 /* GRIView.swift */; };
 		CA0924000000000000000006 /* GRICalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0924000000000000000005 /* GRICalculatorTests.swift */; };
-		02F9F6D77C744064A84499EC /* MealsPDFChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D88CA823E44925B05569EE /* MealsPDFChart.swift */; };
-		6D58D168F03780DA23CB2E52 /* QuickPickTreatmentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7DA23B64976670AC36D9E84 /* QuickPickTreatmentsTests.swift */; };
 		FF42480CF46A31D00C817D8C /* WatchLogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D79872B74ADDBDD11682D0 /* WatchLogEntry.swift */; };
 		5A0A11000000000000000201 /* SettingsAnalysisModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0A11000000000000000101 /* SettingsAnalysisModels.swift */; };
 		5A0A11000000000000000202 /* SettingsAnalysisEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0A11000000000000000102 /* SettingsAnalysisEngine.swift */; };
@@ -1535,6 +1597,8 @@
 		0669F3EC1F8E65B633A86062 /* ScheduledProfileSwitchStored+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ScheduledProfileSwitchStored+CoreDataClass.swift"; sourceTree = "<group>"; };
 		D55D7250C668CF0271872F1B /* TherapyProfileSwitchStored+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TherapyProfileSwitchStored+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		5E0499D9EBA46A6FFE262D30 /* TherapyProfileSwitchStored+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TherapyProfileSwitchStored+CoreDataClass.swift"; sourceTree = "<group>"; };
+		71A58E19DE23455CB842C50C /* CGMSensorStateLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGMSensorStateLogTests.swift; sourceTree = "<group>"; };
+		6EFF860E684B4C9488D438DD /* NightscoutImportRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutImportRoundTripTests.swift; sourceTree = "<group>"; };
 		5C7EA1FA38A1728182C949F4 /* PumpStatusStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpStatusStorageTests.swift; sourceTree = "<group>"; };
 		A0E3EA2038BADFBCBC8801A4 /* PumpStatusStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpStatusStorage.swift; sourceTree = "<group>"; };
 		1EE4D8D4BA1BD69A89CA1C13 /* PumpStatusStored+helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PumpStatusStored+helper.swift"; sourceTree = "<group>"; };
@@ -1546,6 +1610,7 @@
 		0E30588AFFF04042B9F5AC30 /* GlucoseDistributionByDayPDFChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseDistributionByDayPDFChart.swift; sourceTree = "<group>"; };
 		0CCB6F0602E069F5B4F83EDC /* SensitiveValues.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensitiveValues.swift; sourceTree = "<group>"; };
 		0F0205BEC3117B5D00022C30 /* LogRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogRecord.swift; sourceTree = "<group>"; };
+		07D55CABFDA29819F3083458 /* BoostV5AutoConfigApply.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostV5AutoConfigApply.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/BoostV5AutoConfigApply.swift; sourceTree = "<group>"; };
 		10E61A0885164081B57C357C /* NightscoutUploadSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutUploadSerializer.swift; sourceTree = "<group>"; };
 		110AEDE02C5193D100615CC9 /* BolusIntent.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BolusIntent.swift; sourceTree = "<group>"; };
 		110AEDE12C5193D100615CC9 /* BolusIntentRequest.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BolusIntentRequest.swift; sourceTree = "<group>"; };
@@ -1560,6 +1625,7 @@
 		12ECFA954DA8F662969E3223 /* ReportClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportClientTests.swift; sourceTree = "<group>"; };
 		1526A587AD1544C495050662 /* QuickPickTreatmentsInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPickTreatmentsInfoView.swift; sourceTree = "<group>"; };
 		161D44BBD9BB82CE0AF6B4EC /* DeviceLogStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceLogStoreTests.swift; sourceTree = "<group>"; };
+		183892722B49A6018645F874 /* PostExerciseRecovery.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PostExerciseRecovery.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/PostExerciseRecovery.swift; sourceTree = "<group>"; };
 		19012CDB291D2CB900FB8210 /* LoopStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopStats.swift; sourceTree = "<group>"; };
 		190EBCC329FF136900BA767D /* UserInterfaceSettingsDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInterfaceSettingsDataFlow.swift; sourceTree = "<group>"; };
 		190EBCC529FF138000BA767D /* UserInterfaceSettingsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInterfaceSettingsProvider.swift; sourceTree = "<group>"; };
@@ -1603,6 +1669,12 @@
 		260A8D718D2B6656B925FD08 /* DeviceLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceLogStore.swift; sourceTree = "<group>"; };
 		366F24AC292DBC7BC55CF196 /* LogFileWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogFileWriter.swift; sourceTree = "<group>"; };
 		36C58322FF6CEE8F65D151DD /* ReportScreenshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportScreenshot.swift; sourceTree = "<group>"; };
+		208583DB86528274FF3E204F /* MealSignalScore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MealSignalScore.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/MealSignalScore.swift; sourceTree = "<group>"; };
+		28B1600583BF6F6C8CEB4245 /* UkfOrderingRegressionTest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UkfOrderingRegressionTest.swift; sourceTree = "<group>"; };
+		251F42431AAF1DB153B46C64 /* BoostV5AutoConfig.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostV5AutoConfig.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/BoostV5AutoConfig.swift; sourceTree = "<group>"; };
+		2874791B21667B982F4853A7 /* meal_likelihood_model.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = meal_likelihood_model.json; path = Trio/Resources/boost/meal_likelihood_model.json; sourceTree = "<group>"; };
+		3247963A5E1919B5555E9397 /* ActivityClassifier.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ActivityClassifier.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/ActivityClassifier.swift; sourceTree = "<group>"; };
+		33FDF272DA348FAC2F1C41AC /* NightMode.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NightMode.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/NightMode.swift; sourceTree = "<group>"; };
 		36F58DDD71F0E795464FA3F0 /* TargetsEditorStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TargetsEditorStateModel.swift; sourceTree = "<group>"; };
 		3811DE0725C9D32E00A708ED /* BaseView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BaseView.swift; sourceTree = "<group>"; };
 		3811DE0825C9D32F00A708ED /* BaseProvider.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BaseProvider.swift; sourceTree = "<group>"; };
@@ -1830,6 +1902,7 @@
 		3BAE876F2E480BE100FCA8D2 /* ForecastResults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastResults.swift; sourceTree = "<group>"; };
 		3BBB76A92E01C7070040977D /* MealCob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealCob.swift; sourceTree = "<group>"; };
 		3BBC22622DF5B93900169236 /* AutosensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutosensTests.swift; sourceTree = "<group>"; };
+		B0057150A11F2026BA5E0001 /* BoostISFAutosensTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostISFAutosensTests.swift; sourceTree = "<group>"; };
 		3BC07D6E3017B830004F96AF /* DecimalExtensions+SwiftUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DecimalExtensions+SwiftUI.swift"; sourceTree = "<group>"; };
 		3BC26E542D7418830066ACD6 /* IobSuspendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IobSuspendTests.swift; sourceTree = "<group>"; };
 		3BCA5F7B2DC7B15400A7EAC7 /* pumphistory-with-external.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "pumphistory-with-external.json"; sourceTree = "<group>"; };
@@ -1918,10 +1991,14 @@
 		5D5B4F8B4194BB7E260EF251 /* ConfigEditorStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConfigEditorStateModel.swift; sourceTree = "<group>"; };
 		5E12FE0E2EBC0000000000A1 /* LibreLoop.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = LibreLoop.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5E12FE0E2EBC0000000000A2 /* LibreLoopUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = LibreLoopUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		5ACC67959A8589D3E0BCB163 /* BoostActivityMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostActivityMonitor.swift; path = Trio/Sources/Services/HealthKit/BoostActivityMonitor.swift; sourceTree = "<group>"; };
+		5FF867EB72F8DF29A1503BCD /* HrSourceResolver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HrSourceResolver.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/HrSourceResolver.swift; sourceTree = "<group>"; };
 		60744C3E9BB3652895C908CC /* HistoryProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryProvider.swift; sourceTree = "<group>"; };
 		610AA4C16F7145C0B6FC0147 /* InsulinBolusPDFChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinBolusPDFChart.swift; sourceTree = "<group>"; };
+		621F1DA0758AAA87D5E16203 /* SafetyGates.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SafetyGates.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/SafetyGates.swift; sourceTree = "<group>"; };
 		64AA5E04A2761F6EEA6568E1 /* CarbRatioEditorStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CarbRatioEditorStateModel.swift; sourceTree = "<group>"; };
 		65070A322BFDCB83006F213F /* TidepoolStartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TidepoolStartView.swift; sourceTree = "<group>"; };
+		657DA561613933051DD4D438 /* BoostActivityStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostActivityStore.swift; path = Trio/Sources/APS/OpenAPSSwift/Boost/BoostActivityStore.swift; sourceTree = "<group>"; };
 		67F94DD2853CF42BA4E30616 /* BasalProfileEditorDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BasalProfileEditorDataFlow.swift; sourceTree = "<group>"; };
 		69EF64E9534E4822199EA279 /* TrioLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrioLogger.swift; sourceTree = "<group>"; };
 		6AB077E2E3EC75CCBDEFF8B5 /* AppLog.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = AppLog.xcdatamodel; sourceTree = "<group>"; };
@@ -1977,9 +2054,16 @@
 		B448CF467188976CDCE24F8E /* GlucoseSmoothing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseSmoothing.swift; sourceTree = "<group>"; };
 		CB460F337DA644C5F2D601E8 /* TDDCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TDDCalculator.swift; sourceTree = "<group>"; };
 		898B03E37D7CA6944AA033F9 /* StartUntetheredIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartUntetheredIntent.swift; sourceTree = "<group>"; };
+		6B47C0D3212501122B86F02C /* IsfShadowEma.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = IsfShadowEma.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/IsfShadowEma.swift; sourceTree = "<group>"; };
+		712393DDF91D0A58F4E1F3BE /* BoostV5Engine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostV5Engine.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/BoostV5Engine.swift; sourceTree = "<group>"; };
+		ECE5EFB8EB3C48CCA0992E33 /* BoostV1Engine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostV1Engine.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/BoostV1Engine.swift; sourceTree = "<group>"; };
 		71D44AAA2CA5F5EA0036EE9E /* AlertPermissionsChecker.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AlertPermissionsChecker.swift; sourceTree = "<group>"; };
 		738E916BA181A88612D9C5C3 /* PlacementLogStored+CoreDataClass.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "PlacementLogStored+CoreDataClass.swift"; sourceTree = "<group>"; };
 		73955E4A9E02D75D56359D21 /* AlertColdStartReplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertColdStartReplay.swift; sourceTree = "<group>"; };
+		730960A064CEEABDC3D99E57 /* BoostComposedFloorGate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostComposedFloorGate.swift; path = Trio/Sources/APS/OpenAPSSwift/Boost/BoostComposedFloorGate.swift; sourceTree = "<group>"; };
+		16606D4C218C42C6898F0699 /* BoostTrialSeed.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostTrialSeed.swift; path = Trio/Sources/APS/OpenAPSSwift/Boost/BoostTrialSeed.swift; sourceTree = "<group>"; };
+		B7A5FA91F3264A6EB1FD7AF1 /* BoostRedriveStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostRedriveStore.swift; path = Trio/Sources/APS/OpenAPSSwift/Boost/BoostRedriveStore.swift; sourceTree = "<group>"; };
+		737D5FE82DA7838B2C7CDFE1 /* BoostMLModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostMLModels.swift; path = Trio/Sources/APS/OpenAPSSwift/Boost/BoostMLModels.swift; sourceTree = "<group>"; };
 		79BDA519C9B890FD9A5DFCF3 /* ISFEditorDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFEditorDataFlow.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000006 /* HomeRootView+Refresh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HomeRootView+Refresh.swift"; sourceTree = "<group>"; };
 		7A11AC0DE000000000000009 /* PumpEventFinalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpEventFinalizationTests.swift; sourceTree = "<group>"; };
@@ -1999,25 +2083,38 @@
 		7A11AC0DE000000000000160 /* WallClockParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WallClockParityTests.swift; sourceTree = "<group>"; };
 		7A11AC0DE000000000000170 /* GlassActionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassActionSheet.swift; sourceTree = "<group>"; };
 		7E22146D3DF4853786C78132 /* CarbRatioEditorDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CarbRatioEditorDataFlow.swift; sourceTree = "<group>"; };
+		7FF09F15E5D166A2E57B66BB /* BoostV5Adapter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostV5Adapter.swift; path = Trio/Sources/APS/OpenAPSSwift/Boost/BoostV5Adapter.swift; sourceTree = "<group>"; };
+		72788F47FB804BA093159C0E /* BoostV1Determination.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostV1Determination.swift; path = Trio/Sources/APS/OpenAPSSwift/Boost/BoostV1Determination.swift; sourceTree = "<group>"; };
 		8782B44544F38F2B2D82C38E /* NightscoutConfigRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightscoutConfigRootView.swift; sourceTree = "<group>"; };
 		881E04BA5E0A003DE8E0A9C6 /* HistoryRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryRootView.swift; sourceTree = "<group>"; };
 		8A54068ABDAE4898B243DF14 /* QuickPickTreatmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPickTreatmentsView.swift; sourceTree = "<group>"; };
+		88726CFD6D563A80384465C9 /* SleepStateDetector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SleepStateDetector.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/SleepStateDetector.swift; sourceTree = "<group>"; };
+		88B16885B4F291F9FF4BDED2 /* BoostMealTimeStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostMealTimeStore.swift; path = Trio/Sources/APS/OpenAPSSwift/Boost/BoostMealTimeStore.swift; sourceTree = "<group>"; };
 		8A9134292D63D9A1007F8874 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		8A91342B2D63D9A2007F8874 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		8E6B0D72EF99686C1469EC17 /* HomeRootView+Refresh.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HomeRootView+Refresh.swift"; sourceTree = "<group>"; };
 		91711E7CA54747EFAD6540EE /* QuickPickTreatmentsConfigStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPickTreatmentsConfigStateModel.swift; sourceTree = "<group>"; };
 		920DDB21E5D0EB813197500D /* ConfigEditorRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConfigEditorRootView.swift; sourceTree = "<group>"; };
+		92E1F29C48E26BF8C24CB390 /* BoostMlFeatureBuilder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostMlFeatureBuilder.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/BoostMlFeatureBuilder.swift; sourceTree = "<group>"; };
 		9455FA2D92E77A6C4AFED8A3 /* HistoryStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryStateModel.swift; sourceTree = "<group>"; };
 		96653287EDB276A111288305 /* ManualTempBasalDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ManualTempBasalDataFlow.swift; sourceTree = "<group>"; };
 		98546920BB7247B0AC73449A /* ContainerResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerResolutionTests.swift; sourceTree = "<group>"; };
+		95A0EA74245DF3B8F0800B45 /* StepSourceResolver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = StepSourceResolver.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/StepSourceResolver.swift; sourceTree = "<group>"; };
 		9C8D5F457B5AFF763F8CF3DF /* CarbRatioEditorProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CarbRatioEditorProvider.swift; sourceTree = "<group>"; };
 		9F9F137F126D9F8DEB799F26 /* ISFEditorProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ISFEditorProvider.swift; sourceTree = "<group>"; };
 		A0A48AE3AC813A49A517846A /* NightscoutConfigStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NightscoutConfigStateModel.swift; sourceTree = "<group>"; };
 		A23CBB584D18BF93A14D3749 /* PreviousDayGlucoseChartView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PreviousDayGlucoseChartView.swift; sourceTree = "<group>"; };
+		A2B919EF759A497F2BD9B847 /* AggressionBudget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AggressionBudget.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/AggressionBudget.swift; sourceTree = "<group>"; };
 		A401509D21F7F35D4E109EDA /* HistoryDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryDataFlow.swift; sourceTree = "<group>"; };
+		A6B30D3333A6B7F58389A947 /* BoostISF.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostISF.swift; path = Trio/Sources/APS/OpenAPSSwift/Boost/BoostISF.swift; sourceTree = "<group>"; };
 		A8630D58BDAD6D9C650B9B39 /* PumpConfigProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PumpConfigProvider.swift; sourceTree = "<group>"; };
 		AABB00012C54389F00211FAC /* TreatmentsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreatmentsSettingsView.swift; sourceTree = "<group>"; };
 		AAFF91130F2FCCC7EBBA11AD /* BasalProfileEditorStateModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BasalProfileEditorStateModel.swift; sourceTree = "<group>"; };
+		AC0F1A2B3C4D5E6F70819202 /* InMemoryGlucoseValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InMemoryGlucoseValue.swift; path = GlucoseSmoothing/Sources/GlucoseSmoothingCore/InMemoryGlucoseValue.swift; sourceTree = SOURCE_ROOT; };
+		AC0F1A2B3C4D5E6F70819204 /* UnscentedKalmanFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UnscentedKalmanFilter.swift; path = GlucoseSmoothing/Sources/GlucoseSmoothingCore/UnscentedKalmanFilter.swift; sourceTree = SOURCE_ROOT; };
+		AB9CFFADE814B1A1282D1F39 /* SleepHistoryTracker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SleepHistoryTracker.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/SleepHistoryTracker.swift; sourceTree = "<group>"; };
+		AE9DA82D44166E0A9570DE7F /* MealHypothesis.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MealHypothesis.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/MealHypothesis.swift; sourceTree = "<group>"; };
+		AC0F1A2B3C4D5E6F70819205 /* GlucoseBucketing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GlucoseBucketing.swift; path = GlucoseSmoothing/Sources/GlucoseSmoothingCore/GlucoseBucketing.swift; sourceTree = SOURCE_ROOT; };
 		AF65DA88F972B56090AD6AC3 /* PumpConfigDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PumpConfigDataFlow.swift; sourceTree = "<group>"; };
 		B015AFE12E500000000D7351 /* BolusSafetyValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusSafetyValidator.swift; sourceTree = "<group>"; };
 		B015AFE42E500000000D7351 /* BolusSafetyValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusSafetyValidatorTests.swift; sourceTree = "<group>"; };
@@ -2025,14 +2122,17 @@
 		B015AFF12E600000000D7351 /* AdjustmentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentManager.swift; sourceTree = "<group>"; };
 		B015AFF42E600000000D7351 /* AdjustmentManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentManagerTests.swift; sourceTree = "<group>"; };
 		B3919BBB515547118D684CA2 /* SettingsSearchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsSearchTests.swift; sourceTree = "<group>"; };
-		B3919BBB515547118D684CB2 /* DosingModeMigrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DosingModeMigrationTests.swift; sourceTree = "<group>"; };
-		B3919BBB515547118D684CC2 /* MaxIOBSuggestionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MaxIOBSuggestionTests.swift; sourceTree = "<group>"; };
-		AE2DC7144FFD427B96B8A2B8 /* PumpStatusSuspendTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PumpStatusSuspendTests.swift; sourceTree = "<group>"; };
-		B3919BBB515547118D684CD2 /* LoopIndicatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LoopIndicatorTests.swift; sourceTree = "<group>"; };
-		B3919BBB515547118D684CE2 /* DosingModeClampTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DosingModeClampTests.swift; sourceTree = "<group>"; };
-		D5E1A7C30000000000000001 /* DeterminationEnactmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeterminationEnactmentTests.swift; sourceTree = "<group>"; };
+		B3C65E4DC20B224B954E57CA /* CircadianISF.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CircadianISF.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/CircadianISF.swift; sourceTree = "<group>"; };
 		B3919BBB515547118D684CF2 /* AlgorithmSuggestedBolusTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AlgorithmSuggestedBolusTests.swift; sourceTree = "<group>"; };
+		B3919BBB515547118D684CE2 /* DosingModeClampTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DosingModeClampTests.swift; sourceTree = "<group>"; };
+		B3919BBB515547118D684CD2 /* LoopIndicatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LoopIndicatorTests.swift; sourceTree = "<group>"; };
+		B3919BBB515547118D684CC2 /* MaxIOBSuggestionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MaxIOBSuggestionTests.swift; sourceTree = "<group>"; };
+		B3919BBB515547118D684CB2 /* DosingModeMigrationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DosingModeMigrationTests.swift; sourceTree = "<group>"; };
+		AE2DC7144FFD427B96B8A2B8 /* PumpStatusSuspendTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PumpStatusSuspendTests.swift; sourceTree = "<group>"; };
+		D5E1A7C30000000000000001 /* DeterminationEnactmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeterminationEnactmentTests.swift; sourceTree = "<group>"; };
 		B6E925122EB3932A0076D719 /* OmnipodKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = OmnipodKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B7199F79A232E39232FA882E /* MealTimeLearner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MealTimeLearner.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/MealTimeLearner.swift; sourceTree = "<group>"; };
+		B7573B72F244DEE93CB37310 /* hypo_risk_model.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = hypo_risk_model.json; path = Trio/Resources/boost/hypo_risk_model.json; sourceTree = "<group>"; };
 		B9B5C0607505A38F256BF99A /* CGMSettingsDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CGMSettingsDataFlow.swift; sourceTree = "<group>"; };
 		BA49538D56989D8DA6FCF538 /* TargetsEditorDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TargetsEditorDataFlow.swift; sourceTree = "<group>"; };
 		BD04ECCD2D299522008C5FEB /* BolusProgressOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusProgressOverlay.swift; sourceTree = "<group>"; };
@@ -2209,10 +2309,6 @@
 		E02611957B2F410C8B666FEA /* StatPDFReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatPDFReportView.swift; sourceTree = "<group>"; };
 		E7B93730071F48FBBB14BD54 /* StatExportMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatExportMenuView.swift; sourceTree = "<group>"; };
 		0865B3A9AD5E4C11972DEE8E /* GlucosePercentileByDayPDFChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucosePercentileByDayPDFChart.swift; sourceTree = "<group>"; };
-		0E30588AFFF04042B9F5AC30 /* GlucoseDistributionByDayPDFChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseDistributionByDayPDFChart.swift; sourceTree = "<group>"; };
-		227961C75B8B4E9793CB4BFA /* InsulinTDDPDFChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinTDDPDFChart.swift; sourceTree = "<group>"; };
-		610AA4C16F7145C0B6FC0147 /* InsulinBolusPDFChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinBolusPDFChart.swift; sourceTree = "<group>"; };
-		29D88CA823E44925B05569EE /* MealsPDFChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealsPDFChart.swift; sourceTree = "<group>"; };
 		7FCCC475E3AC4B4CABA4234D /* TherapySchedulePDFContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TherapySchedulePDFContent.swift; sourceTree = "<group>"; };
 		BD249D8D2D42FC3600412DEB /* LoopBarChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopBarChartView.swift; sourceTree = "<group>"; };
 		A954B9748CF94F5CB4DB115C /* AlgorithmAdjustmentsChartsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlgorithmAdjustmentsChartsView.swift; sourceTree = "<group>"; };
@@ -2228,7 +2324,6 @@
 		BD249D9C2D42FCF300412DEB /* MealStatsSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealStatsSetup.swift; sourceTree = "<group>"; };
 		BD249D9E2D42FD0200412DEB /* StackedChartSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StackedChartSetup.swift; sourceTree = "<group>"; };
 		F1718DA686EA4E8F87B0A729 /* ExportSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSetup.swift; sourceTree = "<group>"; };
-		3BCB1C4B675D4B39BA0DAF8D /* ReportChartType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportChartType.swift; sourceTree = "<group>"; };
 		CDC22EFD3F0E4C368F84B116 /* PDFReportContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFReportContent.swift; sourceTree = "<group>"; };
 		C40E9F8C6CEB4A308060A821 /* ReportPresetSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPresetSetup.swift; sourceTree = "<group>"; };
 		BD249DA02D42FD1000412DEB /* TDDSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TDDSetup.swift; sourceTree = "<group>"; };
@@ -2347,7 +2442,6 @@
 		C2BA6B982F758E7600348E6A /* NotificationIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationIdentifiers.swift; sourceTree = "<group>"; };
 		C39FF1EC12CF4B1EBB13BE26 /* NightscoutUploadSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutUploadSerializerTests.swift; sourceTree = "<group>"; };
 		C3D5DE0B1353F5C301AD2899 /* PlacementLogStorage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlacementLogStorage.swift; sourceTree = "<group>"; };
-		C40E9F8C6CEB4A308060A821 /* ReportPresetSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPresetSetup.swift; sourceTree = "<group>"; };
 		C7DA23B64976670AC36D9E84 /* QuickPickTreatmentsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPickTreatmentsTests.swift; sourceTree = "<group>"; };
 		C8D1A7CA8C10C4403D4BBFA7 /* TreatmentsDataFlow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TreatmentsDataFlow.swift; sourceTree = "<group>"; };
 		CA01000000000000000010C1 /* AlertCatalogVendor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertCatalogVendor.swift; sourceTree = "<group>"; };
@@ -2361,8 +2455,8 @@
 		CA07000000000000000010C1 /* TelemetrySendGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetrySendGateTests.swift; sourceTree = "<group>"; };
 		CC6C406D2ACDD69E009B8058 /* RawFetchedProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawFetchedProfile.swift; sourceTree = "<group>"; };
 		CC76E9502BD4812E008BEB61 /* Forecast+helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Forecast+helper.swift"; sourceTree = "<group>"; };
-		CDC22EFD3F0E4C368F84B116 /* PDFReportContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFReportContent.swift; sourceTree = "<group>"; };
 		CD1235C000000000000000F3 /* TidepoolUploadSerializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TidepoolUploadSerializer.swift; sourceTree = "<group>"; };
+		CCA0CD612D1F2146C043010F /* BoostTreeModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostTreeModel.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/BoostTreeModel.swift; sourceTree = "<group>"; };
 		CE1856F42ADC4858007E39C7 /* AddCarbPresetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCarbPresetIntent.swift; sourceTree = "<group>"; };
 		CE1856F62ADC4869007E39C7 /* CarbPresetIntentRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbPresetIntentRequest.swift; sourceTree = "<group>"; };
 		CE1F6DD82BADF4620064EB8D /* PluginManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginManagerTests.swift; sourceTree = "<group>"; };
@@ -2418,6 +2512,9 @@
 		CEE9A65D2BBC9F6500EB5194 /* CalibrationsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibrationsTests.swift; sourceTree = "<group>"; };
 		D0BDC6993C1087310EDFC428 /* CarbRatioEditorRootView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CarbRatioEditorRootView.swift; sourceTree = "<group>"; };
 		D543DE17E0054AF0821411BB /* QuickPickTreatmentsConfigDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickPickTreatmentsConfigDataFlow.swift; sourceTree = "<group>"; };
+		D3E469DC3B11FE76BA04A2CB /* ActivityLoadTracker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ActivityLoadTracker.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/ActivityLoadTracker.swift; sourceTree = "<group>"; };
+		D63E8362C1C690634B3A760A /* DynIsf.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DynIsf.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/DynIsf.swift; sourceTree = "<group>"; };
+		CF954BACF54A4E66A2F9D886 /* ConfirmTranche.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConfirmTranche.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/ConfirmTranche.swift; sourceTree = "<group>"; };
 		D7C5E1F4A7B91E2F3C5D6E71 /* TimeInterval+Convenience.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TimeInterval+Convenience.swift"; sourceTree = "<group>"; };
 		DB0BA0010000000000000002 /* DevelopmentBranchAlerter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopmentBranchAlerter.swift; sourceTree = "<group>"; };
 		DB0BB002000000000000000B /* ReleaseNotes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseNotes.swift; sourceTree = "<group>"; };
@@ -2654,7 +2751,6 @@
 		E00EEC0127368630002FF094 /* APSAssembly.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = APSAssembly.swift; sourceTree = "<group>"; };
 		E00EEC0227368630002FF094 /* NetworkAssembly.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NetworkAssembly.swift; sourceTree = "<group>"; };
 		E013D871273AC6FE0014109C /* GlucoseSimulatorSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseSimulatorSource.swift; sourceTree = "<group>"; };
-		E02611957B2F410C8B666FEA /* StatPDFReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatPDFReportView.swift; sourceTree = "<group>"; };
 		E0CC2C5B275B9DAE00A7BC71 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		E0D4F80427513ECF00BDF1FE /* HealthKitSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSample.swift; sourceTree = "<group>"; };
 		E592A36F2CEEC01E009A472C /* ContactTrickEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactTrickEntry.swift; sourceTree = "<group>"; };
@@ -2662,9 +2758,6 @@
 		E592A3732CEEC038009A472C /* ContactImageDataFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactImageDataFlow.swift; sourceTree = "<group>"; };
 		E592A3742CEEC038009A472C /* ContactImageProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactImageProvider.swift; sourceTree = "<group>"; };
 		E592A3752CEEC038009A472C /* ContactImageStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactImageStateModel.swift; sourceTree = "<group>"; };
-		E7B93730071F48FBBB14BD54 /* StatExportMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatExportMenuView.swift; sourceTree = "<group>"; };
-		E990CD1DE0254085B2DF1C2A /* StatPDFExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatPDFExporter.swift; sourceTree = "<group>"; };
-		F1718DA686EA4E8F87B0A729 /* ExportSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSetup.swift; sourceTree = "<group>"; };
 		F7EB4ADBBEA2BA8E4343B437 /* HistoryRootView+AddPlacementLog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "HistoryRootView+AddPlacementLog.swift"; sourceTree = "<group>"; };
 		E9C171A8FC35B730F1FFF25F /* InMemoryLogSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryLogSink.swift; sourceTree = "<group>"; };
 		F5D79872B74ADDBDD11682D0 /* WatchLogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLogEntry.swift; sourceTree = "<group>"; };
@@ -2725,9 +2818,6 @@
 		CA0924000000000000000001 /* GRICalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRICalculator.swift; sourceTree = "<group>"; };
 		CA0924000000000000000003 /* GRIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRIView.swift; sourceTree = "<group>"; };
 		CA0924000000000000000005 /* GRICalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GRICalculatorTests.swift; sourceTree = "<group>"; };
-		0865B3A9AD5E4C11972DEE8E /* GlucosePercentileByDayPDFChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucosePercentileByDayPDFChart.swift; sourceTree = "<group>"; };
-		6EFF860E684B4C9488D438DD /* NightscoutImportRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutImportRoundTripTests.swift; sourceTree = "<group>"; };
-		71A58E19DE23455CB842C50C /* CGMSensorStateLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGMSensorStateLogTests.swift; sourceTree = "<group>"; };
 		5A0A11000000000000000101 /* SettingsAnalysisModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAnalysisModels.swift; sourceTree = "<group>"; };
 		5A0A11000000000000000102 /* SettingsAnalysisEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAnalysisEngine.swift; sourceTree = "<group>"; };
 		5A0A11000000000000000103 /* SettingsAnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAnalysisView.swift; sourceTree = "<group>"; };
@@ -2741,6 +2831,7 @@
 		5A0A11000000000000000112 /* SettingsAnalysisDetectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAnalysisDetectors.swift; sourceTree = "<group>"; };
 		5A0A11000000000000000113 /* SettingsAnalysisDetectorsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAnalysisDetectorsTests.swift; sourceTree = "<group>"; };
 		5A0A11000000000000000110 /* SettingsAnalysisChecksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAnalysisChecksTests.swift; sourceTree = "<group>"; };
+		FFE529480EE2B465AB4E9AF4 /* BoostV5Store.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BoostV5Store.swift; path = BoostPort/BoostV5Core/Sources/BoostV5Core/BoostV5Store.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -3735,6 +3826,8 @@
 				BDFF7AA02D25FAA80016C40C /* Trio Watch App Tests */,
 				DD09D6492D2B6253000D82C9 /* Trio Watch Complication */,
 				38FCF3EE25E9028E0078B0D1 /* TrioTests */,
+				966F18F728DDD6B893B05F63 /* BoostPort */,
+				7857A825BB6E0C7D38F1E724 /* BoostResources */,
 			);
 			sourceTree = "<group>";
 		};
@@ -3780,6 +3873,10 @@
 				822636A3EB1BBED700582ED9 /* ScheduledProfileSwitch.swift */,
 				BD11795B2F4E22C100F90001 /* GlucoseAlerts */,
 				49C782A62F73D9870062B0DD /* AlertEntry.swift */,
+				DDA40BB92F4DB18100257798 /* AlgorithmGlucose.swift */,
+				AC0F1A2B3C4D5E6F70819202 /* InMemoryGlucoseValue.swift */,
+				AC0F1A2B3C4D5E6F70819204 /* UnscentedKalmanFilter.swift */,
+				AC0F1A2B3C4D5E6F70819205 /* GlucoseBucketing.swift */,
 				388E5A5F25B6F2310019842D /* Autosens.swift */,
 				388358C725EEF6D200E024B2 /* BasalProfileEntry.swift */,
 				38D0B3B525EBE24900CB6E88 /* Battery.swift */,
@@ -4090,6 +4187,7 @@
 				6EFF860E684B4C9488D438DD /* NightscoutImportRoundTripTests.swift */,
 				BD8FC0702D661B0000B95AED /* TidepoolTherapySettingsTests.swift */,
 				CA03000000000000000010C1 /* AlertCatalogRegistryOmniFaultTests.swift */,
+				28B1600583BF6F6C8CEB4245 /* UkfOrderingRegressionTest.swift */,
 				CD1235A000000000000000F1 /* TidepoolUploadSerializerTests.swift */,
 				CE1425A000000000000000A1 /* CarbsEntryLoopKitTests.swift */,
 				A5D6B6D83F32CE8BBDDB4E5B /* Logging */,
@@ -4225,6 +4323,7 @@
 				FAB1E00000000000000000A0 /* Parity */,
 				3B1C5C3F2D68E269004E9273 /* utils */,
 				3BBC22622DF5B93900169236 /* AutosensTests.swift */,
+				B0057150A11F2026BA5E0001 /* BoostISFAutosensTests.swift */,
 				3BA643E92ED9FAD8007BC31F /* DetermineBasalAggressiveDosingTests.swift */,
 				DD30B9FF2E0745C400DA677C /* DetermineBasalDeltaCalculationTests.swift */,
 				3B8221B12E5882D900585156 /* DetermineBasalEarlyExitTests.swift */,
@@ -4424,6 +4523,56 @@
 				1C3084B00ADBA601CDBA8AB7 /* LogRetentionPolicy.swift */,
 			);
 			path = Contracts;
+			sourceTree = "<group>";
+		};
+		7857A825BB6E0C7D38F1E724 /* BoostResources */ = {
+			isa = PBXGroup;
+			children = (
+				B7573B72F244DEE93CB37310 /* hypo_risk_model.json */,
+				2874791B21667B982F4853A7 /* meal_likelihood_model.json */,
+			);
+			name = BoostResources;
+			sourceTree = "<group>";
+		};
+		966F18F728DDD6B893B05F63 /* BoostPort */ = {
+			isa = PBXGroup;
+			children = (
+				3247963A5E1919B5555E9397 /* ActivityClassifier.swift */,
+				D3E469DC3B11FE76BA04A2CB /* ActivityLoadTracker.swift */,
+				A2B919EF759A497F2BD9B847 /* AggressionBudget.swift */,
+				92E1F29C48E26BF8C24CB390 /* BoostMlFeatureBuilder.swift */,
+				CCA0CD612D1F2146C043010F /* BoostTreeModel.swift */,
+				251F42431AAF1DB153B46C64 /* BoostV5AutoConfig.swift */,
+				07D55CABFDA29819F3083458 /* BoostV5AutoConfigApply.swift */,
+				712393DDF91D0A58F4E1F3BE /* BoostV5Engine.swift */,
+				ECE5EFB8EB3C48CCA0992E33 /* BoostV1Engine.swift */,
+				FFE529480EE2B465AB4E9AF4 /* BoostV5Store.swift */,
+				B3C65E4DC20B224B954E57CA /* CircadianISF.swift */,
+				D63E8362C1C690634B3A760A /* DynIsf.swift */,
+				CF954BACF54A4E66A2F9D886 /* ConfirmTranche.swift */,
+				5FF867EB72F8DF29A1503BCD /* HrSourceResolver.swift */,
+				6B47C0D3212501122B86F02C /* IsfShadowEma.swift */,
+				AE9DA82D44166E0A9570DE7F /* MealHypothesis.swift */,
+				208583DB86528274FF3E204F /* MealSignalScore.swift */,
+				B7199F79A232E39232FA882E /* MealTimeLearner.swift */,
+				33FDF272DA348FAC2F1C41AC /* NightMode.swift */,
+				183892722B49A6018645F874 /* PostExerciseRecovery.swift */,
+				621F1DA0758AAA87D5E16203 /* SafetyGates.swift */,
+				AB9CFFADE814B1A1282D1F39 /* SleepHistoryTracker.swift */,
+				88726CFD6D563A80384465C9 /* SleepStateDetector.swift */,
+				95A0EA74245DF3B8F0800B45 /* StepSourceResolver.swift */,
+				657DA561613933051DD4D438 /* BoostActivityStore.swift */,
+				730960A064CEEABDC3D99E57 /* BoostComposedFloorGate.swift */,
+				16606D4C218C42C6898F0699 /* BoostTrialSeed.swift */,
+				B7A5FA91F3264A6EB1FD7AF1 /* BoostRedriveStore.swift */,
+				A6B30D3333A6B7F58389A947 /* BoostISF.swift */,
+				737D5FE82DA7838B2C7CDFE1 /* BoostMLModels.swift */,
+				88B16885B4F291F9FF4BDED2 /* BoostMealTimeStore.swift */,
+				7FF09F15E5D166A2E57B66BB /* BoostV5Adapter.swift */,
+				72788F47FB804BA093159C0E /* BoostV1Determination.swift */,
+				5ACC67959A8589D3E0BCB163 /* BoostActivityMonitor.swift */,
+			);
+			name = BoostPort;
 			sourceTree = "<group>";
 		};
 		99C01B871ACAB3F32CE755C7 /* PumpConfig */ = {
@@ -6297,6 +6446,8 @@
 				CAF20000000000000000000F /* Trio/Resources/Sounds/synth.caf in Resources */,
 				CAF200000000000000000010 /* Trio/Resources/Sounds/trill.caf in Resources */,
 				CAF200000000000000000011 /* Trio/Resources/Sounds/urgent_low.caf in Resources */,
+				37CAFDBF56D56CE79A89A585 /* hypo_risk_model.json in Resources */,
+				4D4A76587157CCAE43546A45 /* meal_likelihood_model.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -6462,6 +6613,9 @@
 				23BC6810CD4E614321C5AA72 /* ScheduledProfileSwitchStored+CoreDataClass.swift in Sources */,
 				F7361D20819BCD0FC873359F /* TherapyProfileSwitchStored+CoreDataProperties.swift in Sources */,
 				427F942885860F08A6DAAEF8 /* TherapyProfileSwitchStored+CoreDataClass.swift in Sources */,
+				AC0F1A2B3C4D5E6F70819201 /* InMemoryGlucoseValue.swift in Sources */,
+				AC0F1A2B3C4D5E6F70819203 /* UnscentedKalmanFilter.swift in Sources */,
+				AC0F1A2B3C4D5E6F70819206 /* GlucoseBucketing.swift in Sources */,
 				3A627606ABC518974CC60B55 /* PumpStatusStorage.swift in Sources */,
 				4AB6E54D1659F6137A70BF74 /* PumpStatusStored+helper.swift in Sources */,
 				BDDB1F2A2BEE371D5C0765DE /* PumpStatusStored+CoreDataProperties.swift in Sources */,
@@ -7145,16 +7299,16 @@
 				BDF34F952C10D27300D51995 /* DeterminationData.swift in Sources */,
 				BA00D96F7B2FF169A06FB530 /* CGMSettingsStateModel.swift in Sources */,
 				BD7DA9A52AE06DFC00601B20 /* BolusCalculatorConfigDataFlow.swift in Sources */,
-				6EADD581738D64431902AC0A /* (null) in Sources */,
+				6EADD581738D64431902AC0A /* BuildFile in Sources */,
 				CE94598729E9E4110047C9C6 /* WatchConfigRootView.swift in Sources */,
 				DD5DC9FB2CF3E1B100AB8703 /* AdjustmentsStateModel+Helpers.swift in Sources */,
 				BD249D972D42FCBF00412DEB /* AreaChartSetup.swift in Sources */,
 				DDF847E42C5C288F0049BB3B /* LiveActivitySettingsRootView.swift in Sources */,
 				DD88C8E22C50420800F2D558 /* DefinitionRow.swift in Sources */,
-				B7C465E9472624D8A2BE2A6A /* (null) in Sources */,
+				B7C465E9472624D8A2BE2A6A /* BuildFile in Sources */,
 				71D44AAB2CA5F5EA0036EE9E /* AlertPermissionsChecker.swift in Sources */,
 				DDF691032DA2CA1E008BF16C /* AppDiagnosticsProvider.swift in Sources */,
-				320D030F724170A637F06D50 /* (null) in Sources */,
+				320D030F724170A637F06D50 /* BuildFile in Sources */,
 				CE94598729E9E4110047C9C6 /* WatchConfigRootView.swift in Sources */,
 				DD9E6DA22D59A12700514CEC /* MealHistory.swift in Sources */,
 				19E1F7E829D082D0005C8D20 /* IconConfigDataFlow.swift in Sources */,
@@ -7281,6 +7435,40 @@
 				AC05A906087DD32A509439F2 /* SendReportView.swift in Sources */,
 				32DC31248CF9E5D252CB85DF /* AppAttestClient.swift in Sources */,
 				C25C56F3172AC94B9048CCED /* SentReports.swift in Sources */,
+				693E88CC801F2553515C3FFC /* ActivityClassifier.swift in Sources */,
+				6602AF03B191DB0024F9AA9A /* ActivityLoadTracker.swift in Sources */,
+				F4BAE4D306BE52B2F5818D45 /* AggressionBudget.swift in Sources */,
+				F0255A455F1FBE0A73B54229 /* BoostMlFeatureBuilder.swift in Sources */,
+				9A7913A91AEFD947FA33F686 /* BoostTreeModel.swift in Sources */,
+				6F530702020CF8840DF828A6 /* BoostV5AutoConfig.swift in Sources */,
+				334A89123AFDD2879CA2E22F /* BoostV5AutoConfigApply.swift in Sources */,
+				9E9124FA42352DD6D69C96E1 /* BoostV5Engine.swift in Sources */,
+				3D1F428D7F8F4DF2BE286069 /* BoostV1Engine.swift in Sources */,
+				3CAB77EE67F6707363817C22 /* BoostV5Store.swift in Sources */,
+				DB75BABF0D4F32B95CD31397 /* CircadianISF.swift in Sources */,
+				4C8FB9B88D1E3F3048E359A1 /* DynIsf.swift in Sources */,
+				0933953413114AEEA9E211B3 /* ConfirmTranche.swift in Sources */,
+				88F296D2099F0CC303F0CD3C /* HrSourceResolver.swift in Sources */,
+				BE4220EE00FEBA92CFE1E101 /* IsfShadowEma.swift in Sources */,
+				0B426FFA7AAB28BA084E040F /* MealHypothesis.swift in Sources */,
+				B3F6A5AE04AB97F5EB3B9193 /* MealSignalScore.swift in Sources */,
+				995A1AF983058239277008FC /* MealTimeLearner.swift in Sources */,
+				6F1838F3F0A7AF1D15A93FA7 /* NightMode.swift in Sources */,
+				ECF244952D74199E8F9D8588 /* PostExerciseRecovery.swift in Sources */,
+				51B012820CBDA5471BFE742B /* SafetyGates.swift in Sources */,
+				27838269360C50954F9C0A6F /* SleepHistoryTracker.swift in Sources */,
+				E3C4E54ACCCC7A55016417DC /* SleepStateDetector.swift in Sources */,
+				683F95E1AED0564B9BBFC5BA /* StepSourceResolver.swift in Sources */,
+				396F181A7486B16DB4FE70D3 /* BoostActivityStore.swift in Sources */,
+				6169D5AECA7019C4C802DE30 /* BoostComposedFloorGate.swift in Sources */,
+				669BA4A89CBD4B67A6C07B8E /* BoostTrialSeed.swift in Sources */,
+				42647536C7234F0E92331B8B /* BoostRedriveStore.swift in Sources */,
+				8B2892C005C3E481143D5D88 /* BoostISF.swift in Sources */,
+				F5BD276B8F36EB2260BC5435 /* BoostMLModels.swift in Sources */,
+				79EEE89832BBA5D02E253115 /* BoostMealTimeStore.swift in Sources */,
+				897E7BDE461014310A97DA76 /* BoostV5Adapter.swift in Sources */,
+				3812380FDDDF4B319511814B /* BoostV1Determination.swift in Sources */,
+				753CD96BE6A4BC05A41D2791 /* BoostActivityMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -7334,6 +7522,7 @@
 				FE9C3A9F2A75014FB09A16B1 /* CoreDataProtectedDataTests.swift in Sources */,
 				3BE2F1E82E030E2F009E2900 /* MealCobTests.swift in Sources */,
 				3BBC22632DF5B94100169236 /* AutosensTests.swift in Sources */,
+				B0057150A11F2026BA5E0002 /* BoostISFAutosensTests.swift in Sources */,
 				BD8FC0542D66186000B95AED /* TestError.swift in Sources */,
 				FB9012AE66284A92A6531037 /* NightscoutUploadSerializerTests.swift in Sources */,
 				5A0A11000000000000000210 /* SettingsAnalysisChecksTests.swift in Sources */,
@@ -7419,6 +7608,7 @@
 				E1B0A5D00000000000000002 /* EnactBolusAmountTests.swift in Sources */,
 				BD8FC0712D661B0000B95AED /* TidepoolTherapySettingsTests.swift in Sources */,
 				CA03000000000000000010C2 /* AlertCatalogRegistryOmniFaultTests.swift in Sources */,
+				9A1D14A8F10EAE89C6825FCB /* UkfOrderingRegressionTest.swift in Sources */,
 				CD1235B000000000000000F2 /* TidepoolUploadSerializerTests.swift in Sources */,
 				CE1425B000000000000000A2 /* CarbsEntryLoopKitTests.swift in Sources */,
 				2D5DFD6C90037128EA3DF5A9 /* DeviceLogStoreTests.swift in Sources */,
@@ -7463,6 +7653,39 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				72DACED0929602AB98C089E9 /* ActivityClassifier.swift in Sources */,
+				C858EBA55A0C75B9BBCB39A8 /* ActivityLoadTracker.swift in Sources */,
+				6CC2FFF2399D69DECAA14C00 /* AggressionBudget.swift in Sources */,
+				B1E9A48E1A3EBBF6E41C7FC7 /* BoostMlFeatureBuilder.swift in Sources */,
+				C87B2A04CB557ED985F0ECF3 /* BoostTreeModel.swift in Sources */,
+				36271BA515417EB7D732F8E5 /* BoostV5AutoConfig.swift in Sources */,
+				A68CD02F5D7ADE37BD672AF9 /* BoostV5AutoConfigApply.swift in Sources */,
+				DC778AB1FDA5D269008BB9B4 /* BoostV5Engine.swift in Sources */,
+				EE3C528A4B2A5D23C35AC679 /* BoostV1Engine.swift in Sources */,
+				0D909248F4DE863DBB5E0427 /* BoostV5Store.swift in Sources */,
+				CEB1C795C0B3743368612E3E /* CircadianISF.swift in Sources */,
+				47160D7BE976A948395EB9C5 /* DynIsf.swift in Sources */,
+				AE0B8BDDE4958163AB2E4F6B /* ConfirmTranche.swift in Sources */,
+				6D5BA38F410D75819C8F7EA0 /* HrSourceResolver.swift in Sources */,
+				FA89053DA452C59F9234FCFB /* IsfShadowEma.swift in Sources */,
+				060BC70EC893A2A089B105D2 /* MealHypothesis.swift in Sources */,
+				9F855DBB8273D28A21EFD3F1 /* MealSignalScore.swift in Sources */,
+				950E1336FC9056E56AAC5C7E /* MealTimeLearner.swift in Sources */,
+				3FF5D2F1EFBBE96643C2FC34 /* NightMode.swift in Sources */,
+				F11370811DFCEC725A64C101 /* PostExerciseRecovery.swift in Sources */,
+				0AEF02C44A79CA7C2F3B3778 /* SafetyGates.swift in Sources */,
+				EF59BF61066E2254C62193F8 /* SleepHistoryTracker.swift in Sources */,
+				95C439A2FF066D1149B6FC4F /* SleepStateDetector.swift in Sources */,
+				BEDE2BFE925CB3620C9A971C /* StepSourceResolver.swift in Sources */,
+				6DD7D2C482E9AF79360B0863 /* BoostActivityStore.swift in Sources */,
+				312CAF63EA5B1C93BC51E3DC /* BoostComposedFloorGate.swift in Sources */,
+				58792AE4BCC4F0B88CF98F94 /* BoostTrialSeed.swift in Sources */,
+				F62439B7CE6D760592B49290 /* BoostRedriveStore.swift in Sources */,
+				2E9CF455CC1D4BE92A85AB6F /* BoostISF.swift in Sources */,
+				CB5A6D2B0B36CBBB973B65E4 /* BoostMLModels.swift in Sources */,
+				4155BD41F8C80DF41A35C2A9 /* BoostMealTimeStore.swift in Sources */,
+				1A84DEB7DA2E05CC39C84627 /* BoostV5Adapter.swift in Sources */,
+				908FC0732B6F0F8062F363E7 /* BoostV1Determination.swift in Sources */,
 				E03DADCB05E495CFB7B5CEA8 /* GlucoseColorScheme.swift in Sources */,
 				A7F29D1C31622C109DEE6EF9 /* DynamicGlucoseColor.swift in Sources */,
 				B5F098A2A8F58AF5F19BF8F8 /* ScheduledBasalInference.swift in Sources */,

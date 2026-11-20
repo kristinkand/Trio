@@ -194,6 +194,9 @@ extension PluginSource: CGMManagerDelegate {
                     info(.cgm, "Sensor started")
                     self.glucoseManager?.removeCalibrations()
                     self.glucoseManager?.startCGMSensorSession(startedAt: event.date)
+                    // Reset the Adaptive Smoothing learned state on a new sensor (parity with AAPS,
+                    // which resets on a SENSOR_CHANGE therapy event).
+                    BaseFetchGlucoseManager.notifySensorChange()
                 }
             }
         }

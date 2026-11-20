@@ -26,8 +26,12 @@ enum UntetheredAlgorithm {
     static func determine(_ inputs: Inputs) throws -> (Determination, Autosens?)? {
         let grant = inputs.grant
         let now = inputs.now
+        // Boost runs on the phone only: its activity, sleep and meal-time stores and its models are there, so the watch
+        // loops on plain oref whatever the phone's Boost mode
+        var basePreferences = grant.preferences
+        basePreferences.boostMode = .off
         let profilePreferences = OrefPipeline.profilePreferences(
-            grant.preferences,
+            basePreferences,
             activeTempTarget: inputs.activeTempTarget.flatMap { tempTarget in
                 tempTarget.targetBottom.map { (target: $0, halfBasalTarget: tempTarget.halfBasalTarget) }
             }
@@ -61,7 +65,7 @@ enum UntetheredAlgorithm {
 
         OrefPipeline.prepareForDosing(&profile, supportedBasalRates: inputs.supportedBasalRates, dosingMode: grant.dosingMode)
         let preferences = OrefPipeline.determinationPreferences(
-            grant.preferences,
+            basePreferences,
             dosingMode: grant.dosingMode,
             hasSufficientTDD: inputs.hasSufficientTDD
         )
@@ -89,7 +93,7 @@ enum UntetheredAlgorithm {
             trioCustomOrefVariables: OrefPipeline.customOrefVariables(
                 override: inputs.override,
                 tdd: inputs.tdd,
-                preferences: grant.preferences,
+                preferences: basePreferences,
                 now: now
             ),
             clock: now
