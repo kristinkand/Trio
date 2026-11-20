@@ -51,6 +51,8 @@ extension Stat {
                             algorithmAdjustmentsView
                         case .foodImpact:
                             foodImpactView
+                        case .boost:
+                            boostView
                         case .analysis:
                             SettingsAnalysisView(
                                 units: state.units,
@@ -486,6 +488,41 @@ extension Stat {
                 Image(systemName: "info.circle").foregroundStyle(Color.primary)
                 Text("Shows ISF, Carb Ratio, Autosens Ratio (AF), and basal rate as the algorithm adjusted them over time.")
                     .foregroundStyle(Color.secondary)
+            }.font(.footnote)
+        }
+
+        @ViewBuilder var boostView: some View {
+            Picker("Duration", selection: $state.selectedIntervalForBoostStats) {
+                ForEach(StateModel.StatsTimeIntervalWithToday.allCases, id: \.self) { interval in
+                    Text(interval.displayName)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            StatCard {
+                if state.boostShadowPoints.isEmpty {
+                    ContentUnavailableView(
+                        String(localized: "No Boost Data"),
+                        systemImage: "bolt.badge.clock",
+                        description: Text("With Boost in Shadow or Active, each loop notes what Boost would give; it shows here.")
+                    )
+                } else {
+                    BoostShadowView(
+                        points: state.boostShadowPoints,
+                        loopsWithoutLine: state.boostLoopsWithoutLine,
+                        interval: state.selectedIntervalForBoostStats,
+                        units: state.units,
+                        lowLimit: state.settingsManager.settings.low
+                    )
+                }
+            }
+
+            HStack {
+                Image(systemName: "info.circle").foregroundStyle(Color.primary)
+                Text(
+                    "In Shadow, Boost doesn't dose: its numbers are what it would have given in the same loops. A meal is a run of loops where Boost left IDLE and reached confirmed or committed."
+                )
+                .foregroundStyle(Color.secondary)
             }.font(.footnote)
         }
 

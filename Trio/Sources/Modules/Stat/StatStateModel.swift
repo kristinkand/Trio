@@ -21,6 +21,8 @@ extension Stat {
         var loopStats: [LoopStatsProcessedData] = []
         var groupedLoopStats: [LoopStatsByPeriod] = []
         var algorithmAdjustmentStats: [AlgorithmAdjustmentPoint] = []
+        var boostShadowPoints: [BoostShadowPoint] = []
+        var boostLoopsWithoutLine = 0
         var mealImpactEvents: [MealImpactEvent] = []
         var bolusStats: [BolusStats] = []
         var hourlyStats: [HourlyStats] = []
@@ -83,6 +85,13 @@ extension Stat {
             }
         }
 
+        // Selected Duration for the Boost tab
+        var selectedIntervalForBoostStats: StatsTimeIntervalWithToday = .today {
+            didSet {
+                setupBoostShadowStats()
+            }
+        }
+
         // Selected Glucose Chart Type
         var selectedGlucoseChartType: GlucoseChartType = .percentileByTime
 
@@ -121,6 +130,7 @@ extension Stat {
             setupTDDStats()
             setupBolusStats()
             setupAlgorithmAdjustmentStats()
+            setupBoostShadowStats()
             setupMealStats()
             setupMealImpactStats()
             setupGlucoseDailyStats()
@@ -423,6 +433,8 @@ extension Stat.StateModel {
         case algorithmAdjustments
         /// Food impact statistics -- BG excursion tracked per meal, from prebolus through peak to flattening out
         case foodImpact
+        /// The SMBs Trio gave beside the ones Boost would have given (its Shadow line in each loop's reason)
+        case boost
         /// Settings checks and scenario detection on stored history
         case analysis
 
@@ -448,6 +460,8 @@ extension Stat.StateModel {
                     localized: "Food Impact",
                     comment: "Title for food impact statistics (BG excursion per meal)"
                 )
+            case .boost:
+                return String(localized: "Boost", comment: "Title for the Boost comparison statistics")
             case .analysis:
                 return String(localized: "Analysis", comment: "Title for the settings analysis")
             }

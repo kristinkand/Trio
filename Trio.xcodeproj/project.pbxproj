@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CFF319D0C382E479A336C3D6 /* BoostShadowSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331B38C601001F5C495BBAE6 /* BoostShadowSetup.swift */; };
+		ED3EC115A2C31D179C6B95AB /* BoostShadowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BEA52955EAD718AF92FB65F /* BoostShadowView.swift */; };
 		72DACED0929602AB98C089E9 /* ActivityClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3247963A5E1919B5555E9397 /* ActivityClassifier.swift */; };
 		C858EBA55A0C75B9BBCB39A8 /* ActivityLoadTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E469DC3B11FE76BA04A2CB /* ActivityLoadTracker.swift */; };
 		6CC2FFF2399D69DECAA14C00 /* AggressionBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B919EF759A497F2BD9B847 /* AggressionBudget.swift */; };
@@ -1562,6 +1564,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		331B38C601001F5C495BBAE6 /* BoostShadowSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostShadowSetup.swift; sourceTree = "<group>"; };
+		8BEA52955EAD718AF92FB65F /* BoostShadowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoostShadowView.swift; sourceTree = "<group>"; };
 		4827A4B7DD2D3BFD529DE267 /* TherapyProfileRemoteValuesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TherapyProfileRemoteValuesTests.swift; sourceTree = "<group>"; };
 		1042483A35E77F38E714A9C2 /* TrioRemoteControlProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrioRemoteControlProfileTests.swift; sourceTree = "<group>"; };
 		35347DB1DA2F240DA37B5571 /* TrioRemoteControl+Profile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TrioRemoteControl+Profile.swift"; sourceTree = "<group>"; };
@@ -2958,6 +2962,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		DA3EDBBC4CB9C8A949B90AF9 /* Boost */ = {
+			isa = PBXGroup;
+			children = (
+				8BEA52955EAD718AF92FB65F /* BoostShadowView.swift */,
+			);
+			path = Boost;
+			sourceTree = "<group>";
+		};
 		06BE9D0E89BF55DE94BEC3D7 /* View */ = {
 			isa = PBXGroup;
 			children = (
@@ -4896,6 +4908,7 @@
 				DDCAE9772D79F98600B1BB51 /* Looping */,
 				96FEF429EFC1422CAB1FDBEE /* Algorithm */,
 				F3B7EBAA0AE7B00B037C8943 /* MealImpact */,
+				DA3EDBBC4CB9C8A949B90AF9 /* Boost */,
 				10AF8EE6558343259FAE9483 /* Export */,
 			);
 			path = ViewElements;
@@ -4912,6 +4925,7 @@
 				BD249D9E2D42FD0200412DEB /* StackedChartSetup.swift */,
 				BD249D9A2D42FCD800412DEB /* LoopChartSetup.swift */,
 				E205B40CFD9C4C2192CB17F5 /* AlgorithmAdjustmentsSetup.swift */,
+				331B38C601001F5C495BBAE6 /* BoostShadowSetup.swift */,
 				7A2D51FB2CD566AE269464B4 /* MealImpactSetup.swift */,
 				F1718DA686EA4E8F87B0A729 /* ExportSetup.swift */,
 				C40E9F8C6CEB4A308060A821 /* ReportPresetSetup.swift */,
@@ -7074,6 +7088,8 @@
 				642F76A05A4FF530463A9FD0 /* NightscoutConfigRootView.swift in Sources */,
 				BD249D9B2D42FCDB00412DEB /* LoopChartSetup.swift in Sources */,
 				147B19FE15C04618979716BC /* AlgorithmAdjustmentsSetup.swift in Sources */,
+				CFF319D0C382E479A336C3D6 /* BoostShadowSetup.swift in Sources */,
+				ED3EC115A2C31D179C6B95AB /* BoostShadowView.swift in Sources */,
 				8F2347CB1A39AF9DF67291D6 /* MealImpactSetup.swift in Sources */,
 				BD7DA9AC2AE06EB900601B20 /* BolusCalculatorConfigRootView.swift in Sources */,
 				AD3D2CD42CD01B9EB8F26522 /* PumpConfigDataFlow.swift in Sources */,
