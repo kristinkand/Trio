@@ -20,7 +20,6 @@ extension BolusCalculatorConfig {
         @Published var showTreatmentChart: Bool = true
         @Published var treatmentSheetRows: [TreatmentSheetRow] = TreatmentSheetRow.defaultOrder
         @Published var treatmentSheetPills: [TreatmentSheetPill] = TreatmentSheetPill.defaultPills
-        @Published var podChangeReminderEnabled: Bool = false
         /// Read only here: whether fat and protein can be entered at all (Meal Settings).
         @Published var useFPUconversion: Bool = false
 
@@ -46,11 +45,6 @@ extension BolusCalculatorConfig {
             subscribeSetting(\.showTreatmentChart, on: $showTreatmentChart) { showTreatmentChart = $0 }
             subscribeSetting(\.treatmentSheetRows, on: $treatmentSheetRows) { treatmentSheetRows = $0 }
             subscribeSetting(\.treatmentSheetPills, on: $treatmentSheetPills) { treatmentSheetPills = $0 }
-            subscribeSetting(\.podChangeReminderEnabled, on: $podChangeReminderEnabled) { podChangeReminderEnabled = $0
-            } didSet: { [weak self] enabled in
-                guard enabled, let self else { return }
-                Task { await self.mealTimeReminderService.requestAuthorization() }
-            }
             useFPUconversion = settingsManager.settings.useFPUconversion
         }
     }
