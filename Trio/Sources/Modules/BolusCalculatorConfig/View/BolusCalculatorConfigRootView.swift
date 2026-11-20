@@ -337,8 +337,8 @@ extension TreatmentSheetPill: Transferable {
 }
 
 /// Settings › Treatments › Treatment Sheet: a preview of the sheet to arrange, as for the Live Activity. Drag rows and
-/// pills to move them, drag them up from the lists below to add them, or back down to remove them. Carbs, the
-/// recommendation and the bolus always stay.
+/// pills to move them, drag them up from the lists below to add them, swipe left or drag them back down to remove
+/// them. Carbs, the recommendation and the bolus always stay.
 struct TreatmentSheetConfigView: BaseView {
     let resolver: Resolver
 
@@ -369,7 +369,7 @@ struct TreatmentSheetConfigView: BaseView {
                 HStack(alignment: .top) {
                     Image(systemName: "info.circle")
                     Text(
-                        "Drag a row or pill to move it. Drag one up from the lists below to add it, or drop it back onto a list to remove it. Carbs, Recommendation and Bolus always stay."
+                        "Drag a row or pill to move it, and drag one up from the lists below to add it. Swipe left to remove it, or drop it back onto a list. Carbs, Recommendation and Bolus always stay."
                     )
                 }
                 .font(.footnote)
@@ -428,17 +428,15 @@ struct TreatmentSheetConfigView: BaseView {
                         emptyPillSlot(at: pills.count)
                     }
                 }
-                ZStack(alignment: .topTrailing) {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.cyan.opacity(0.12))
-                        .frame(height: 70)
-                        .overlay(
-                            Label("Forecast Chart", systemImage: "chart.xyaxis.line")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        )
-                    removeBadge(String(localized: "Forecast Chart")) { state.showTreatmentChart = false }
-                }
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.cyan.opacity(0.12))
+                    .frame(height: 70)
+                    .overlay(
+                        Label("Forecast Chart", systemImage: "chart.xyaxis.line")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    )
+                    .swipeToRemove(String(localized: "Forecast Chart")) { state.showTreatmentChart = false }
             }
         } else {
             Button {
@@ -454,18 +452,6 @@ struct TreatmentSheetConfigView: BaseView {
         }
     }
 
-    private func removeBadge(_ title: String, action: @escaping () -> Void) -> some View {
-        Button { withAnimation { action() } } label: {
-            Image(systemName: "trash.circle.fill")
-                .foregroundStyle(Color(UIColor.systemGray2))
-                .background(Circle().fill(Color.white))
-                .font(.title3)
-        }
-        .buttonStyle(.plain)
-        .offset(x: 8, y: -8)
-        .accessibilityLabel(Text("Remove \(title)"))
-    }
-
     private func pillTile(_ pill: TreatmentSheetPill, highlighted: Bool = false) -> some View {
         HStack(spacing: 4) {
             Image(systemName: pill.systemImage)
@@ -479,11 +465,9 @@ struct TreatmentSheetConfigView: BaseView {
     }
 
     private func placedPill(_ pill: TreatmentSheetPill, at index: Int) -> some View {
-        ZStack(alignment: .topTrailing) {
-            pillTile(pill, highlighted: targetedPill == index)
-            removeBadge(pill.title) { _ = removePill(pill) }
-        }
-        .frame(maxWidth: .infinity)
+        pillTile(pill, highlighted: targetedPill == index)
+            .swipeToRemove(pill.title, width: 44, cornerRadius: 8) { _ = removePill(pill) }
+            .frame(maxWidth: .infinity)
         .draggable(pill) { pillTile(pill) }
         .dropDestination(for: TreatmentSheetPill.self) { dropped, _ in
             targetedPill = nil
@@ -556,13 +540,9 @@ struct TreatmentSheetConfigView: BaseView {
     }
 
     private func placedRow(_ row: TreatmentSheetRow, at index: Int) -> some View {
-        ZStack(alignment: .topTrailing) {
-            rowTile(row, highlighted: targetedRow == index)
-            if !row.isRequired {
-                removeBadge(row.title) { _ = removeRow(row) }
-            }
-        }
-        .draggable(row) { rowTile(row).frame(width: 260) }
+        rowTile(row, highlighted: targetedRow == index)
+            .swipeToRemove(row.title, enabled: !row.isRequired) { _ = removeRow(row) }
+            .draggable(row) { rowTile(row).frame(width: 260) }
         .dropDestination(for: TreatmentSheetRow.self) { dropped, _ in
             targetedRow = nil
             guard let dropped = dropped.first else { return false }
@@ -753,5 +733,80 @@ private struct FlowLayout: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
+    }
+}
+
+/// Swipe left to show a red Delete behind a tile, as in a list, in a preview that isn't one; a long swipe removes it at
+/// once. A tile that may not go (`enabled` false) doesn't move.
+private struct SwipeToRemove: ViewModifier {
+    let title: String
+    let enabled: Bool
+    let width: CGFloat
+    let cornerRadius: CGFloat
+    let onRemove: () -> Void
+
+    @State private var offset: CGFloat = 0
+    @State private var isOpen = false
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if enabled {
+            content
+                .offset(x: offset)
+                .background(alignment: .trailing) {
+                    if offset < 0 {
+                        Button(action: remove) {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.white)
+                                .frame(width: min(width, -offset))
+                                .frame(maxHeight: .infinity)
+                                .background(RoundedRectangle(cornerRadius: cornerRadius).fill(Color.red))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHidden(true)
+                    }
+                }
+                // with the scroll view: a vertical drag still scrolls, a sideways one swipes
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 15)
+                        .onChanged { value in
+                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                            offset = min(0, (isOpen ? -width : 0) + value.translation.width)
+                        }
+                        .onEnded { value in
+                            let end = (isOpen ? -width : 0) + value.translation.width
+                            if abs(value.translation.width) > abs(value.translation.height), end < -width * 2.5 {
+                                remove()
+                                return
+                            }
+                            withAnimation(.snappy) {
+                                isOpen = abs(value.translation.width) > abs(value.translation.height) ? end < -width / 2 : isOpen
+                                offset = isOpen ? -width : 0
+                            }
+                        }
+                )
+                .accessibilityAction(named: Text("Remove \(title)")) { remove() }
+        } else {
+            content
+        }
+    }
+
+    private func remove() {
+        withAnimation {
+            offset = 0
+            isOpen = false
+            onRemove()
+        }
+    }
+}
+
+private extension View {
+    func swipeToRemove(
+        _ title: String,
+        enabled: Bool = true,
+        width: CGFloat = 76,
+        cornerRadius: CGFloat = 10,
+        onRemove: @escaping () -> Void
+    ) -> some View {
+        modifier(SwipeToRemove(title: title, enabled: enabled, width: width, cornerRadius: cornerRadius, onRemove: onRemove))
     }
 }
