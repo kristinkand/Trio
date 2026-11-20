@@ -165,6 +165,18 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     private var lastHandledForeignSessionAt: Date?
     private let assembler = UntetheredChunks.Assembler()
     private var endRequestTimer: Timer?
+    /// When the phone first asked the watch to hand the pump back, for the session with that epoch. Kept across launches,
+    /// as iOS can restart Trio on the phone while it waits for the answer.
+    private static let handbackAskedKey = "untethered.handbackAskedAt"
+    /// When the phone last reached for the pod itself during this hand-back.
+    private var lastHandbackTakeBack: Date?
+    /// Third tester (19 November): the watch, out of reach, let go of the pod a few minutes after the hand-back request,
+    /// but its answer reached the phone 18 minutes later, and neither looped meanwhile. Once the hand-back has been asked
+    /// for this long, and nothing has come from the watch for this long either, the phone reaches for the pod itself, as
+    /// Take Back the Pump Now does. A watch still sending messages is still handing back and is left to finish.
+    private static let handbackSilence: TimeInterval = 6 * 60
+    /// Between two reaches for the pod while the hand-back stays unanswered.
+    private static let handbackRetry: TimeInterval = 4 * 60
     /// How long a normal hand-back waits for the watch's last records before the audit judges the pump.
     private static let historyWait: TimeInterval = 60
     /// Between reads of a returned pump: each read already waits for the link (20 s, 45 s with the eager connect).
@@ -341,8 +353,6 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     private var watchSilenceNotifiedFor: Date?
     /// The silence the watch was asked about: once per silence. Kept until its answer or the session's end.
     private var watchSilenceAskedFor: Date?
-    /// When End asked the watch to hand the pump back (`end`).
-    private var handbackAskedAt: Date?
     /// First the watch is asked whether it still holds the pump; a watch that answers it doesn't is relieved at once.
     private static let watchSilenceAskAfter: TimeInterval = 6 * 60
     private static let watchSilenceAfter: TimeInterval = 20 * 60
@@ -368,18 +378,6 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         let now = Date()
         if watchInChargeSince == nil { watchInChargeSince = now }
-        // End asked for the pump and nothing has come from the watch since: it may have let go long ago with its answer
-        // still queued (19 November, third tester: the watch let go a few minutes after the request, the phone heard
-        // 18 minutes later, and nobody looped in between). After 6 minutes the phone reaches for the pod itself, as
-        // Take Pump Back does; a pod it can't reach leaves the watch dosing, and the next reading tries again.
-        if state.session.phase != .ending { handbackAskedAt = nil }
-        if let asked = handbackAskedAt, now.timeIntervalSince(asked) >= Self.watchSilenceAskAfter,
-           (WatchAppPresence.lastHeard ?? .distantPast) < asked, !isReachingPod
-        {
-            debug(.watch, "Untethered: hand-back asked \(Int(now.timeIntervalSince(asked) / 60)) min ago, nothing from the watch since: taking the pump back")
-            await forceTakeBack()
-            return
-        }
         guard let own = PhoneOwnGlucose.newest, now.timeIntervalSince(own) < Self.phoneNearWithin,
               let reference = [WatchAppPresence.lastHeard, watchInChargeSince].compactMap({ $0 }).max()
         else { return }
@@ -711,7 +709,6 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             )
         }
         await apply(.end)
-        if state.session.phase == .ending { handbackAskedAt = Date() }
         // a watch app the system has suspended isn't reachable, and the request (repeated every 30 s) only got through
         // once Trio was in front on the watch (1 November, 11:44 to 11:45:47). Queued as well, it reaches the watch
         // at its next wake, e.g. the next loop.
@@ -1110,6 +1107,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             endAnswerWait()
         }
         if phase == .ending {
+            noteHandbackAsked()
             // repeated until the watch hands back; it may be reachable without a reachability change
             if endRequestTimer == nil {
                 send(.endRequest, epoch: state.session.epoch)
@@ -1121,6 +1119,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         } else {
             endRequestTimer?.invalidate()
             endRequestTimer = nil
+            clearHandbackAsked()
         }
         Task { await scheduleLinkedOverrideCheck() }
     }
@@ -1136,8 +1135,54 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     /// the front gives it its tick as well.
     @MainActor private func tickWhileWaiting() async {
         let phase = state.session.phase
+        if phase == .ending {
+            await takeBackIfHandbackUnanswered()
+            return
+        }
         guard phase == .preparing || phase == .starting else { return }
         await apply(.tick)
+    }
+
+    /// When this session's hand-back was first asked for; nil when none was, or for another session.
+    private var handbackAskedAt: Date? {
+        guard let saved = UserDefaults.standard.dictionary(forKey: Self.handbackAskedKey),
+              saved["epoch"] as? Int == state.session.epoch,
+              let at = saved["at"] as? Double
+        else { return nil }
+        return Date(timeIntervalSince1970: at)
+    }
+
+    private func noteHandbackAsked() {
+        guard handbackAskedAt == nil else { return }
+        UserDefaults.standard.set(
+            ["epoch": state.session.epoch, "at": Date().timeIntervalSince1970],
+            forKey: Self.handbackAskedKey
+        )
+    }
+
+    private func clearHandbackAsked() {
+        lastHandbackTakeBack = nil
+        // a locked state reads as idle: the saved time stays until the real state can be read
+        guard !UntetheredGate.isLocked, UserDefaults.standard.object(forKey: Self.handbackAskedKey) != nil else { return }
+        UserDefaults.standard.removeObject(forKey: Self.handbackAskedKey)
+    }
+
+    /// The hand-back was asked for at least `handbackSilence` ago and nothing has come from the watch for as long: the
+    /// phone reaches for the pod itself (`forceTakeBack`), which takes it only with a pod link and otherwise leaves the
+    /// watch running; a later reading tries again, at most every `handbackRetry`.
+    @MainActor private func takeBackIfHandbackUnanswered() async {
+        guard state.session.phase == .ending, let asked = handbackAskedAt, !isReachingPod else { return }
+        let now = Date()
+        let quietSince = max(asked, WatchAppPresence.lastHeard ?? .distantPast)
+        guard now.timeIntervalSince(quietSince) >= Self.handbackSilence,
+              now.timeIntervalSince(lastHandbackTakeBack ?? .distantPast) >= Self.handbackRetry
+        else { return }
+        lastHandbackTakeBack = now
+        info(
+            .watch,
+            "Untethered: hand-back asked \(Int(now.timeIntervalSince(asked) / 60)) min ago, nothing from the watch for \(Int(now.timeIntervalSince(quietSince) / 60)) min: the phone reaches for the pod itself"
+        )
+        await forceTakeBack()
     }
 
     /// A refused pod command exposes the watch's newer EAP session before WatchConnectivity
