@@ -417,10 +417,27 @@ extension UntetheredWatchManager {
     private func readPodAheadOfNextWake(_ pump: PumpManager) async {
         guard WKApplication.shared().applicationState != .active, !loopHoldExpired, mayDose,
               let omnipod = pump as? OmniPumpManager else { return }
+        // Only early in the wake: pod messages past ~10 s from the sensor's link-up are the ones that count toward the
+        // watchOS limit (19 November), and a read started late can be cut off half-way when the wake ends. Without a
+        // link-up time (a wake the sensor didn't start) it isn't known how late it is: no read either.
+        let sinceLinkUp = sensorLinkUpAt.map { Date().timeIntervalSince($0) }
+        guard let sinceLinkUp, sinceLinkUp < Self.quietWakeReadWithin else {
+            Task {
+                await WatchLogger.shared.log(String(
+                    format: "⌚️ Untethered: no pod read ahead of the next wake, %@ into the wake",
+                    sinceLinkUp.map { String(format: "%.1f s", $0) } ?? "unknown"
+                ))
+            }
+            return
+        }
         _ = await withCheckedContinuation { (continuation: CheckedContinuation<Date?, Never>) in
             omnipod.readStatusIfOlder(than: 2 * 60) { continuation.resume(returning: $0) }
         }
     }
+
+    /// The latest point in a wake, from the sensor's link-up, at which a quiet wake still reads the pod: about 2 s of the
+    /// ~10 s watchOS gives before pod messages count toward its limit, enough for a status read over a link that is up.
+    static let quietWakeReadWithin: TimeInterval = 8
 
     /// Test (19 November): the pod read at the sensor's link-up instead of after the reading, about 1.5 s earlier in
     /// the ~10 s of Bluetooth watchOS gives a background wake. The loop of that reading takes its result.
