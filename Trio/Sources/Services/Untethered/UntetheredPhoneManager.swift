@@ -341,6 +341,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     private var watchSilenceNotifiedFor: Date?
     /// The silence the watch was asked about: once per silence. Kept until its answer or the session's end.
     private var watchSilenceAskedFor: Date?
+    /// When End asked the watch to hand the pump back (`end`).
+    private var handbackAskedAt: Date?
     /// First the watch is asked whether it still holds the pump; a watch that answers it doesn't is relieved at once.
     private static let watchSilenceAskAfter: TimeInterval = 6 * 60
     private static let watchSilenceAfter: TimeInterval = 20 * 60
@@ -366,6 +368,18 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         }
         let now = Date()
         if watchInChargeSince == nil { watchInChargeSince = now }
+        // End asked for the pump and nothing has come from the watch since: it may have let go long ago with its answer
+        // still queued (19 November, third tester: the watch let go a few minutes after the request, the phone heard
+        // 18 minutes later, and nobody looped in between). After 6 minutes the phone reaches for the pod itself, as
+        // Take Pump Back does; a pod it can't reach leaves the watch dosing, and the next reading tries again.
+        if state.session.phase != .ending { handbackAskedAt = nil }
+        if let asked = handbackAskedAt, now.timeIntervalSince(asked) >= Self.watchSilenceAskAfter,
+           (WatchAppPresence.lastHeard ?? .distantPast) < asked, !isReachingPod
+        {
+            debug(.watch, "Untethered: hand-back asked \(Int(now.timeIntervalSince(asked) / 60)) min ago, nothing from the watch since: taking the pump back")
+            await forceTakeBack()
+            return
+        }
         guard let own = PhoneOwnGlucose.newest, now.timeIntervalSince(own) < Self.phoneNearWithin,
               let reference = [WatchAppPresence.lastHeard, watchInChargeSince].compactMap({ $0 }).max()
         else { return }
@@ -697,6 +711,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             )
         }
         await apply(.end)
+        if state.session.phase == .ending { handbackAskedAt = Date() }
         // a watch app the system has suspended isn't reachable, and the request (repeated every 30 s) only got through
         // once Trio was in front on the watch (1 November, 11:44 to 11:45:47). Queued as well, it reaches the watch
         // at its next wake, e.g. the next loop.
