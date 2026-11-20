@@ -1,4 +1,5 @@
 import Foundation
+import OmnipodKit
 import HealthKit
 import LoopKit
 import SwiftUI
@@ -403,8 +404,22 @@ extension UntetheredWatchManager {
             }
             smbDeferredAt = nil
             try await pump.enactBolus(units: units.nearestDouble, automatic: true)
+            return true
         }
+        if !sentTemp { await readPodAheadOfNextWake(pump) }
         return true
+    }
+
+    /// Test (20 November, first tester): a background wake that sends the pod nothing skips the pod read (its data
+    /// is under 6 minutes old), so the next wake's is 10 minutes old; when that wake changes the temp basal it needs a
+    /// read, a cancel and the new temp, 6 pod messages, and each such wake added 14 or 15 to the watchOS count that
+    /// cuts all of Trio's links near 200. Wakes of 2 or 4 messages added nothing. The quiet wake reads instead.
+    private func readPodAheadOfNextWake(_ pump: PumpManager) async {
+        guard WKApplication.shared().applicationState != .active, !loopHoldExpired, mayDose,
+              let omnipod = pump as? OmniPumpManager else { return }
+        _ = await withCheckedContinuation { (continuation: CheckedContinuation<Date?, Never>) in
+            omnipod.readStatusIfOlder(than: 2 * 60) { continuation.resume(returning: $0) }
+        }
     }
 
     /// Test (19 November): the pod read at the sensor's link-up instead of after the reading, about 1.5 s earlier in
