@@ -88,6 +88,11 @@ import WatchKit
     @ObservationIgnored var fallbackHandbackHeldLoggedAt: Date?
     /// This stall's request to the phone to take the pump back.
     @ObservationIgnored var handbackRequestedAt: Date?
+    /// When the sensor's link last came up (G7SensorKit's "[g7-watch] link up" log line): how far into a background wake
+    /// the loop is.
+    @ObservationIgnored var sensorLinkUpAt: Date?
+    /// When an SMB last waited for the next reading (`enact`): never twice in a row.
+    @ObservationIgnored var smbDeferredAt: Date?
     /// How many Pod Not Reachable notices this stall has brought; from the second on the watch vibrates harder.
     @ObservationIgnored var podLinkNoticeCount = 0
     /// The session pod's background links cut from the watch's own side right after connecting, newest last

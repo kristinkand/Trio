@@ -1,6 +1,7 @@
 import Foundation
 import HealthKit
 import LoopKit
+import OmnipodKit
 import SwiftUI
 import UserNotifications
 import WatchConnectivity
@@ -284,18 +285,53 @@ extension UntetheredWatchManager {
         // a pod command watchOS can freeze half-way is what leaves the pod link stuck (2026-10-19 08:09,
         // 2026-10-20 02:25 and 12:11): none starts once the loop has no background time left
         guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
+        var sentTemp = false
         if let rate = determination.rate, let duration = determination.duration {
             try await pump.enactTempBasal(
                 unitsPerHour: rate.nearestDouble,
                 for: TimeInterval(truncating: duration as NSNumber) * 60
             )
+            sentTemp = true
         }
         // as the phone: no SMB on top of a bolus still running, e.g. the meal bolus just started
         if data.grant?.dosingMode == dosingMode, let units = determination.units, units > 0,
            pump.status.bolusState == .noBolus
         {
             guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
+            // 19–20 November: pod messages late in a background wake count toward a watchOS limit that cuts all of
+            // Trio's Bluetooth links near 200. After a temp basal late in the wake, the SMB waits for the next reading,
+            // which works it out again; only once in a row, so no SMB waits longer than one reading.
+            let sinceLinkUp = sensorLinkUpAt.map { Date().timeIntervalSince($0) } ?? .infinity
+            let deferredLast = smbDeferredAt.map { Date().timeIntervalSince($0) < 8 * 60 } ?? false
+            if sentTemp, !deferredLast, sinceLinkUp > 5, sinceLinkUp < 60,
+               WKApplication.shared().applicationState != .active
+            {
+                smbDeferredAt = Date()
+                Task {
+                    await WatchLogger.shared.log(
+                        String(format: "⌚️ Untethered: SMB %@ U left for the next reading, %.1f s into the wake", "\(units)", sinceLinkUp),
+                        force: true
+                    )
+                }
+                return
+            }
+            smbDeferredAt = nil
             try await pump.enactBolus(units: units.nearestDouble, automatic: true)
+            return
+        }
+        if !sentTemp { await readPodAheadOfNextWake(pump) }
+    }
+
+    /// 20 November (first tester): a background wake that sends the pod nothing skips the pod read (its data is under
+    /// 6 minutes old), so the next wake's is 10 minutes old; when that wake changes the temp basal it needs a read, a
+    /// cancel and the new temp, 6 pod messages, and each such wake added 14 or 15 to the watchOS count that cuts all of
+    /// Trio's links near 200. Wakes of 2 or 4 messages added nothing. The quiet wake reads instead, however late in the
+    /// wake (overnight 20–21 November: 1 of 18 reads after 8 s added to the count).
+    private func readPodAheadOfNextWake(_ pump: PumpManager) async {
+        guard WKApplication.shared().applicationState != .active, !loopHoldExpired, data.session.phase == .active,
+              let omnipod = pump as? OmniPumpManager else { return }
+        _ = await withCheckedContinuation { (continuation: CheckedContinuation<Date?, Never>) in
+            omnipod.readStatusIfOlder(than: 2 * 60) { continuation.resume(returning: $0) }
         }
     }
 
@@ -1292,6 +1328,11 @@ extension UntetheredWatchManager: PumpManagerDelegate {
             Task { await WatchLogger.shared.log(look ? "⌚️ Device (look): \(message)" : "⌚️ Device: \(message)", force: look) }
         }
         DispatchQueue.main.async { self.noteSensorPairingEvent(message) }
+        // ponytail: matched on G7SensorKit's log line, the only place the watch hears of the sensor's link-up
+        if message.hasPrefix("[g7-watch] link up") {
+            let at = Date()
+            DispatchQueue.main.async { self.sensorLinkUpAt = at }
+        }
         // ponytail: matched on OmnipodKit's disconnect line, as the sensor's link errors above; a link OmnipodKit
         // didn't end itself ("no reason recorded") and nothing from the pod either: watchOS ended it
         if isSessionPump(manager as AnyObject) {
