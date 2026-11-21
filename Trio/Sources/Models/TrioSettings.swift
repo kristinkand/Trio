@@ -107,6 +107,9 @@ struct TrioSettings: JSON, Equatable, Encodable {
     var treatmentSheetRows: [TreatmentSheetRow] = TreatmentSheetRow.defaultOrder
     /// "Change pump!" alarm when the pod is 2 days 6 hours old (Settings › Treatments › Bolus Calculator).
     var podChangeReminderEnabled: Bool = false
+    /// A bolus once a new pod runs (`PodChangeBolus`), of `podChangeBolusUnits`.
+    var podChangeBolusEnabled: Bool = false
+    var podChangeBolusUnits: Decimal = 0.3
     var confirmBolus: Bool = false
     var enableQuickPickTreatments: Bool = false
     var useLiveActivity: Bool = false
@@ -462,6 +465,14 @@ extension TrioSettings: Decodable {
 
         if let value = try? container.decode(Bool.self, forKey: .podChangeReminderEnabled) {
             settings.podChangeReminderEnabled = value
+        }
+
+        if let value = try? container.decode(Bool.self, forKey: .podChangeBolusEnabled) {
+            settings.podChangeBolusEnabled = value
+        }
+
+        if let value = try? container.decode(Decimal.self, forKey: .podChangeBolusUnits) {
+            settings.podChangeBolusUnits = min(max(value, 0.1), 0.5)
         }
 
         if let confirmBolus = try? container.decode(Bool.self, forKey: .confirmBolus) {

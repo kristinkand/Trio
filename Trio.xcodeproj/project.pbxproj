@@ -1383,6 +1383,7 @@
 		FE66D16B291F74F8005D6F77 /* Bundle+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE66D16A291F74F8005D6F77 /* Bundle+Extensions.swift */; };
 		FEFFA7A22929FE49007B8193 /* UIDevice+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEFFA7A12929FE49007B8193 /* UIDevice+Extensions.swift */; };
 		786AEA38261B1A85BBF6DF40 /* MealTimeReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59AA573CCF9E6C80F1E42E2 /* MealTimeReminderService.swift */; };
+		705A2C8F2CCE608DF2D19D97 /* PodChangeBolus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A088DEBE226F2CA96FC4F52 /* PodChangeBolus.swift */; };
 		AF37EDA0081ADB3C8ECAA4D5 /* MealTimeReminderMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = C898B01F40421A1F8CF9F5F9 /* MealTimeReminderMetadata.swift */; };
 		F758303C08A2C69318A7A5BF /* MealTimeReminderMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = C898B01F40421A1F8CF9F5F9 /* MealTimeReminderMetadata.swift */; };
 		D7C0FFEE0000000000000002 /* AlgorithmState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C0FFEE0000000000000001 /* AlgorithmState.swift */; };
@@ -2787,6 +2788,7 @@
 		FEFFA7A12929FE49007B8193 /* UIDevice+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIDevice+Extensions.swift"; sourceTree = "<group>"; };
 		C898B01F40421A1F8CF9F5F9 /* MealTimeReminderMetadata.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealTimeReminderMetadata.swift; sourceTree = "<group>"; };
 		F59AA573CCF9E6C80F1E42E2 /* MealTimeReminderService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealTimeReminderService.swift; sourceTree = "<group>"; };
+		2A088DEBE226F2CA96FC4F52 /* PodChangeBolus.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PodChangeBolus.swift; sourceTree = "<group>"; };
 		D7C0FFEE0000000000000001 /* AlgorithmState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AlgorithmState.swift"; sourceTree = "<group>"; };
 		D7C0FFEE0000000000000003 /* AuthChallengeRxMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthChallengeRxMessage.swift"; sourceTree = "<group>"; };
 		D7C0FFEE0000000000000005 /* BluetoothServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BluetoothServices.swift"; sourceTree = "<group>"; };
@@ -6044,6 +6046,7 @@
 			isa = PBXGroup;
 			children = (
 				F59AA573CCF9E6C80F1E42E2 /* MealTimeReminderService.swift */,
+				2A088DEBE226F2CA96FC4F52 /* PodChangeBolus.swift */,
 			);
 			path = MealTimeReminder;
 			sourceTree = "<group>";
@@ -7301,6 +7304,7 @@
 				8B74AA51DC49429FB9F19159 /* LiveActivitySimpleWidgetConfiguration.swift in Sources */,
 				F758303C08A2C69318A7A5BF /* MealTimeReminderMetadata.swift in Sources */,
 				786AEA38261B1A85BBF6DF40 /* MealTimeReminderService.swift in Sources */,
+				705A2C8F2CCE608DF2D19D97 /* PodChangeBolus.swift in Sources */,
 				195D80B92AF697F700D25097 /* DynamicSettingsProvider.swift in Sources */,
 				DD3F1F832D9DC78800DCE7B3 /* UnitSelectionStepView.swift in Sources */,
 				DD09D47D2C5986DA003FEA5D /* CalendarEventSettingsProvider.swift in Sources */,

@@ -81,6 +81,22 @@ extension PumpConfig {
                     }
                 ).listRowBackground(Color.chart)
 
+                Section(
+                    header: Text("After a Pod Change"),
+                    footer: Text(
+                        "Once on, Trio gives this bolus after every pod change, as soon as the new pod runs. Not below 5.0 mmol/L (90 mg/dL), nor without a glucose reading from the last 15 minutes; a notification says when it was given or skipped. It counts in IOB like any bolus."
+                    )
+                ) {
+                    Toggle("Bolus After a Pod Change", isOn: $state.podChangeBolusEnabled)
+                    if state.podChangeBolusEnabled {
+                        Picker("Amount", selection: $state.podChangeBolusUnits) {
+                            ForEach(StateModel.podChangeBolusChoices, id: \.self) { units in
+                                Text("\(units.formatted(.number.precision(.fractionLength(2)))) U").tag(units)
+                            }
+                        }
+                    }
+                }.listRowBackground(Color.chart)
+
                 if state.pumpState != nil, state.provider?.apsManager?.pumpManager != nil {
                     Section {
                         LogShareRow(

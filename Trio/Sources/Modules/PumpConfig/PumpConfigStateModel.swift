@@ -12,8 +12,16 @@ extension PumpConfig {
         private(set) var initialSettings: PumpInitialSettings = .default
         @Injected() var bluetoothManager: BluetoothStateManager!
         @Injected() var logExport: LogExport!
+        @Published var podChangeBolusEnabled: Bool = false
+        @Published var podChangeBolusUnits: Decimal = 0.3
+        static let podChangeBolusChoices: [Decimal] = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
 
         override func subscribe() {
+            subscribeSetting(\.podChangeBolusEnabled, on: $podChangeBolusEnabled) { podChangeBolusEnabled = $0
+            } didSet: { enabled in
+                PodChangeBolus.noteEnabled(enabled)
+            }
+            subscribeSetting(\.podChangeBolusUnits, on: $podChangeBolusUnits) { podChangeBolusUnits = $0 }
             provider.pumpDisplayState
                 .receive(on: DispatchQueue.main)
                 .assign(to: \.pumpState, on: self)

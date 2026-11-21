@@ -545,6 +545,13 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
                     activatedAt: startTime,
                     enabled: settingsManager.settings.podChangeReminderEnabled
                 )
+                PodChangeBolus.check(
+                    activatedAt: startTime,
+                    status: omni.status,
+                    enabled: settingsManager.settings.podChangeBolusEnabled,
+                    units: settingsManager.settings.podChangeBolusUnits,
+                    apsManager: resolver?.resolve(APSManager.self)
+                )
             }
         }
 
