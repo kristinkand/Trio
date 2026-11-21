@@ -71,12 +71,22 @@ extension UntetheredWatchManager {
                 if self.podFrontTry == .pending { self.retryPodInFront() }
                 self.endLoopHold(releaseHold)
             }
-            // the pod only once the sensor's link is closed (see `waitForSensorQuiet`)
+            // The pod at once after the reading, while the sensor's link and its wake are still up, as Jeremy Barnum's
+            // Sport Mode does (first tester's branch since 19 November): waiting for the sensor's link to close made every
+            // background pod connection a new one, late in the wake. After a gap in the watch's loops (one missed reading
+            // or more) it still waits, which gives a take-back the phone sent meanwhile time to arrive first (second
+            // tester, 21 November: back from 18 min out of reach, the watch reached the pod seconds before it).
             if trigger == .newGlucose {
-                await self.waitForSensorQuiet()
-                Self.trace("sensor link quiet, to the pod")
-                // the session may have ended meanwhile (2026-10-23 08:25:46: a loop ran on after the hand-back)
-                guard self.isActive else { return }
+                let lastLoop = data.lastLoopDate ?? .distantPast
+                if Date().timeIntervalSince(lastLoop) < 11 * 60 {
+                    let sensorLink = watchCGMIsConnected(self.cgmManager) ? "still open" : "closed"
+                    Task { await WatchLogger.shared.log("⌚️ Untethered: pod at once after the reading (sensor link \(sensorLink))") }
+                } else {
+                    await self.waitForSensorQuiet()
+                    Self.trace("sensor link quiet, to the pod")
+                    // the session may have ended meanwhile (2026-10-23 08:25:46: a loop ran on after the hand-back)
+                    guard self.isActive else { return }
+                }
             }
             // the pod read is a pod command too: none without background time left (see `enact`)
             var explained = true
