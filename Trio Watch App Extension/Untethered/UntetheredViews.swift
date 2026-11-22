@@ -899,15 +899,16 @@ struct UntetheredGlanceView: View {
 
     // MARK: - Layout
 
-    private static let rowHeight: CGFloat = 36
+    private static let rowHeight: CGFloat = 28
     private static let hintHeight: CGFloat = 12
     /// The large glucose with its time and delta, above the chart.
-    private static let glucoseHeaderHeight: CGFloat = 40
+    private static let glucoseHeaderHeight: CGFloat = 32
 
     private func rowHeight(_ index: Int) -> CGFloat {
         state.glanceLayout.row(index).allSatisfy { $0.item == nil } ? 0 : Self.rowHeight
     }
 
+    /// Rows, header and hint kept small: the room goes to the chart (22 November).
     /// The middle's height worked out from the screen's, not left to the layout: given only the room left, the chart
     /// still came out as a thin strip (17 and 22 November, Extended Mode).
     private func middleHeight(screen: CGFloat) -> CGFloat {
@@ -941,7 +942,7 @@ struct UntetheredGlanceView: View {
                 .frame(height: height)
         case .glucoseChart:
             VStack(spacing: 0) {
-                glucose(size: 30, now: now)
+                glucose(size: 24, now: now)
                     .frame(height: Self.glucoseHeaderHeight)
                 chart
                     .frame(height: max(30, height - Self.glucoseHeaderHeight))
@@ -999,7 +1000,7 @@ struct UntetheredGlanceView: View {
                         Text(delta).foregroundStyle(Self.dim)
                     }
                 }
-                .font(.footnote.weight(.semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .monospacedDigit()
             }
         }
@@ -1011,7 +1012,7 @@ struct UntetheredGlanceView: View {
             ForEach(item.parts, id: \.self) { part in
                 VStack(spacing: 0) {
                     value(part, now: now)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
@@ -1023,7 +1024,7 @@ struct UntetheredGlanceView: View {
                             Text(part.label.uppercased())
                         }
                     }
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 8, weight: .medium))
                     .kerning(0.6)
                     .foregroundStyle(Self.dim)
                     .lineLimit(1)
@@ -1043,7 +1044,7 @@ struct UntetheredGlanceView: View {
         case .loop:
             let age = data.lastLoopDate.map { now.timeIntervalSince($0) }
             HStack(spacing: 3) {
-                Circle().stroke(loopColor(age), lineWidth: 2.5).frame(width: 12, height: 12)
+                Circle().stroke(loopColor(age), lineWidth: 2).frame(width: 10, height: 10)
                 Text(age.map { "\(Int($0 / 60))m" } ?? "--")
             }
         case .iob:
