@@ -397,9 +397,11 @@ extension UntetheredWatchManager {
             // Test (19 November): pod messages past ~10 s from the sensor's link-up count toward a watchOS limit that
             // cuts all of Trio's links near 200. After a temp basal late in a background wake, the SMB waits for the
             // next reading, which works it out again; only once in a row, so no SMB waits longer than one reading.
+            // Not in Extended Mode: with the workout running that limit doesn't apply (second tester, 23 November:
+            // 15 SMBs waited although the pod was ready 3–4 s after the sensor).
             let sinceLinkUp = sensorLinkUpAt.map { Date().timeIntervalSince($0) } ?? .infinity
             let deferredLast = smbDeferredAt.map { Date().timeIntervalSince($0) < 8 * 60 } ?? false
-            if sentTemp, !deferredLast, sinceLinkUp > 5, sinceLinkUp < 60,
+            if sentTemp, !deferredLast, !isKeptAwake, sinceLinkUp > 5, sinceLinkUp < 60,
                WKApplication.shared().applicationState != .active
             {
                 smbDeferredAt = Date()
