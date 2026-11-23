@@ -189,7 +189,7 @@ jobs:
   build:
     name: Build
     needs: [check_certs, check_status]
-    runs-on: macos-26  # xcode-27 crowded since nightscout/Trio moved there (#1804, 2026-11-23)
+    runs-on: xcode-27  # the macos-26 queue left builds waiting and failing (2026-10-21); LoopFollow's pool
     permissions:
       contents: write
     if:
