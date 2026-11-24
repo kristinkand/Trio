@@ -1262,6 +1262,7 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             if let readiness = userInfo[WatchMessageKeys.watchReadiness] as? [String: Any] {
                 WatchReadiness.store(readiness)
                 if let counter = readiness["podCounter"] as? String { untethered.acceptWatchPodCounter(counter) }
+                untethered.letWatchMeetPodIfNeeded()
             }
             return
         }
