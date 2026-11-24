@@ -1624,7 +1624,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         var attempts = 0
         var bannerShown = false
         while state.pumpReturnPending, !state.podEndedOnWatch, !podChanged(since: returningPod),
-              !(await odometer.refreshDeliveredUnits())
+              await odometer.refreshDeliveredUnits() == false
         {
             attempts += 1
             debug(.watch, "Untethered: the pump did not answer yet (attempt \(attempts)), retrying")
