@@ -18,17 +18,18 @@ struct LiveActivityIOBLabelWatchView: View {
         // No stack on purpose: the texts must be direct children of the row's HStack in LiveActivityView,
         // a nested stack changes how that row divides its width. Only place inside an HStack, without modifiers.
         Group {
-            Text(bolusFormatter.string(from: additionalState.iob as NSNumber) ?? "--")
+            // watch mode: the phone's insulin on board lags the watch's doses (c215)
+            Text(context.state.watchMode == true ? "--" : bolusFormatter.string(from: additionalState.iob as NSNumber) ?? "--")
                 .font(.callout)
-                .foregroundStyle(context.isStale ? .secondary : glucoseColor)
-                .strikethrough(context.isStale, pattern: .solid, color: .red.opacity(0.6))
+                .foregroundStyle(context.isStale || context.state.watchMode == true ? .secondary : glucoseColor)
+                .strikethrough(context.isStale && context.state.watchMode != true, pattern: .solid, color: .red.opacity(0.6))
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
 
             Text(String(localized: "U", comment: "Insulin unit"))
                 .font(.callout)
-                .foregroundStyle(context.isStale ? .secondary : glucoseColor)
-                .strikethrough(context.isStale, pattern: .solid, color: .red.opacity(0.6))
+                .foregroundStyle(context.isStale || context.state.watchMode == true ? .secondary : glucoseColor)
+                .strikethrough(context.isStale && context.state.watchMode != true, pattern: .solid, color: .red.opacity(0.6))
         }
     }
 }
