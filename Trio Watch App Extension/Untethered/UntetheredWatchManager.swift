@@ -86,16 +86,14 @@ import WatchKit
     @ObservationIgnored var startCopyIssuedAt: Date?
     /// watchOS ended the running loop's background time: it starts no further pod command.
     @ObservationIgnored var loopHoldExpired = false
-    /// When the sensor's link last came up: a background wake has about 10 s of Bluetooth from then; pod messages
-    /// after that count toward a watchOS limit that cuts all of Trio's links (sysdiagnose, 19 November).
+    /// When the sensor's link last came up (the running-temp skip and the Bluetooth hold go by it). The watchOS count
+    /// itself goes by each pod connection, not by this (24 November, `freshPodLink`).
     @ObservationIgnored var sensorLinkUpAt: Date?
     /// The newest reading the watch took from the sensor itself in watch mode (`cgmManager(_:hasNew:)`), for the
     /// sensor details' "Watch BG": in watch mode the sensor's readings come through G7SensorKit, not the watch's reader.
     var ownSessionReadingDate: Date?
     /// The pod read started at the sensor's link-up, for the loop of that reading (`prefetchPodData`).
     @ObservationIgnored var podPrefetch: (task: Task<Date?, Never>, at: Date)?
-    /// An SMB left for the next reading late in a wake: the next one goes, however late (`enact`).
-    @ObservationIgnored var smbDeferredAt: Date?
     /// A treatment came in while a loop ran; its determination follows.
     @ObservationIgnored var isDeterminationPending = false
     /// A mode changed while a loop ran; its constrained determination and enactment follow.
