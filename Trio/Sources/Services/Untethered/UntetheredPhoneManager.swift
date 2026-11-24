@@ -399,6 +399,28 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         return missing.isEmpty ? .ready : .missing(missing)
     }
 
+    /// While the watch hasn't met the current pod (its last report is of an older pod's copy), the iPhone doesn't hold
+    /// the pod's link open between commands, not even with Trio in front: a connected pod doesn't advertise, so the
+    /// watch's look can't find it. 24 November, second tester: after a pod change the iPhone held the new pod for
+    /// 6.5 min and the watch looked three times for 41 s without finding it; at Start the iPhone let go and the watch
+    /// found it at once. Called when the watch reports and when a copy goes out; a watch that never reported changes
+    /// nothing.
+    func letWatchMeetPodIfNeeded() {
+        guard let pump = apsManager.pumpManager as? OmniPumpManager, let activated = pump.state.podState?.activatedAt,
+              let report = WatchReadiness.latest
+        else { return }
+        let met = report.podKnown && (report.grantIssuedAt ?? .distantPast) >= activated
+        let letGo = isEnabled && settingsManager.settings.allowUntetheredStartWithoutPhoneWatch && !isWatchInCharge && !met
+        if letGo != lettingWatchMeetPod {
+            debug(.watch, letGo ? "Untethered: the watch hasn't met this pod yet — the iPhone leaves its link free" :
+                "Untethered: the watch knows this pod — the iPhone's link as usual")
+            lettingWatchMeetPod = letGo
+        }
+        pump.setLetsPartnerMeetPod(letGo)
+    }
+
+    private var lettingWatchMeetPod = false
+
     /// The session counter the watch left on the pod when it met it: the iPhone takes a resync to it as the watch's,
     /// not another controller's. Only while the iPhone has the pump, and only for its pod (OmnipodKit checks).
     func acceptWatchPodCounter(_ counter: String) {
@@ -743,6 +765,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         standingGrantFingerprint = fingerprint
         standingGrantSentAt = now
         debug(.watch, "Untethered: standing grant sent")
+        letWatchMeetPodIfNeeded()
     }
 
     /// The start reads the pump before it offers it: the toggle shows a spinner meanwhile.
