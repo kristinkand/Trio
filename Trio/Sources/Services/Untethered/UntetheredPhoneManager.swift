@@ -406,8 +406,10 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     /// found it at once. Called when the watch reports and when a copy goes out; a watch that never reported changes
     /// nothing.
     func letWatchMeetPodIfNeeded() {
+        // a report from while the watch had the pump names no standing grant, so it says nothing about the pod
+        // (25 November, 16:10: "hasn't met this pod yet" for 2 min after a 5-hour session)
         guard let pump = apsManager.pumpManager as? OmniPumpManager, let activated = pump.state.podState?.activatedAt,
-              let report = WatchReadiness.latest
+              let report = WatchReadiness.latest, report.grantIssuedAt != nil
         else { return }
         let met = report.podKnown && (report.grantIssuedAt ?? .distantPast) >= activated
         let letGo = isEnabled && settingsManager.settings.allowUntetheredStartWithoutPhoneWatch && !isWatchInCharge && !met
@@ -430,7 +432,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     /// Whether the watch has met the current pod, by its last report; nil without a report or a pod.
     var watchKnowsPod: Bool? {
-        guard let report = WatchReadiness.latest,
+        guard let report = WatchReadiness.latest, report.grantIssuedAt != nil,
               let activated = (apsManager.pumpManager as? OmniPumpManager)?.state.podState?.activatedAt
         else { return nil }
         return report.podKnown && (report.grantIssuedAt ?? .distantPast) >= activated
@@ -1079,8 +1081,9 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
                 guard self.state.session.phase == .active, envelope.epoch == self.state.session.epoch,
                       attempt < Self.handbackRequestTries
                 else { break }
-                debug(.watch, "Untethered: the pod was busy, trying again in \(Int(Self.handbackRequestRetryDelay)) s (\(attempt) of \(Self.handbackRequestTries))")
-                self.setError(String(localized: "The pod is still busy with the watch. The phone tries again in a moment; keep it near the pod."))
+                // the take-back's own message says why (no pod link, or the pod busy with the watch); asleep, the
+                // phone tries again at its next wake (25 November: 16:00, 16:05, 16:10)
+                debug(.watch, "Untethered: take-back didn't get the pod, trying again in \(Int(Self.handbackRequestRetryDelay)) s (\(attempt) of \(Self.handbackRequestTries))")
                 try? await Task.sleep(nanoseconds: UInt64(Self.handbackRequestRetryDelay * 1_000_000_000))
                 guard self.state.session.phase == .active, envelope.epoch == self.state.session.epoch else { break }
             }
