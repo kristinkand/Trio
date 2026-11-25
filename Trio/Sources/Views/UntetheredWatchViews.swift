@@ -1,5 +1,6 @@
 import Charts
 import SwiftUI
+import WatchConnectivity
 
 extension UntetheredPhoneManager {
     /// Checking the devices, handing over, handing back or reading the pump after its return.
@@ -493,6 +494,131 @@ private extension View {
             Text(
                 "Use this when the watch can't hand the pump back, for example when it is lost or out of battery. The phone first reaches for the pod; if it can't, nothing changes and the watch keeps running. Otherwise it takes the pump without waiting for the watch, and counts insulin it has no record of until the watch's history arrives."
             )
+        }
+    }
+}
+
+/// Watch mode from the Home screen: a long press on the pump panel opens it (25 November: the start was deep in
+/// Settings). What the watch still needs, then the start; while the watch has the pump, the way back. The watch's own
+/// start (a long press on its glucose bubble, then the crown) is the main one.
+struct UntetheredStartSheet: View {
+    @ObservedObject var manager: UntetheredPhoneManager
+    @Binding var isPresented: Bool
+    @State private var confirmStart = false
+    @State private var confirmEnd = false
+    @State private var refusal: String?
+
+    private var watchReachable: Bool {
+        WCSession.isSupported() && WCSession.default.activationState == .activated && WCSession.default.isReachable
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if !manager.isEnabled {
+                    Section {
+                        Text("Watch mode is off. Turn it on in Settings › Apple Watch.")
+                    }
+                } else if manager.isWatchInCharge {
+                    Section {
+                        Label(
+                            manager.isHandingBack ? "The watch is handing back…" : "The watch has the pump and loops on its own.",
+                            systemImage: "applewatch"
+                        )
+                    }
+                    Section {
+                        Button("Take the Pump Back") { confirmEnd = true }
+                            .disabled(manager.isHandingBack)
+                    } footer: {
+                        Text("The watch hands back at its next wake, at most about 5 minutes.")
+                    }
+                } else {
+                    Section {
+                        line(
+                            ok: watchReachable,
+                            "Apple Watch",
+                            watchReachable ? "Trio is open on the watch." :
+                                "Open Trio on the watch: the iPhone can't wake it."
+                        )
+                        if let problem = manager.watchSensorNotPaired {
+                            line(ok: false, "Sensor", problem)
+                        } else {
+                            line(ok: true, "Sensor", "The watch reads it.")
+                        }
+                        if let knows = manager.watchKnowsPod {
+                            line(
+                                ok: knows ? true : nil,
+                                "Pod",
+                                knows ? "The watch knows it." : "The watch finds the new pod at the start."
+                            )
+                        }
+                    } header: {
+                        Text("Before the Start")
+                    }
+                    Section {
+                        Button {
+                            refusal = nil
+                            confirmStart = true
+                        } label: {
+                            Label("Start Watch Mode", systemImage: "applewatch")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .tint(Color.untethered)
+                        .disabled(!watchReachable || manager.watchSensorNotPaired != nil || manager.isBusy)
+                        if manager.isBusy {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Handing the pump to the watch…")
+                            }
+                        }
+                        if let refusal {
+                            Text(refusal).foregroundStyle(.orange)
+                        }
+                    } footer: {
+                        Text("You can also start on the watch: long-press its glucose bubble, then turn the crown.")
+                    }
+                }
+            }
+            .navigationTitle("Watch Mode")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { isPresented = false }
+                }
+            }
+            .confirmationDialog(
+                "Hand the pump and the sensor to the watch?",
+                isPresented: $confirmStart,
+                titleVisibility: .visible
+            ) {
+                Button("Start Watch Mode") {
+                    Task { refusal = await manager.start() }
+                }
+            }
+            .confirmationDialog(
+                "Take the pump back from the watch?",
+                isPresented: $confirmEnd,
+                titleVisibility: .visible
+            ) {
+                Button("Take the Pump Back") {
+                    Task { await manager.end() }
+                }
+            }
+            .onChange(of: manager.state.session.phase) { _, phase in
+                if phase == .active { isPresented = false }
+            }
+        }
+    }
+
+    /// ok: green tick, orange warning, or (nil) a neutral note.
+    private func line(ok: Bool?, _ title: LocalizedStringKey, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: ok == true ? "checkmark.circle.fill" : ok == false ? "exclamationmark.triangle.fill" : "info.circle")
+                .foregroundStyle(ok == true ? Color.green : ok == false ? Color.orange : Color.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline).bold()
+                Text(LocalizedStringKey(detail)).font(.footnote).foregroundStyle(.secondary)
+            }
         }
     }
 }
