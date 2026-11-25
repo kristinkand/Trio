@@ -90,8 +90,8 @@ struct SnoozeAlertsSheetView: View {
     /// The time alone today, with the date on another day.
     static func untilText(_ date: Date) -> String {
         Calendar.current.isDateInToday(date)
-            ? date.formatted(date: .omitted, time: .shortened)
-            : date.formatted(date: .abbreviated, time: .shortened)
+            ? date.formatted(.timeOfDay)
+            : date.formatted(date: .abbreviated, time: .omitted) + " " + date.formatted(.timeOfDay)
     }
 
     private var endSnoozeAction: some View {
