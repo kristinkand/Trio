@@ -514,6 +514,10 @@ struct UntetheredStartSheet: View {
 
     var body: some View {
         NavigationStack {
+            // WatchConnectivity's reachability isn't observable, and it flips as the watch's screen sleeps and wakes:
+            // read again every second (25 November: 'open Trio on the watch' while it was open, until the sheet was
+            // opened again)
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
             List {
                 if !manager.isEnabled {
                     Section {
@@ -538,7 +542,7 @@ struct UntetheredStartSheet: View {
                             ok: watchReachable,
                             "Apple Watch",
                             watchReachable ? "Trio is open on the watch." :
-                                "Open Trio on the watch: the iPhone can't wake it."
+                                "Open Trio on the watch and keep its screen on: the iPhone can't wake it."
                         )
                         if let problem = manager.watchSensorNotPaired {
                             line(ok: false, "Sensor", problem)
@@ -578,6 +582,7 @@ struct UntetheredStartSheet: View {
                         Text("You can also start on the watch: long-press its glucose bubble, then turn the crown.")
                     }
                 }
+            }
             }
             .navigationTitle("Watch Mode")
             .navigationBarTitleDisplayMode(.inline)
