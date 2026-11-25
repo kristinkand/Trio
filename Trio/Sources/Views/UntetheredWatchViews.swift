@@ -544,6 +544,18 @@ struct UntetheredStartSheet: View {
                             watchReachable ? "Trio is open on the watch." :
                                 "Open Trio on the watch and keep its screen on: the iPhone can't wake it."
                         )
+                        if let problem = manager.watchSensorNotPaired {
+                            line(ok: false, "Sensor", problem)
+                        } else {
+                            line(ok: true, "Sensor", "The watch reads it.")
+                        }
+                        if let knows = manager.watchKnowsPod {
+                            line(
+                                ok: knows ? true : nil,
+                                "Pod",
+                                knows ? "The watch knows it." : "The watch finds the new pod at the start."
+                            )
+                        }
                     } header: {
                         Text("Before the Start")
                     }
@@ -556,7 +568,7 @@ struct UntetheredStartSheet: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .tint(Color.untethered)
-                        .disabled(!watchReachable || manager.isBusy)
+                        .disabled(!watchReachable || manager.watchSensorNotPaired != nil || manager.isBusy)
                         if manager.isBusy {
                             HStack(spacing: 8) {
                                 ProgressView()
