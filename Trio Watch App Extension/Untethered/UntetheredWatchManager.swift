@@ -87,6 +87,11 @@ import WatchKit
     /// The newest reading the watch took from the sensor itself in watch mode (`cgmManager(_:hasNew:)`), for the
     /// sensor details' "Watch BG": in watch mode the sensor's readings come through G7SensorKit, not the watch's reader.
     var ownSessionReadingDate: Date?
+    /// When the sensor's link last came up: a background wake has about 10 s of Bluetooth from then; pod messages
+    /// after that count toward a watchOS limit that cuts all of Trio's links (sysdiagnose, 19 November).
+    @ObservationIgnored var sensorLinkUpAt: Date?
+    /// The pod read started at the sensor's link-up, for the loop of that reading (`prefetchPodData`).
+    @ObservationIgnored var podPrefetch: (task: Task<Date?, Never>, at: Date)?
     /// A treatment came in while a loop ran; its determination follows.
     @ObservationIgnored var isDeterminationPending = false
     /// A mode changed while a loop ran; its constrained determination and enactment follow.
@@ -181,8 +186,10 @@ import WatchKit
     @ObservationIgnored private var standingGrantRequestedAt: Date?
 
     var isActive: Bool { data.session.phase == .active || data.session.phase == .ending }
-    /// A loop runs: Bluetooth work whose CPU a WatchConnectivity wake would count.
-    var isBluetoothWakeUnderway: Bool { isLooping }
+    /// A loop runs, or a sensor wake began under 30 s ago: Bluetooth work whose CPU a WatchConnectivity wake would count.
+    var isBluetoothWakeUnderway: Bool {
+        isLooping || sensorLinkUpAt.map { Date().timeIntervalSince($0) < 30 } ?? false
+    }
 
     private init() {
         // every stored property is set before a method of self runs: Swift refuses `adoptSavedState()` first
