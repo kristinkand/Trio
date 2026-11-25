@@ -293,6 +293,22 @@ extension UntetheredWatchManager {
         }
     }
 
+    /// Jeremy Barnum's finding (24 November), checked against the first tester's night of 23–24 November (45
+    /// increases of the watchOS count that cuts all of Trio's links near 200): the clock runs from each pod connection,
+    /// not from the wake. Every increase came 4.5–8.4 s after a pod connection came up; connections whose last
+    /// message came by 3 s never counted (0 of 25), at 5 s most did (10 of 17); the idle hold after the last message
+    /// never counted. The pod read at the sensor's link-up opens a connection the loop's commands then reach late, so
+    /// in a background wake each command group gets a fresh connection: the link is dropped first, at the cost of a
+    /// new login (about 1.5 s). A cancel and a new temp take about 3.5 s, an SMB about 3 s. Not in Extended Mode.
+    private func freshPodLink(_ pump: PumpManager, for what: String) async {
+        guard WKApplication.shared().applicationState != .active, !isKeptAwake,
+              let omnipod = pump as? OmniPumpManager else { return }
+        omnipod.releaseLink()
+        // the disconnect goes through before the command dials again (a connect during a cancel can be lost)
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        Task { await WatchLogger.shared.log("⌚️ Untethered: fresh pod connection for the \(what)", force: true) }
+    }
+
     /// EJM0's idea (EJM0/Trio a418bdc): in a background wake, a temp at the rate already running with at least 15
     /// minutes left isn't sent again when it wouldn't end by about 9 s after the sensor's link-up. oref re-sets a
     /// running zero temp every 5 to 10 minutes as its planned length changes, and those late pod messages count
@@ -318,6 +334,9 @@ extension UntetheredWatchManager {
         if let rate = determination.rate, determination.duration != nil, tempAlreadyRunning(rate.nearestDouble, pump: pump) {
             // not sent again; an SMB after it then goes in this wake
         } else if let rate = determination.rate, let duration = determination.duration {
+            await freshPodLink(pump, for: "temp basal")
+            guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
+            guard mayDose else { throw UntetheredWatchError.noPump }
             try await pump.enactTempBasal(
                 unitsPerHour: rate.nearestDouble,
                 for: TimeInterval(truncating: duration as NSNumber) * 60
@@ -329,24 +348,10 @@ extension UntetheredWatchManager {
            pump.status.bolusState == .noBolus
         {
             guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
-            // 19–20 November: pod messages late in a background wake count toward a watchOS limit that cuts all of
-            // Trio's Bluetooth links near 200. After a temp basal late in the wake, the SMB waits for the next reading,
-            // which works it out again; only once in a row, so no SMB waits longer than one reading.
-            let sinceLinkUp = sensorLinkUpAt.map { Date().timeIntervalSince($0) } ?? .infinity
-            let deferredLast = smbDeferredAt.map { Date().timeIntervalSince($0) < 8 * 60 } ?? false
-            if sentTemp, !deferredLast, sinceLinkUp > 5, sinceLinkUp < 60,
-               WKApplication.shared().applicationState != .active
-            {
-                smbDeferredAt = Date()
-                Task {
-                    await WatchLogger.shared.log(
-                        String(format: "⌚️ Untethered: SMB %@ U left for the next reading, %.1f s into the wake", "\(units)", sinceLinkUp),
-                        force: true
-                    )
-                }
-                return
-            }
-            smbDeferredAt = nil
+            // the SMB in a connection of its own, so it goes in this wake (no longer left for the next reading)
+            await freshPodLink(pump, for: "SMB")
+            guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
+            guard mayDose else { throw UntetheredWatchError.noPump }
             try await pump.enactBolus(units: units.nearestDouble, automatic: true)
             return
         }
