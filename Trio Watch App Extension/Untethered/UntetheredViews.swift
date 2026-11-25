@@ -183,9 +183,9 @@ struct UntetheredStatusView: View {
         case .active:
             if let lastLoop = data.lastLoopDate {
                 let minutes = max(0, Int(now.timeIntervalSince(lastLoop) / 60))
-                return ("applewatch", .untethered, "Untethered", "Last loop \(minutes) min ago")
+                return ("applewatch", .untethered, "Watch Mode", "Last loop \(minutes) min ago")
             }
-            return ("applewatch", .untethered, "Untethered", "Looping on the watch")
+            return ("applewatch", .untethered, "Watch Mode", "Looping on the watch")
         case .preparing,
              .starting:
             let waited = now.timeIntervalSince(manager.phaseSince)
@@ -875,7 +875,7 @@ struct UntetheredGlanceView: View {
                             .frame(maxHeight: .infinity)
                         row(1, now: context.date)
                         if !isLuminanceReduced {
-                            Text("Tap for Trio", comment: "Hint at the bottom of Extended Untethered Mode's minimal screen")
+                            Text("Tap for Trio", comment: "Hint at the bottom of Extended Watch Mode's minimal screen")
                                 .font(.system(size: 10))
                                 .foregroundStyle(Self.dim)
                         }

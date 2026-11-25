@@ -109,7 +109,7 @@ struct UntetheredSettingsSection: View {
             }
         }
         .listRowBackground(Color.chart)
-        .confirmationDialog("End untethered mode?", isPresented: $confirmEnd, titleVisibility: .visible) {
+        .confirmationDialog("End watch mode?", isPresented: $confirmEnd, titleVisibility: .visible) {
             Button("End") { Task { await manager.end() } }
         } message: {
             Text("The watch hands the pump back as soon as it is reachable.")
@@ -179,7 +179,7 @@ struct UntetheredOverrideButton: View {
             }
         }
         .frame(minWidth: 30)
-        .confirmationDialog("End untethered mode?", isPresented: $confirmEnd, titleVisibility: .visible) {
+        .confirmationDialog("End watch mode?", isPresented: $confirmEnd, titleVisibility: .visible) {
             Button("End") { Task { await manager.end() } }
             Button("Take Back the Pump Now", role: .destructive) { confirmForce = true }
         }
@@ -188,7 +188,7 @@ struct UntetheredOverrideButton: View {
         .onChange(of: manager.state.lastError) { _, error in
             showError = error != nil && !manager.isWatchInCharge
         }
-        .alert("Untethered Watch Mode", isPresented: $showError) {
+        .alert("Watch Mode", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(manager.state.lastError ?? "")
@@ -217,7 +217,7 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
                     ? String(localized: "⚠️ iPhone Bluetooth Off")
                     : manager.state.pumpReturnPending
                     ? manager.pumpReturnTitle
-                    : manager.isReachingWatch ? String(localized: "Starting Untethered…")
+                    : manager.isReachingWatch ? String(localized: "Starting Watch Mode…")
                     : manager.isHandingBack ? String(localized: "Asking the watch for the pump…")
                     : manager.state.session.isCheckingForeignSession ? String(localized: "Safety Check with the Watch")
                     : silentMinutes != nil ? String(localized: "⚠️ No Word From the Watch")
@@ -246,8 +246,8 @@ struct UntetheredBannerSlot<Content: View, Banner: View>: View {
                 { showActions = manager.isWatchInCharge && !manager.isReachingWatch }
             )
             }
-            .confirmationDialog("Untethered Watch Mode", isPresented: $showActions, titleVisibility: .visible) {
-                Button("End Untethered Mode") { Task { await manager.end() } }
+            .confirmationDialog("Watch Mode", isPresented: $showActions, titleVisibility: .visible) {
+                Button("End Watch Mode") { Task { await manager.end() } }
                 Button("Take Back the Pump Now", role: .destructive) { confirmForce = true }
             }
             .untetheredForceDialog(isPresented: $confirmForce, manager: manager)
@@ -382,7 +382,7 @@ struct UntetheredTreatmentGate<Content: View>: View {
                             : String(localized: "The phone doses again once it has read the pump.")
                             : manager.state.session.isCheckingForeignSession
                             ? String(
-                                localized: "The watch was just at the pod. Boluses wait for the watch's answer, usually a few seconds. Untethered mode is not on."
+                                localized: "The watch was just at the pod. Boluses wait for the watch's answer, usually a few seconds. Watch mode is not on."
                             )
                             :
                             String(
@@ -411,7 +411,7 @@ struct UntetheredTreatmentGate<Content: View>: View {
                     }
                 } else if manager.isWatchShownInCharge {
                     VStack(spacing: 10) {
-                        gateButton("End Untethered Mode", systemImage: "iphone", tint: .untethered) { confirmEnd = true }
+                        gateButton("End Watch Mode", systemImage: "iphone", tint: .untethered) { confirmEnd = true }
                         gateButton("Take Back the Pump Now", systemImage: "exclamationmark.triangle", tint: .red) {
                             confirmForce = true
                         }
@@ -428,7 +428,7 @@ struct UntetheredTreatmentGate<Content: View>: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Close") { dismiss() } }
             }
-            .confirmationDialog("End untethered mode?", isPresented: $confirmEnd, titleVisibility: .visible) {
+            .confirmationDialog("End watch mode?", isPresented: $confirmEnd, titleVisibility: .visible) {
                 Button("End") { Task { await manager.end() } }
             } message: {
                 Text("The watch hands the pump back as soon as it is reachable.")
