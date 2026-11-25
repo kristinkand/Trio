@@ -33,6 +33,8 @@ extension Home {
         @State var pendingPump: PumpCatalogEntry?
         @State var pendingCGM: CGMCatalogEntry?
         @State var showSnoozeSheet: Bool = false
+        /// Watch mode's sheet, from a long press on the pump panel.
+        @State var showWatchModeSheet: Bool = false
         @State var showManualGlucose: Bool = false
         @State var showReleaseNotes: Bool = false
         @State var showUntetheredAuditFinding: Bool = false
@@ -290,6 +292,12 @@ extension Home {
             }
             .sheet(isPresented: $state.isLegendPresented) {
                 ChartLegendView(state: state)
+            }
+            .sheet(isPresented: $showWatchModeSheet) {
+                UntetheredStartSheet(
+                    manager: resolver.resolve(UntetheredPhoneManager.self)!,
+                    isPresented: $showWatchModeSheet
+                )
             }
             .sheet(isPresented: $showSnoozeSheet) {
                 SnoozeAlertsSheetView(resolver: resolver, isPresented: $showSnoozeSheet)

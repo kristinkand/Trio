@@ -427,6 +427,14 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     private var lettingWatchMeetPod = false
 
+    /// Whether the watch has met the current pod, by its last report; nil without a report or a pod.
+    var watchKnowsPod: Bool? {
+        guard let report = WatchReadiness.latest,
+              let activated = (apsManager.pumpManager as? OmniPumpManager)?.state.podState?.activatedAt
+        else { return nil }
+        return report.podKnown && (report.grantIssuedAt ?? .distantPast) >= activated
+    }
+
     /// The session counter the watch left on the pod when it met it: the iPhone takes a resync to it as the watch's,
     /// not another controller's. Only while the iPhone has the pump, and only for its pod (OmnipodKit checks).
     func acceptWatchPodCounter(_ counter: String) {
@@ -436,7 +444,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     /// What the watch last said about the sensor, when it says the watch can't read it: no start then (as the watch
     /// checks itself). Nothing from the watch yet, or nothing recent: no refusal, the watch's own check stands.
-    private var watchSensorNotPaired: String? {
+    var watchSensorNotPaired: String? {
         guard let report = WatchReadiness.latest, Date().timeIntervalSince(report.at) < Self.readinessMaxAge,
               report.readerOn,
               let g7 = fetchGlucoseManager.cgmManager as? G7CGMManager, g7.state.sessionMode == .direct,
