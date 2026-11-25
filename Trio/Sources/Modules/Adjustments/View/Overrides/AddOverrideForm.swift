@@ -223,27 +223,21 @@ struct AddOverrideForm: View {
                     HStack {
                         Text("From")
                         Spacer()
-                        Text(
-                            state.is24HourFormat() ? state.format24Hour(Int(truncating: state.start as NSNumber)) + ":00" :
-                                state.convertTo12HourFormat(Int(truncating: state.start as NSNumber))
-                        )
-                        .foregroundColor(!displayPickerDisableSmbSchedule ? .primary : .accentColor)
-                        .onTapGesture {
-                            displayPickerDisableSmbSchedule = toggleScrollWheel(displayPickerDisableSmbSchedule)
-                        }
+                        Text(Date(hourOfDay: Int(truncating: state.start as NSNumber)), format: .timeOfDay)
+                            .foregroundColor(!displayPickerDisableSmbSchedule ? .primary : .accentColor)
+                            .onTapGesture {
+                                displayPickerDisableSmbSchedule = toggleScrollWheel(displayPickerDisableSmbSchedule)
+                            }
                         Spacer()
                         Divider().frame(width: 1, height: 20)
                         Spacer()
                         Text("To")
                         Spacer()
-                        Text(
-                            state.is24HourFormat() ? state.format24Hour(Int(truncating: state.end as NSNumber)) + ":00" :
-                                state.convertTo12HourFormat(Int(truncating: state.end as NSNumber))
-                        )
-                        .foregroundColor(!displayPickerDisableSmbSchedule ? .primary : .accentColor)
-                        .onTapGesture {
-                            displayPickerDisableSmbSchedule = toggleScrollWheel(displayPickerDisableSmbSchedule)
-                        }
+                        Text(Date(hourOfDay: Int(truncating: state.end as NSNumber)), format: .timeOfDay)
+                            .foregroundColor(!displayPickerDisableSmbSchedule ? .primary : .accentColor)
+                            .onTapGesture {
+                                displayPickerDisableSmbSchedule = toggleScrollWheel(displayPickerDisableSmbSchedule)
+                            }
                         Spacer()
                     }
 
@@ -255,11 +249,7 @@ struct AddOverrideForm: View {
                                 set: { state.start = Decimal($0) }
                             ), label: Text("")) {
                                 ForEach(0 ..< 24, id: \.self) { hour in
-                                    Text(
-                                        state.is24HourFormat() ? state.format24Hour(hour) + ":00" : state
-                                            .convertTo12HourFormat(hour)
-                                    )
-                                    .tag(hour)
+                                    Text(Date(hourOfDay: hour), format: .timeOfDay).tag(hour)
                                 }
                             }
                             .pickerStyle(WheelPickerStyle())
@@ -271,11 +261,7 @@ struct AddOverrideForm: View {
                                 set: { state.end = Decimal($0) }
                             ), label: Text("")) {
                                 ForEach(0 ..< 24, id: \.self) { hour in
-                                    Text(
-                                        state.is24HourFormat() ? state.format24Hour(hour) + ":00" : state
-                                            .convertTo12HourFormat(hour)
-                                    )
-                                    .tag(hour)
+                                    Text(Date(hourOfDay: hour), format: .timeOfDay).tag(hour)
                                 }
                             }
                             .pickerStyle(WheelPickerStyle())
