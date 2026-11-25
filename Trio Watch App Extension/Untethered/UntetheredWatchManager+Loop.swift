@@ -380,9 +380,12 @@ extension UntetheredWatchManager {
         // 2026-10-20 02:25 and 12:11): none starts once the loop has no background time left
         guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
         var sentTemp = false
+        var tempLinkAt: Date?
+        var tempDoneAt: Date?
         if let rate = determination.rate, determination.duration != nil, tempAlreadyRunning(rate.nearestDouble, pump: pump) {
             // not sent again; an SMB after it then goes in this wake
         } else if let rate = determination.rate, let duration = determination.duration {
+            tempLinkAt = Date()
             await freshPodLink(pump, for: "temp basal")
             guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
             guard mayDose else { throw UntetheredWatchError.noPump }
@@ -391,6 +394,7 @@ extension UntetheredWatchManager {
                 for: TimeInterval(truncating: duration as NSNumber) * 60
             )
             sentTemp = true
+            tempDoneAt = Date()
         }
         // as the phone: no SMB on top of a bolus still running, e.g. the meal bolus just started
         if data.grant?.dosingMode == dosingMode, let units = determination.units, units > 0,
@@ -399,6 +403,17 @@ extension UntetheredWatchManager {
             guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
             guard mayDose else { throw UntetheredWatchError.noPump }
             // the SMB in a connection of its own, so it goes in this wake (no longer left for the next reading)
+            if let ran = tempConnectionRanLong(linkAt: tempLinkAt, doneAt: tempDoneAt) {
+                smbLeftAt = Date()
+                Task {
+                    await WatchLogger.shared.log(
+                        String(format: "⌚️ Untethered: SMB %@ U left for the next reading: the temp's pod connection ran %.1f s", "\(units)", ran),
+                        force: true
+                    )
+                }
+                return true
+            }
+            smbLeftAt = nil
             await freshPodLink(pump, for: "SMB")
             guard !loopHoldExpired else { throw UntetheredWatchError.noBackgroundTime }
             guard mayDose else { throw UntetheredWatchError.noPump }
@@ -423,6 +438,21 @@ extension UntetheredWatchManager {
         // the disconnect goes through before the command dials again (a connect during a cancel can be lost)
         try? await Task.sleep(nanoseconds: 800_000_000)
         Task { await WatchLogger.shared.log("⌚️ Untethered: fresh pod connection for the \(what)", force: true) }
+    }
+
+    /// c225 (sysdiagnose of 25 November, 14:00): once a pod connection has gone past about 5 s, the watch stays over
+    /// the watchOS limit until the app is suspended, and a fresh connection doesn't start the clock again: the SMB's
+    /// connection after a temp that ended 5 s into its connection added 16 to the count. Temps that ended by 4 s
+    /// (13:00, 14:35) added nothing, and their SMBs in a connection of their own nothing either. So after a temp
+    /// that ran past 4.5 s the SMB waits for the next reading, which works it out again; only once in a row.
+    /// How long the temp's connection had run when the temp was done; nil when it stayed under the limit.
+    private func tempConnectionRanLong(linkAt: Date?, doneAt: Date?) -> TimeInterval? {
+        guard let linkAt, let doneAt, let connected = podConnectedAt, connected >= linkAt, connected <= doneAt,
+              WKApplication.shared().applicationState != .active, !isKeptAwake,
+              smbLeftAt.map({ Date().timeIntervalSince($0) > 8 * 60 }) ?? true
+        else { return nil }
+        let ran = doneAt.timeIntervalSince(connected)
+        return ran > 4.5 ? ran : nil
     }
 
     /// EJM0's idea (EJM0/Trio a418bdc): in a background wake, a temp at the rate already running with at least 15
@@ -1491,7 +1521,11 @@ extension UntetheredWatchManager: PumpManagerDelegate {
             }
         }
         if message.hasPrefix("Pod connected"), isSessionPump(manager as AnyObject) {
-            DispatchQueue.main.async { self.loopAgainIfPodBack() }
+            let at = Date()
+            DispatchQueue.main.async {
+                self.podConnectedAt = at
+                self.loopAgainIfPodBack()
+            }
         }
         // ponytail: matched on OmnipodKit's disconnect line, as the sensor's link errors above; a link OmnipodKit
         // didn't end itself ("no reason recorded") and nothing from the pod either: watchOS ended it
