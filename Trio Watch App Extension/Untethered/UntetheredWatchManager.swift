@@ -92,6 +92,10 @@ import WatchKit
     @ObservationIgnored var sensorLinkUpAt: Date?
     /// The pod read started at the sensor's link-up, for the loop of that reading (`prefetchPodData`).
     @ObservationIgnored var podPrefetch: (task: Task<Date?, Never>, at: Date)?
+    /// When the session's pod connection last came up, for the watchOS count's clock (c225).
+    @ObservationIgnored var podConnectedAt: Date?
+    /// When an SMB was last left for the next reading after a long temp connection (c225): only once in a row.
+    @ObservationIgnored var smbLeftAt: Date?
     /// A treatment came in while a loop ran; its determination follows.
     @ObservationIgnored var isDeterminationPending = false
     /// A mode changed while a loop ran; its constrained determination and enactment follow.
