@@ -47,6 +47,7 @@ extension UntetheredWatchManager {
         let enacts = trigger != .treatment
         isLooping = true
         if enacts { store.update { $0.lastLoopGlucose = newestGlucose } }
+        let loopStart = Date()
         // A Bluetooth wake often comes with almost no time from watchOS; without time of its own the app can be
         // suspended in the middle of reaching the pod, and the loop stalls until the app is opened.
         loopHoldExpired = false
@@ -112,6 +113,7 @@ extension UntetheredWatchManager {
             self.store.trim(now: now)
             // the loop as the phone gets it, for the watch's own Nightscout upload
             var forNightscout: (determination: Determination, enactedAt: Date?)?
+            var loopFailure: String?
             do {
                 // as `APSManager.determineBasal`: three readings in the last hour, the newest at most 12 minutes old
                 let lastHour = self.store.data.glucose.filter { $0.dateString >= now.addingTimeInterval(-60 * 60) }
@@ -208,6 +210,7 @@ extension UntetheredWatchManager {
                     record(enactedAt: nil)
                 }
             } catch {
+                loopFailure = error.localizedDescription
                 // a failed determination for the screens is no loop error
                 if enacts { self.store.update { $0.lastLoopError = error.localizedDescription } }
                 Task { await WatchLogger.shared.log("⌚️ Untethered loop failed: \(error)", force: true) }
@@ -224,6 +227,17 @@ extension UntetheredWatchManager {
                     }
                     self.checkPodLinkEarly()
                 }
+            }
+            // the phone's loop statistics count the watch's loops too (c229)
+            if enacts {
+                self.store.record(
+                    UntetheredRecord(
+                        key: UntetheredRecord.loopStatKey(loopStart),
+                        date: loopStart,
+                        kind: .loopStat(start: loopStart, end: Date(), failure: loopFailure)
+                    ),
+                    epoch: self.data.session.epoch
+                )
             }
             if !self.loopHoldExpired, self.isActive {
                 await self.uploadToNightscout(forNightscout, grant: grant)

@@ -2538,9 +2538,40 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         case let .loopCompleted(date):
             // the loop's age and the interval to the next loop go on from the watch's last loop
             await MainActor.run { self.apsManager.adoptLoop(at: date) }
+        case let .loopStat(start, end, failure):
+            await storeWatchLoopStat(start: start, end: end, failure: failure)
         case let .nightscoutUploaded(date):
             // the loop came in an earlier batch than this note: marked now, unless the phone uploaded it already
             await markDeterminationUploadedByWatch(deliveredAt: date)
+        }
+    }
+
+    /// A loop of the watch as one of the phone's own in the loop statistics, once (c229: the statistics missed every
+    /// hour of watch mode). Its interval from the loop before it, the phone's or the watch's.
+    private func storeWatchLoopStat(start: Date, end: Date, failure: String?) async {
+        let context = CoreDataStack.shared.newTaskContext()
+        context.name = "untetheredLoopStat"
+        await context.perform {
+            let same = LoopStatRecord.fetchRequest() as NSFetchRequest<LoopStatRecord>
+            same.predicate = NSPredicate(format: "start == %@", start as NSDate)
+            guard (try? context.count(for: same)) == 0 else { return }
+            let before = LoopStatRecord.fetchRequest() as NSFetchRequest<LoopStatRecord>
+            before.predicate = NSPredicate(format: "end < %@", start as NSDate)
+            before.sortDescriptors = [NSSortDescriptor(key: "end", ascending: false)]
+            before.fetchLimit = 1
+            let record = LoopStatRecord(context: context)
+            record.start = start
+            record.end = end
+            record.loopStatus = failure ?? "Success"
+            record.duration = (end.timeIntervalSince(start) / 60 * 100).rounded() / 100
+            if let previousEnd = (try? context.fetch(before))?.first?.end {
+                record.interval = (start.timeIntervalSince(previousEnd) / 60 * 10).rounded() / 10
+            }
+            do {
+                try context.save()
+            } catch {
+                warning(.storage, "Untethered: saving the watch's loop statistics failed", error: error)
+            }
         }
     }
 
