@@ -1238,7 +1238,7 @@
 		DD7E1E300000000000000016 /* CrashReportingGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD7E1E300000000000000015 /* CrashReportingGate.swift */; };
 		DD8262CB2D289297009F6F62 /* BolusConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD8262CA2D289297009F6F62 /* BolusConfirmationView.swift */; };
 		DD82D4B82DCAB2BA00BAFC77 /* PropertyPersistentFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD82D4B72DCAB2BA00BAFC77 /* PropertyPersistentFlags.swift */; };
-		DD868FD82E381A54005D3308 /* APNSJWTClaims.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD868FD72E381A54005D3308 /* APNSJWTClaims.swift */; };
+		DD868FD82E381A54005D3308 /* APNSJWTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD868FD72E381A54005D3308 /* APNSJWTManager.swift */; };
 		DD88C8E22C50420800F2D558 /* DefinitionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD88C8E12C50420800F2D558 /* DefinitionRow.swift */; };
 		DD906BF42EA6AA0100262772 /* NightscoutUploadPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD906BF32EA6AA0100262772 /* NightscoutUploadPipeline.swift */; };
 		DD906BF62EA6AAE900262772 /* BaseNightscoutManager+Subscribers.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD906BF52EA6AAE900262772 /* BaseNightscoutManager+Subscribers.swift */; };
@@ -2646,7 +2646,7 @@
 		DD7E1E300000000000000015 /* CrashReportingGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReportingGate.swift; sourceTree = "<group>"; };
 		DD8262CA2D289297009F6F62 /* BolusConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusConfirmationView.swift; sourceTree = "<group>"; };
 		DD82D4B72DCAB2BA00BAFC77 /* PropertyPersistentFlags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PropertyPersistentFlags.swift; sourceTree = "<group>"; };
-		DD868FD72E381A54005D3308 /* APNSJWTClaims.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APNSJWTClaims.swift; sourceTree = "<group>"; };
+		DD868FD72E381A54005D3308 /* APNSJWTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APNSJWTManager.swift; sourceTree = "<group>"; };
 		DD88C8E12C50420800F2D558 /* DefinitionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefinitionRow.swift; sourceTree = "<group>"; };
 		DD906BF32EA6AA0100262772 /* NightscoutUploadPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutUploadPipeline.swift; sourceTree = "<group>"; };
 		DD906BF52EA6AAE900262772 /* BaseNightscoutManager+Subscribers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BaseNightscoutManager+Subscribers.swift"; sourceTree = "<group>"; };
@@ -5638,7 +5638,7 @@
 				35347DB1DA2F240DA37B5571 /* TrioRemoteControl+Profile.swift */,
 				DD485F172E466F1800CE8CBF /* SecureMessenger.swift */,
 				DD17A0312E3FEA1F008E1BF0 /* RemoteNotificationResponseManager.swift */,
-				DD868FD72E381A54005D3308 /* APNSJWTClaims.swift */,
+				DD868FD72E381A54005D3308 /* APNSJWTManager.swift */,
 				DD32CFA12CC824E1003686D6 /* TrioRemoteControl+Helpers.swift */,
 				DD32CF9F2CC824D3003686D6 /* TrioRemoteControl+APNS.swift */,
 				DD32CF9D2CC824C2003686D6 /* TrioRemoteControl+Override.swift */,
@@ -6754,7 +6754,7 @@
 				3811DE3125C9D49500A708ED /* HomeProvider.swift in Sources */,
 				4984D1D42EA2939E00263E83 /* WatchConfigGarminAppConfigView.swift in Sources */,
 				FE41E4D629463EE20047FD55 /* NightscoutPreferences.swift in Sources */,
-				DD868FD82E381A54005D3308 /* APNSJWTClaims.swift in Sources */,
+				DD868FD82E381A54005D3308 /* APNSJWTManager.swift in Sources */,
 				E013D872273AC6FE0014109C /* GlucoseSimulatorSource.swift in Sources */,
 				3BAE87702E480BE100FCA8D2 /* ForecastResults.swift in Sources */,
 				BD249D862D42FBEC00412DEB /* GlucoseMetricsView.swift in Sources */,
