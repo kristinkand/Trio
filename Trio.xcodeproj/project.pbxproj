@@ -368,7 +368,6 @@
 		3BCE75B52D4B391F009E9453 /* Decimal+rounding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BCE75B42D4B3917009E9453 /* Decimal+rounding.swift */; };
 		3BD6CE262DC24CFD00FA0472 /* pumphistory-24h-zoned.json in Resources */ = {isa = PBXBuildFile; fileRef = 3BD6CE252DC24CFD00FA0472 /* pumphistory-24h-zoned.json */; };
 		3BD9687C2D8DDD4600899469 /* SlideButton in Frameworks */ = {isa = PBXBuildFile; productRef = 3BD9687B2D8DDD4600899469 /* SlideButton */; };
-		3BD9687F2D8DDD8800899469 /* CryptoSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 3BD9687E2D8DDD8800899469 /* CryptoSwift */; };
 		3BE2F1E82E030E2F009E2900 /* MealCobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE2F1E72E030E2F009E2900 /* MealCobTests.swift */; };
 		3BE2F1EA2E031951009E2900 /* MealCobBucketingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BE2F1E92E031951009E2900 /* MealCobBucketingTests.swift */; };
 		3BEDC9932EEB27B600AC6492 /* IobConsecutiveEventsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BEDC9922EEB27B600AC6492 /* IobConsecutiveEventsTests.swift */; };
@@ -938,7 +937,6 @@
 		DD1745502C55CA5500211FAC /* UnitsLimitsSettingsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD17454F2C55CA5500211FAC /* UnitsLimitsSettingsProvider.swift */; };
 		DD1745522C55CA5D00211FAC /* UnitsLimitsSettingsStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745512C55CA5D00211FAC /* UnitsLimitsSettingsStateModel.swift */; };
 		DD1745552C55CA6C00211FAC /* UnitsLimitsSettingsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1745542C55CA6C00211FAC /* UnitsLimitsSettingsRootView.swift */; };
-		DD17A0292E3FE0BD008E1BF0 /* SwiftJWT in Frameworks */ = {isa = PBXBuildFile; productRef = DD17A0282E3FE0BD008E1BF0 /* SwiftJWT */; };
 		DD17A0322E3FEA1F008E1BF0 /* RemoteNotificationResponseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD17A0312E3FEA1F008E1BF0 /* RemoteNotificationResponseManager.swift */; };
 		DD1DB7CC2BECCA1F0048B367 /* BuildDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1DB7CB2BECCA1F0048B367 /* BuildDetails.swift */; };
 		DD1E53592D273F26008F32A4 /* LoopStatusHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1E53582D273F20008F32A4 /* LoopStatusHelpView.swift */; };
@@ -2691,8 +2689,6 @@
 				3B4BA7862D8DBD690069D5B8 /* RileyLinkKitUI.framework in Frameworks */,
 				CEB434FD28B90B7C00B70274 /* SwiftCharts in Frameworks */,
 				CE95BF5F2BA7715800DC3DE3 /* MockKit.framework in Frameworks */,
-				DD17A0292E3FE0BD008E1BF0 /* SwiftJWT in Frameworks */,
-				3BD9687F2D8DDD8800899469 /* CryptoSwift in Frameworks */,
 				3B4BA7842D8DBD690069D5B8 /* RileyLinkKit.framework in Frameworks */,
 				CE95BF612BA7715900DC3DE3 /* MockKitUI.framework in Frameworks */,
 				E0CC2C5C275B9F0F00A7BC71 /* HealthKit.framework in Frameworks */,
@@ -5805,9 +5801,7 @@
 				CEB434FC28B90B7C00B70274 /* SwiftCharts */,
 				B958F1B62BA0711600484851 /* MKRingProgressView */,
 				3BD9687B2D8DDD4600899469 /* SlideButton */,
-				3BD9687E2D8DDD8800899469 /* CryptoSwift */,
 				3B47C60F2DA0A28F00B0E5EF /* FirebaseCrashlytics */,
-				DD17A0282E3FE0BD008E1BF0 /* SwiftJWT */,
 				3E28F2AA2EB5337F00FB9EEB /* ConnectIQ */,
 				5E12FE112EBC0000000000B1 /* RoundWhiteDiscKit */,
 			);
@@ -5987,10 +5981,9 @@
 				CEB434FB28B90B7C00B70274 /* XCRemoteSwiftPackageReference "SwiftCharts" */,
 				B958F1B52BA0711600484851 /* XCRemoteSwiftPackageReference "MKRingProgressView" */,
 				3BD9687A2D8DDD4600899469 /* XCRemoteSwiftPackageReference "SlideButton" */,
-				3BD9687D2D8DDD8800899469 /* XCRemoteSwiftPackageReference "CryptoSwift" */,
 				3B47C60E2DA0A28F00B0E5EF /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-				DD868FD92E381E1C005D3308 /* XCRemoteSwiftPackageReference "Swift-JWT" */,
 				3E28F2A92EB5337F00FB9EEB /* XCRemoteSwiftPackageReference "connectiq-companion-app-sdk-ios" */,
+				3BD9687D2D8DDD8800899469 /* XCRemoteSwiftPackageReference "CryptoSwift" */,
 				5E12FE112EBC0000000000B0 /* XCLocalSwiftPackageReference "RoundWhiteDiscKit" */,
 			);
 			productRefGroup = 388E595925AD948C0019842D /* Products */;
@@ -8039,6 +8032,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		3BD9687D2D8DDD8800899469 /* XCRemoteSwiftPackageReference "CryptoSwift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/krzyzanowskim/CryptoSwift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.8.2;
+			};
+		};
 		3811DE0E25C9D37700A708ED /* XCRemoteSwiftPackageReference "Swinject" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/Swinject/Swinject";
@@ -8079,14 +8080,6 @@
 				kind = branch;
 			};
 		};
-		3BD9687D2D8DDD8800899469 /* XCRemoteSwiftPackageReference "CryptoSwift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/krzyzanowskim/CryptoSwift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.8.2;
-			};
-		};
 		3E28F2A92EB5337F00FB9EEB /* XCRemoteSwiftPackageReference "connectiq-companion-app-sdk-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/garmin/connectiq-companion-app-sdk-ios";
@@ -8109,14 +8102,6 @@
 			requirement = {
 				branch = master;
 				kind = branch;
-			};
-		};
-		DD868FD92E381E1C005D3308 /* XCRemoteSwiftPackageReference "Swift-JWT" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "http://github.com/Kitura/Swift-JWT.git";
-			requirement = {
-				kind = exactVersion;
-				version = 4.0.1;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -8147,11 +8132,6 @@
 			package = 3BD9687A2D8DDD4600899469 /* XCRemoteSwiftPackageReference "SlideButton" */;
 			productName = SlideButton;
 		};
-		3BD9687E2D8DDD8800899469 /* CryptoSwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3BD9687D2D8DDD8800899469 /* XCRemoteSwiftPackageReference "CryptoSwift" */;
-			productName = CryptoSwift;
-		};
 		3E28F2AA2EB5337F00FB9EEB /* ConnectIQ */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 3E28F2A92EB5337F00FB9EEB /* XCRemoteSwiftPackageReference "connectiq-companion-app-sdk-ios" */;
@@ -8176,11 +8156,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CEB434FB28B90B7C00B70274 /* XCRemoteSwiftPackageReference "SwiftCharts" */;
 			productName = SwiftCharts;
-		};
-		DD17A0282E3FE0BD008E1BF0 /* SwiftJWT */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = DD868FD92E381E1C005D3308 /* XCRemoteSwiftPackageReference "Swift-JWT" */;
-			productName = SwiftJWT;
 		};
 /* End XCSwiftPackageProductDependency section */
 
