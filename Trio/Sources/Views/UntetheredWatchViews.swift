@@ -508,16 +508,10 @@ struct UntetheredStartSheet: View {
     @State private var confirmEnd = false
     @State private var refusal: String?
 
-    private var watchReachable: Bool {
-        WCSession.isSupported() && WCSession.default.activationState == .activated && WCSession.default.isReachable
-    }
+    private var watchReachable: Bool { manager.watchReachable }
 
     var body: some View {
         NavigationStack {
-            // WatchConnectivity's reachability isn't observable, and it flips as the watch's screen sleeps and wakes:
-            // read again every second (25 November: 'open Trio on the watch' while it was open, until the sheet was
-            // opened again)
-            TimelineView(.periodic(from: .now, by: 1)) { _ in
             List {
                 if !manager.isEnabled {
                     Section {
@@ -583,7 +577,7 @@ struct UntetheredStartSheet: View {
                     }
                 }
             }
-            }
+            .onAppear { manager.refreshWatchReachable() }
             .navigationTitle("Watch Mode")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

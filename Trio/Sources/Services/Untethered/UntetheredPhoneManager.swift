@@ -361,6 +361,15 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
 
     var isWatchInCharge: Bool { !state.session.isIdle }
 
+    /// Trio open on the watch (WatchConnectivity's reachability), for the Watch Mode sheet. It flips as the watch's
+    /// screen sleeps and wakes; AppleWatchManager says so at each change.
+    @Published private(set) var watchReachable = false
+
+    @MainActor func refreshWatchReachable() {
+        watchReachable = WCSession.isSupported() && WCSession.default.activationState == .activated && WCSession.default
+            .isReachable
+    }
+
     // MARK: - Ready for a forgotten iPhone
 
     enum Readiness: Equatable {
@@ -381,9 +390,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         let age = Date().timeIntervalSince(report.at)
         if age > Self.readinessMaxAge { return .unknown(hours: Int(age / 3600)) }
         var missing: [String] = []
-        // the copy the watch answered for must be of this pod: older, it was of the pod before
-        let pod = (apsManager.pumpManager as? OmniPumpManager)?.state.podState?.activatedAt
-        if !report.podKnown || (pod.map { (report.grantIssuedAt ?? .distantPast) < $0 } ?? false) {
+        if watchKnowsPod == false {
             missing.append(String(localized: "the watch hasn't met this pod yet: open Trio on the watch near the pod"))
         }
         let g7 = fetchGlucoseManager.cgmManager as? G7CGMManager
@@ -408,10 +415,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     func letWatchMeetPodIfNeeded() {
         // a report from while the watch had the pump names no standing grant, so it says nothing about the pod
         // (25 November, 16:10: "hasn't met this pod yet" for 2 min after a 5-hour session)
-        guard let pump = apsManager.pumpManager as? OmniPumpManager, let activated = pump.state.podState?.activatedAt,
-              let report = WatchReadiness.latest, report.grantIssuedAt != nil
-        else { return }
-        let met = report.podKnown && (report.grantIssuedAt ?? .distantPast) >= activated
+        guard let pump = apsManager.pumpManager as? OmniPumpManager, let met = watchKnowsPod else { return }
         let letGo = isEnabled && settingsManager.settings.allowUntetheredStartWithoutPhoneWatch && !isWatchInCharge && !met
         if letGo != lettingWatchMeetPod {
             debug(.watch, letGo ? "Untethered: the watch hasn't met this pod yet — the iPhone leaves its link free" :
@@ -430,7 +434,8 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
         pump.acceptPartnerSessionCounter(counter)
     }
 
-    /// Whether the watch has met the current pod, by its last report; nil without a report or a pod.
+    /// Whether the watch has met the current pod, by its last report; nil without a report or a pod. The copy the watch
+    /// answered for must be of this pod: older, it was of the pod before.
     var watchKnowsPod: Bool? {
         guard let report = WatchReadiness.latest, report.grantIssuedAt != nil,
               let activated = (apsManager.pumpManager as? OmniPumpManager)?.state.podState?.activatedAt
@@ -1128,6 +1133,7 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
     }
 
     @MainActor func reachabilityChanged() {
+        refreshWatchReachable()
         guard WCSession.default.isReachable else { return }
         switch state.session.phase {
         case .ending: send(.endRequest, epoch: state.session.epoch)
