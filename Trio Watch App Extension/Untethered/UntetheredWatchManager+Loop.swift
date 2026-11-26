@@ -456,12 +456,11 @@ extension UntetheredWatchManager {
     }
 
     /// EJM0's idea (EJM0/Trio a418bdc): in a background wake, a temp at the rate already running with at least 15
-    /// minutes left isn't sent again when it wouldn't end by about 9 s after the sensor's link-up. oref re-sets a
-    /// running zero temp every 5 to 10 minutes as its planned length changes, and those late pod messages count
-    /// toward the watchOS limit that cuts all of Trio's links near 200. The next wake can still extend it.
+    /// minutes left isn't sent again. oref re-sets a running zero temp every 5 to 10 minutes as its planned length
+    /// changes, and each pod connection that runs past about 5 s counts toward the watchOS limit that cuts all of
+    /// Trio's links near 200 (c221). The next wake can still extend it.
     private func tempAlreadyRunning(_ rate: Double, pump: PumpManager) -> Bool {
         guard WKApplication.shared().applicationState != .active, !isKeptAwake,
-              let linkUp = sensorLinkUpAt, Date().timeIntervalSince(linkUp) + 5 > 9,
               case let .tempBasal(dose) = pump.status.basalDeliveryState,
               dose.endDate.timeIntervalSinceNow >= 15 * 60, abs(dose.unitsPerHour - rate) < 0.001
         else { return false }
