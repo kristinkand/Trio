@@ -15,7 +15,6 @@ enum PodChangeBolus {
     private static let handledKey = "Trio.podChangeBolus.handledPod"
     private static let enabledAtKey = "Trio.podChangeBolus.enabledAt"
     private static let queue = DispatchQueue(label: "Trio.podChangeBolus")
-    private static var running = false
 
     /// Switched on: only pods activated from then on get the bolus, not the one already running. Kept while it stays on
     /// (the settings screen reports the setting each time it opens, also during a pod change).
@@ -37,6 +36,8 @@ enum PodChangeBolus {
         apsManager: APSManager?
     ) {
         guard enabled, let apsManager else { return }
+        // on without the switch (a settings import): from now on, as if switched on now
+        noteEnabled(true)
         let enabledAt = UserDefaults.standard.object(forKey: enabledAtKey) as? Date ?? .distantFuture
         let handled = UserDefaults.standard.object(forKey: handledKey) as? Date
         guard handled != activatedAt, activatedAt > enabledAt,
@@ -50,14 +51,10 @@ enum PodChangeBolus {
         }
         guard case .noBolus = status.bolusState else { return }
         queue.sync {
-            guard !running, UserDefaults.standard.object(forKey: handledKey) as? Date != activatedAt else { return }
-            running = true
+            guard UserDefaults.standard.object(forKey: handledKey) as? Date != activatedAt else { return }
             // marked first: never twice for one pod, also if the app ends during the bolus
             UserDefaults.standard.set(activatedAt, forKey: handledKey)
-            Task {
-                await give(units: units, apsManager: apsManager)
-                queue.sync { running = false }
-            }
+            Task { await give(units: units, apsManager: apsManager) }
         }
     }
 
