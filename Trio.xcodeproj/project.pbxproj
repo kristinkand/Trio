@@ -8108,11 +8108,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 3BD9687A2D8DDD4600899469 /* XCRemoteSwiftPackageReference "SlideButton" */;
 			productName = SlideButton;
+		};
 		3BD9687E2D8DDD8800899469 /* CryptoSwift */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 3BD9687D2D8DDD8800899469 /* XCRemoteSwiftPackageReference "CryptoSwift" */;
 			productName = CryptoSwift;
-		};
 		};
 		3E28F2AA2EB5337F00FB9EEB /* ConnectIQ */ = {
 			isa = XCSwiftPackageProductDependency;
