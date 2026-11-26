@@ -103,7 +103,7 @@ enum UntetheredGate {
     /// IOB read −1.97 U instead of about +1.8 U, and a 0.5 U bolus went through. Without the records after 2 minutes
     /// the iPhone doses again, as before; the audit books what no record explains.
     static var watchRecordsPending: Bool {
-        guard let point = state.audit else { return false }
+        guard let point = state.audit, point.recordsCover != true else { return false }
         return Date().timeIntervalSince(point.end) < watchRecordsWait
     }
 
@@ -114,7 +114,7 @@ enum UntetheredGate {
     /// phone's reach, its records came 8 minutes after the take-back, and the iPhone looped at 5 minutes on records
     /// 0.24 U short (it set a zero temp).
     static var watchRecordsMissing: Bool {
-        guard let point = state.audit else { return false }
+        guard let point = state.audit, point.recordsCover != true else { return false }
         return Date().timeIntervalSince(point.end) < 30 * 60
     }
 
@@ -2017,6 +2017,12 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             )
             // to the hundredth: the records' sum came out as 0.000050868113835652676 U after a look at the pod
             let rounded = { (value: Decimal) in value.formatted(.number.precision(.fractionLength(0 ... 2))) }
+            // Records that already explain all the pod delivered can't lack insulin: no wait for the watch's
+            // (c227; 26 November, second tester: after the watch's looks at the pod, no session, pump 0 U and records
+            // 0 U, and two boluses were refused, the SMBs held for 30 minutes)
+            if !historyComplete, point.delivered <= expected + 0.05 {
+                UntetheredGate.update { if $0.audit?.epoch == point.epoch { $0.audit?.recordsCover = true } }
+            }
             let notes = [cause, historyComplete ? nil : "watch history incomplete"].compactMap { $0 }
             debug(
                 .watch,
