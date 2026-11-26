@@ -96,6 +96,9 @@ import WatchKit
     @ObservationIgnored var podPrefetch: (task: Task<Date?, Never>, at: Date)?
     /// When the session's pod connection last came up, for the watchOS count's clock (c225).
     @ObservationIgnored var podConnectedAt: Date?
+    /// The heart-rate offer (c230): since when the heart rate has stayed at or above its rate, and when it was last made.
+    @ObservationIgnored var activityHighSince: Date?
+    @ObservationIgnored var activityOfferedAt: Date?
     /// When an SMB was last left for the next reading after a long temp connection (c225): only once in a row.
     @ObservationIgnored var smbLeftAt: Date?
     /// A treatment came in while a loop ran; its determination follows.

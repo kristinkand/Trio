@@ -233,6 +233,7 @@ struct WatchConfigAppleWatchView: BaseView {
                 }
 
                 UntetheredSettingsSection(manager: resolver.resolve(UntetheredPhoneManager.self)!)
+                UntetheredActivityOfferSection()
             }
 
             Section(

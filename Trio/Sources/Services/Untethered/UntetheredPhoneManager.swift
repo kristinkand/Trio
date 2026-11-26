@@ -1762,8 +1762,19 @@ final class UntetheredPhoneManager: ObservableObject, Injectable {
             tempTargetPresets: tempTargetPresets,
             linkedOverrideID: linkedOverrideID,
             profile: Self.runningProfile(now: now),
-            profileSetup: Self.profileSetup(now: now)
+            profileSetup: Self.profileSetup(now: now),
+            activityOffer: UntetheredActivityOffer.fromSettings(presetNames: overridePresets.map(\.name))
         )
+    }
+
+    /// The override presets' names, for the heart-rate offer's picker in Settings › Apple Watch (c230).
+    static func overridePresetNames() async -> [String] {
+        let context = CoreDataStack.shared.newTaskContext()
+        return await context.perform {
+            let request = OverrideStored.fetchRequest()
+            request.predicate = NSPredicate(format: "isPreset == %@", true as NSNumber)
+            return ((try? context.fetch(request)) ?? []).sorted { $0.orderPosition < $1.orderPosition }.compactMap(\.name)
+        }
     }
 
     /// The profile as set up, running or not, for the watch to start on a remote command while it has the pump.

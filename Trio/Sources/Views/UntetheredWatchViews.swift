@@ -123,6 +123,35 @@ struct UntetheredSettingsSection: View {
     }
 }
 
+/// c230: the heart-rate offer of an override, under the watch mode switch in Settings › Apple Watch.
+struct UntetheredActivityOfferSection: View {
+    @AppStorage(UntetheredActivityOffer.onKey) private var isOn = false
+    @AppStorage(UntetheredActivityOffer.overrideKey) private var overrideName = ""
+    @AppStorage(UntetheredActivityOffer.bpmKey) private var bpm = UntetheredActivityOffer.defaultBPM
+    @AppStorage(UntetheredActivityOffer.minutesKey) private var minutes = UntetheredActivityOffer.defaultMinutes
+    @State private var presetNames: [String] = []
+
+    var body: some View {
+        Section(
+            footer: Text(
+                "In watch mode with Extended Mode, the watch reads the heart rate. When it stays at or above this rate for these minutes, the watch offers the override with one tap, at most once an hour. Changes reach the watch with the next start of watch mode."
+            )
+        ) {
+            Toggle("Offer an Override When Active", isOn: $isOn)
+            if isOn {
+                Picker("Override", selection: $overrideName) {
+                    Text("Choose").tag("")
+                    ForEach(presetNames, id: \.self) { Text($0).tag($0) }
+                }
+                Stepper("From \(bpm) bpm", value: $bpm, in: 80 ... 180, step: 5)
+                Stepper("For \(minutes) min", value: $minutes, in: 1 ... 15)
+            }
+        }
+        .listRowBackground(Color.chart)
+        .task { presetNames = await UntetheredPhoneManager.overridePresetNames() }
+    }
+}
+
 /// Whether the watch could start by itself if the iPhone were left behind now.
 struct UntetheredReadinessRow: View {
     let readiness: UntetheredPhoneManager.Readiness

@@ -21,6 +21,16 @@ final class WatchNotificationHandler: NSObject, UNUserNotificationCenterDelegate
 
             var categories = existingCategories
             categories.update(with: glucoseCategory)
+            // the heart-rate offer's one tap (c230)
+            categories.update(with: UNNotificationCategory(
+                identifier: UntetheredWatchManager.activityOfferCategory,
+                actions: [UNNotificationAction(
+                    identifier: UntetheredWatchManager.activityOfferStartAction,
+                    title: String(localized: "Start"),
+                    options: []
+                )],
+                intentIdentifiers: []
+            ))
             // UNUserNotificationCenter methods should be called on main thread
             Task { @MainActor in
                 center.setNotificationCategories(categories)
@@ -63,6 +73,13 @@ final class WatchNotificationHandler: NSObject, UNUserNotificationCenterDelegate
             let title = response.notification.request.content.title
             let how = response.actionIdentifier == UNNotificationDefaultActionIdentifier ? "opened" : "dismissed or other action"
             Task { await WatchLogger.shared.log("⌚️ Notice tapped: \(title) (\(how))", force: true) }
+        }
+
+        if response.actionIdentifier == UntetheredWatchManager.activityOfferStartAction,
+           let name = response.notification.request.content.userInfo[UntetheredWatchManager.activityOfferNameKey] as? String
+        {
+            Task { @MainActor in UntetheredWatchManager.shared.startOfferedOverride(named: name) }
+            return
         }
 
         guard let action = NotificationResponseAction(rawValue: response.actionIdentifier) else { return }

@@ -1334,6 +1334,49 @@ extension UntetheredWatchManager {
         runLoop(.treatment)
     }
 
+    /// c230: the heart rate has stayed at or above the offer's rate for its minutes: offer its override with one tap
+    /// ("Start" on the notice), once an hour at most, not while an override runs. Nothing starts without the tap.
+    func checkActivityOffer(bpm: Double) {
+        let now = Date()
+        guard isActive, let offer = data.grant?.activityOffer, bpm >= Double(offer.bpm) else {
+            activityHighSince = nil
+            return
+        }
+        let since = activityHighSince ?? now
+        activityHighSince = since
+        guard now.timeIntervalSince(since) >= TimeInterval(offer.minutes * 60), activeOverride(at: now) == nil,
+              activityOfferedAt.map({ now.timeIntervalSince($0) > 60 * 60 }) ?? true
+        else { return }
+        activityOfferedAt = now
+        Task {
+            await WatchLogger.shared.log(
+                "⌚️ Untethered: heart rate \(Int(bpm)) bpm, at or above \(offer.bpm) for \(offer.minutes) min: offering \(offer.overrideName)",
+                force: true
+            )
+        }
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Active?")
+        content.body = String(localized: "Your heart rate has stayed up for \(offer.minutes) min. Start \(offer.overrideName)?")
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        content.categoryIdentifier = Self.activityOfferCategory
+        content.userInfo = [Self.activityOfferNameKey: offer.overrideName]
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: Self.notificationPrefix + "activityOffer", content: content, trigger: nil)
+        )
+    }
+
+    /// The tap on "Start" of the heart-rate offer (c230).
+    func startOfferedOverride(named name: String) {
+        guard isActive, activeOverride(at: Date()) == nil else { return }
+        Task { await WatchLogger.shared.log("⌚️ Untethered: \(name) started from the heart-rate offer", force: true) }
+        activateOverride(named: name)
+    }
+
+    static let activityOfferCategory = "untethered.activityOffer"
+    static let activityOfferStartAction = "untethered.activityOffer.start"
+    static let activityOfferNameKey = "overrideName"
+
     func endOverride(at date: Date = Date()) {
         guard let override = activeOverride(at: Date()), let key = data.activeOverrideKey else { return }
         store.update {
@@ -2034,7 +2077,10 @@ extension UntetheredWatchManager: CGMManagerDelegate {
                     self.workoutStartFailed = true
                 }
             }
-        }, onHeartRate: { [weak self] in self?.heartRate = $0 })
+        }, onHeartRate: { [weak self] in
+            self?.heartRate = $0
+            self?.checkActivityOffer(bpm: $0)
+        })
         current = keepAlive
         workoutKeepAlive = keepAlive
         workoutStartRequestedAt = Date()

@@ -294,6 +294,8 @@ struct UntetheredGrant: Codable, Equatable {
     /// The phone's profile as set up, whether it runs or not, so the watch can start it on a remote command while it
     /// has the pump (`endsAt` and `startedAt` nil). Nil from a phone without it, or with no profile saved.
     var profileSetup: UntetheredProfile? = nil
+    /// The heart-rate offer of an override (c230), as set in Settings › Apple Watch. Nil when off.
+    var activityOffer: UntetheredActivityOffer? = nil
 
     /// The copy as the loop takes it at `now`: while the profile runs and neither an override nor a temp target
     /// does, its basal and ISF schedules in place of the regular ones, as the phone's `OpenAPS.createProfiles`
@@ -310,6 +312,34 @@ struct UntetheredGrant: Codable, Equatable {
         grant.basalProfile = schedules.basal
         grant.insulinSensitivities = schedules.sensitivities
         return grant
+    }
+}
+
+/// c230: while Extended Mode's workout reads the heart rate, the watch offers this override preset with one tap once
+/// the heart rate has stayed at or above `bpm` for `minutes` (idea from the first tester: insulin eases off as the
+/// activity starts, not once glucose already drops).
+struct UntetheredActivityOffer: Codable, Equatable {
+    let overrideName: String
+    let bpm: Int
+    let minutes: Int
+
+    static let onKey = "untethered.activityOffer.on"
+    static let overrideKey = "untethered.activityOffer.override"
+    static let bpmKey = "untethered.activityOffer.bpm"
+    static let minutesKey = "untethered.activityOffer.minutes"
+    static let defaultBPM = 110
+    static let defaultMinutes = 5
+
+    /// As set on the phone; nil when off or when the chosen preset no longer exists.
+    static func fromSettings(presetNames: [String]) -> UntetheredActivityOffer? {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: onKey), let name = defaults.string(forKey: overrideKey), presetNames.contains(name)
+        else { return nil }
+        return UntetheredActivityOffer(
+            overrideName: name,
+            bpm: defaults.object(forKey: bpmKey) as? Int ?? defaultBPM,
+            minutes: defaults.object(forKey: minutesKey) as? Int ?? defaultMinutes
+        )
     }
 }
 
