@@ -91,9 +91,8 @@ enum UntetheredComplicationStore {
     }
 
     private static func range(isMmol: Bool, lowMgDL: Double? = nil, highMgDL: Double? = nil) -> (low: Double, high: Double) {
-        let reader = WatchG7Reader.shared
-        let low = lowMgDL ?? reader.lowMgDL ?? 70
-        let high = highMgDL ?? reader.highMgDL ?? 180
+        let low = lowMgDL ?? WatchPhoneSigns.shared.lowMgDL ?? 70
+        let high = highMgDL ?? WatchPhoneSigns.shared.highMgDL ?? 180
         return isMmol ? (low * mmolFactor, high * mmolFactor) : (low, high)
     }
 
@@ -109,7 +108,7 @@ enum UntetheredComplicationStore {
     ) {
         guard let newest = state.glucoseValues.last else { return }
         let old = load()
-        let isMmol = isMmol ?? WatchG7Reader.shared.isMmol
+        let isMmol = isMmol ?? WatchPhoneSigns.shared.isMmol
         let cutoff = Date().addingTimeInterval(-span)
         // the phone and untethered mode already colored each reading by the scheme
         var points = state.glucoseValues.filter { $0.date >= cutoff }
@@ -166,7 +165,7 @@ enum UntetheredComplicationStore {
     /// A reading of the watch's own G7 reader, in mg/dL.
     static func add(_ reading: WatchG7Reading) {
         let old = load()
-        let isMmol = WatchG7Reader.shared.isMmol
+        let isMmol = WatchPhoneSigns.shared.isMmol
         var points = (old?.isMmol == isMmol ? old?.points : nil) ?? []
         // within a minute of one already there it is the same reading
         guard !points.contains(where: { abs($0.date.timeIntervalSince(reading.date)) < 60 }),

@@ -23,10 +23,12 @@ import WatchKit
     private(set) var pairingCode: String?
     /// False once the phone has said it is not reading a G7 directly.
     private(set) var phoneUsesG7Direct: Bool?
-    private(set) var units: String
-    private(set) var urgentLowMgDL: Double
-    private(set) var lowMgDL: Double?
-    private(set) var highMgDL: Double?
+    // the phone's side lives in `WatchPhoneSigns`
+    private var phone: WatchPhoneSigns { .shared }
+    var units: String { phone.units }
+    var urgentLowMgDL: Double { phone.urgentLowMgDL }
+    var lowMgDL: Double? { phone.lowMgDL }
+    var highMgDL: Double? { phone.highMgDL }
 
     /// The watch's own key for the sensor, from its own pairing.
     private(set) var hasWatchKey: Bool
@@ -67,38 +69,8 @@ import WatchKit
     /// Answers in a row with a temporary sensor issue; the second raises "Sensor Issue".
     @ObservationIgnored private var temporaryIssueCount = 0
     private(set) var logLines: [String] = []
-    /// When the last watch state update from the phone was made.
-    private(set) var lastPhoneContact: Date?
-    /// The newest glucose the phone has. The phone can still reach the watch
-    /// while it has lost the sensor (flight mode keeps the watch link), so
-    /// this, not the contact, says whether the phone's glucose is current.
-    private(set) var phoneGlucoseDate: Date?
-    /// When the phone last enacted a temp basal or bolus, from its state. Nil from a phone build without it.
-    private(set) var phoneDoseDate: Date?
-
-    /// The newest sign that the phone loops: its own newest reading or its last dose, whichever is newer. Contact
-    /// alone isn't one (22 October: a phone in a metal pot got through for 5 s with only an old reading), nor are its
-    /// status reads of the pod (8 November: a phone without a sensor kept reaching the pod and couldn't loop).
-    var phoneLoopSign: Date? {
-        [phoneGlucoseDate, phoneDoseDate].compactMap { $0 }.max()
-    }
-
-    /// The phone took the pump back from an untethered session: it doses from now on, as its next state will say,
-    /// often minutes late (11 November, 10:51: the fallback looked at the pod 5 minutes after a hand-back, and the
-    /// look cost the phone its next loop). Counts as its newest dose until the state brings a newer one.
-    func notePhoneTookPump(at date: Date = Date()) {
-        guard date > (phoneDoseDate ?? .distantPast) else { return }
-        phoneDoseDate = date
-        defaults.set(date, forKey: Key.phoneDoseDate)
-    }
-
-    /// The phone's own newest reading as its wake carries it (`untetheredWake`), ahead of the state that brings it
-    /// too: the hand-back to a phone that reads again goes by this date.
-    func notePhoneOwnReading(_ date: Date) {
-        guard date > (phoneGlucoseDate ?? .distantPast) else { return }
-        phoneGlucoseDate = date
-        defaults.set(date, forKey: Key.phoneGlucoseDate)
-    }
+    var lastPhoneContact: Date? { phone.lastPhoneContact }
+    var phoneGlucoseDate: Date? { phone.phoneGlucoseDate }
 
     // MARK: - Private
 
@@ -119,19 +91,12 @@ import WatchKit
         static let sensorName = "watchG7.sensorName"
         static let pairingCode = "watchG7.pairingCode"
         static let phoneUsesG7Direct = "watchG7.phoneUsesG7Direct"
-        static let units = "watchG7.units"
-        static let urgentLow = "watchG7.urgentLowMgDL"
-        static let low = "watchG7.lowMgDL"
-        static let high = "watchG7.highMgDL"
         static let sharedKey = "watchG7.sharedKey"
         static let sensorAnswered = "watchG7.sensorAnswered"
         static let peripheralIdentifier = "watchG7.peripheralIdentifier"
         static let history = "watchG7.history"
         static let log = "watchG7.log"
         static let lastAlert = "watchG7.lastAlert."
-        static let lastPhoneContact = "watchG7.lastPhoneContact"
-        static let phoneGlucoseDate = "watchG7.phoneGlucoseDate"
-        static let phoneDoseDate = "watchG7.phoneDoseDate"
         static let liveReadings = "watchG7.liveReadings"
         static let asideSpans = "watchG7.asideSpans"
     }
@@ -147,17 +112,10 @@ import WatchKit
         sensorName = defaults.string(forKey: Key.sensorName)
         pairingCode = defaults.string(forKey: Key.pairingCode)
         phoneUsesG7Direct = defaults.object(forKey: Key.phoneUsesG7Direct) as? Bool
-        units = defaults.string(forKey: Key.units) ?? "mg/dL"
-        urgentLowMgDL = defaults.object(forKey: Key.urgentLow) as? Double ?? 54
-        lowMgDL = defaults.object(forKey: Key.low) as? Double
-        highMgDL = defaults.object(forKey: Key.high) as? Double
         sharedKey = defaults.data(forKey: Key.sharedKey)
         hasWatchKey = defaults.data(forKey: Key.sharedKey) != nil
         sensorAnswered = defaults.bool(forKey: Key.sensorAnswered)
         peripheralIdentifier = defaults.string(forKey: Key.peripheralIdentifier).flatMap(UUID.init(uuidString:))
-        lastPhoneContact = defaults.object(forKey: Key.lastPhoneContact) as? Date
-        phoneGlucoseDate = defaults.object(forKey: Key.phoneGlucoseDate) as? Date
-        phoneDoseDate = defaults.object(forKey: Key.phoneDoseDate) as? Date
         if let data = defaults.data(forKey: Key.history),
            let saved = try? JSONDecoder().decode([WatchG7Reading].self, from: data)
         {
@@ -607,57 +565,9 @@ import WatchKit
         // Every phone update is also a wake: re-check the sensor connection.
         noteWake()
 
-        if let timestamp = payload[WatchMessageKeys.date] as? TimeInterval {
-            let date = Date(timeIntervalSince1970: timestamp)
-            if date > (lastPhoneContact ?? .distantPast) {
-                lastPhoneContact = date
-                defaults.set(date, forKey: Key.lastPhoneContact)
-            }
-        }
-
-        if let values = payload[WatchMessageKeys.glucoseValues] as? [[String: Any]],
-           let newest = values.compactMap({ $0["date"] as? TimeInterval }).max()
-        {
-            var date = Date(timeIntervalSince1970: newest)
-            // The phone's state also carries the watch's own readings it stored: what counts is when the phone itself
-            // last read one (30 October: its Bluetooth off, it kept sending the watch's readings back, and the watch
-            // took that for the phone being back). A phone build without the key is taken as before.
-            if let own = payload[WatchMessageKeys.phoneOwnGlucoseDate] as? TimeInterval {
-                date = min(date, Date(timeIntervalSince1970: own))
-            }
-            phoneGlucoseDate = date
-            defaults.set(date, forKey: Key.phoneGlucoseDate)
-            session?.notePhoneReading(at: date)
+        if let phoneReading = WatchPhoneSigns.shared.update(from: payload) {
+            session?.notePhoneReading(at: phoneReading)
             bookNoReadingsAlert()
-        }
-        if let dose = payload[WatchMessageKeys.phoneLastDoseDate] as? TimeInterval {
-            let date = Date(timeIntervalSince1970: dose)
-            if date > (phoneDoseDate ?? .distantPast) {
-                phoneDoseDate = date
-                defaults.set(date, forKey: Key.phoneDoseDate)
-            }
-        }
-
-        // Units from the dedicated key; the general one only from a state with
-        // glucose in it, because an empty default state says mg/dL.
-        let hasGlucose = !((payload[WatchMessageKeys.glucoseValues] as? [[String: Any]])?.isEmpty ?? true)
-        let sentUnits = payload[WatchMessageKeys.watchDisplayUnits] as? String
-            ?? (hasGlucose ? payload[WatchMessageKeys.units] as? String : nil)
-        if let units = sentUnits, units != self.units {
-            self.units = units
-            defaults.set(units, forKey: Key.units)
-        }
-        if let value = payload[WatchMessageKeys.watchAlertUrgentLowMgDL] as? Double, value > 0 {
-            urgentLowMgDL = value
-            defaults.set(value, forKey: Key.urgentLow)
-        }
-        if let value = payload[WatchMessageKeys.watchAlertLowMgDL] as? Double {
-            lowMgDL = value > 0 ? value : nil
-            defaults.set(lowMgDL, forKey: Key.low)
-        }
-        if let value = payload[WatchMessageKeys.watchAlertHighMgDL] as? Double {
-            highMgDL = value > 0 ? value : nil
-            defaults.set(highMgDL, forKey: Key.high)
         }
 
         // An empty name means the phone is not reading a G7 directly. Keep what
@@ -1015,18 +925,7 @@ import WatchKit
 
     static let notificationIdentifierPrefix = "trio.watchG7."
 
-    func arrow(for trendName: String?) -> String {
-        switch trendName {
-        case "DoubleUp": return "⇈"
-        case "SingleUp": return "↑"
-        case "FortyFiveUp": return "↗"
-        case "Flat": return "→"
-        case "FortyFiveDown": return "↘"
-        case "SingleDown": return "↓"
-        case "DoubleDown": return "⇊"
-        default: return ""
-        }
-    }
+    func arrow(for trendName: String?) -> String { phone.arrow(for: trendName) }
 
     // MARK: - WatchG7SessionDelegate (called on the session's queue)
 

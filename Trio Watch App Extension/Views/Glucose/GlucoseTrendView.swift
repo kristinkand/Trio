@@ -34,10 +34,10 @@ struct GlucoseTrendView: View {
 
     private var glucoseText: String {
         if let unsureReading {
-            return reader.format(Double(unsureReading.mgdl))
+            return WatchPhoneSigns.shared.format(Double(unsureReading.mgdl))
         }
         if let directReading {
-            return reader.format(Double(directReading.glucose))
+            return WatchPhoneSigns.shared.format(Double(directReading.glucose))
         }
         return isWatchStateDated ? "--" : state.currentGlucose
     }
@@ -46,8 +46,8 @@ struct GlucoseTrendView: View {
         if unsureReading != nil { return Color.orange }
         if let directReading {
             let glucose = Double(directReading.glucose)
-            if glucose <= (reader.lowMgDL ?? 70) { return Color.loopRed }
-            if glucose >= (reader.highMgDL ?? 180) { return Color.loopYellow }
+            if glucose <= (WatchPhoneSigns.shared.lowMgDL ?? 70) { return Color.loopRed }
+            if glucose >= (WatchPhoneSigns.shared.highMgDL ?? 180) { return Color.loopYellow }
             return Color.loopGreen
         }
         return isWatchStateDated ? Color.secondary : state.currentGlucoseColorString.toColor()

@@ -705,7 +705,7 @@ import WatchKit
         if wasActive, !isActive {
             finishSyncIfDone(epoch: epoch)
             // the phone has the pump again: the fallback's next look waits 5 minutes from here
-            WatchG7Reader.shared.notePhoneTookPump()
+            WatchPhoneSigns.shared.notePhoneTookPump()
         }
         if store.data.session.phase != phaseBefore {
             phaseSince = Date()
@@ -1083,7 +1083,7 @@ import WatchKit
             if let phoneReading, Date().timeIntervalSince(phoneReading) < 10 * 60, self.isFallbackSession {
                 // the hand-back checks the phone's newest reading: the wake's, as its state may not have come yet
                 // (9 November: the phone read again after its sensor was paired anew, and the watch kept the pump)
-                WatchG7Reader.shared.notePhoneOwnReading(phoneReading)
+                WatchPhoneSigns.shared.notePhoneOwnReading(phoneReading)
                 Task {
                     await WatchLogger.shared.log(
                         "⌚️ Untethered: fallback — the phone reads the sensor again (\(phoneReading.formatted(date: .omitted, time: .shortened)))",
@@ -2106,7 +2106,7 @@ extension UntetheredWatchManager {
         // off in a metal pot, got through for 5 s with only its 16:50 reading, and counting that contact put the start
         // back by 15 minutes. A phone without new readings or doses isn't looping, whether it answers or not. Its
         // dose counts so one missed reading doesn't bring a look (8 November, 17:21: a minute after the phone's bolus).
-        let phoneNewest = WatchG7Reader.shared.phoneLoopSign ?? .distantPast
+        let phoneNewest = WatchPhoneSigns.shared.phoneLoopSign ?? .distantPast
         let silence = now.timeIntervalSince(phoneNewest)
         let ownNewer = readerReadings.filter { $0 > phoneNewest.addingTimeInterval(60) }.count
         if let paused = fallbackLooksPaused {
@@ -2172,7 +2172,7 @@ extension UntetheredWatchManager {
             }
             try? await Task.sleep(nanoseconds: UInt64(Self.fallbackProbeDelay * 1_000_000_000))
             // the phone may have been heard meanwhile, been at the pod (a pause), be in reach, or a session begun
-            guard self.data.session.phase == .idle, (WatchG7Reader.shared.phoneLoopSign ?? .distantPast) == phoneNewest,
+            guard self.data.session.phase == .idle, (WatchPhoneSigns.shared.phoneLoopSign ?? .distantPast) == phoneNewest,
                   self.fallbackLooksPaused == nil, !WCSession.default.isReachable, !self.isBusy, !self.lookAbandoned
             else { return }
             let minutes = Int(Date().timeIntervalSince(phoneNewest) / 60)
@@ -2224,13 +2224,12 @@ extension UntetheredWatchManager {
                     }
                     return
                 }
-                let reader = WatchG7Reader.shared
                 let grantAge = self.standingGrantAge.map { "\(Int($0 / 60)) min" } ?? "none"
                 Task {
                     await WatchLogger.shared.log(
                         "⌚️ Untethered: fallback — \(chain)\(retry ? ", again after a try that didn't reach it" : ""), " +
-                            "no word from the phone for \(minutes) min (its reading \(reader.phoneGlucoseDate.map(Self.timeText) ?? "none"), " +
-                            "dose \(reader.phoneDoseDate.map(Self.timeText) ?? "none"), in reach \(WCSession.default.isReachable), " +
+                            "no word from the phone for \(minutes) min (its reading \(WatchPhoneSigns.shared.phoneGlucoseDate.map(Self.timeText) ?? "none"), " +
+                            "dose \(WatchPhoneSigns.shared.phoneDoseDate.map(Self.timeText) ?? "none"), in reach \(WCSession.default.isReachable), " +
                             "copy \(grantAge) old, \(ownNewer) own readings): the phone is gone",
                         force: true
                     )
@@ -2502,7 +2501,7 @@ extension UntetheredWatchManager {
         guard data.session.phase == .idle || message == .revoke else { return }
         dropFallbackWitness()
         fallbackDecidedFor = nil
-        let phoneNewest = WatchG7Reader.shared.phoneLoopSign ?? .distantPast
+        let phoneNewest = WatchPhoneSigns.shared.phoneLoopSign ?? .distantPast
         fallbackLooksPaused = (phoneNewest, Date().addingTimeInterval(Self.fallbackLookPause))
         Task { await WatchLogger.shared.log("⌚️ Untethered: fallback — the phone was just at the pod, no look for 9 min", force: true) }
     }
@@ -2628,7 +2627,7 @@ extension UntetheredWatchManager {
         fallbackDecidedFor = nil
         UserDefaults.standard.set(Self.fallbackTries, forKey: Self.fallbackTriesKey)
         Task { await WatchLogger.shared.log("⌚️ Untethered: fallback — the watch has the pod", force: true) }
-        let minutes = (WatchG7Reader.shared.phoneGlucoseDate).map { Int(Date().timeIntervalSince($0) / 60) }
+        let minutes = (WatchPhoneSigns.shared.phoneGlucoseDate).map { Int(Date().timeIntervalSince($0) / 60) }
         let body = (minutes.map {
             String(
                 localized: "The iPhone has been silent for \($0) minutes and is out of reach. The watch runs the pump until it's back, then hands it back by itself."
@@ -2686,7 +2685,7 @@ extension UntetheredWatchManager {
                 refresh()
             }
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.notificationPrefix + "fallback"])
-            let phoneNewest = WatchG7Reader.shared.phoneLoopSign ?? .distantPast
+            let phoneNewest = WatchPhoneSigns.shared.phoneLoopSign ?? .distantPast
             fallbackLooksPaused = (phoneNewest, Date().addingTimeInterval(Self.fallbackLookPause))
             return
         }
@@ -2748,11 +2747,11 @@ extension UntetheredWatchManager {
     /// where the pump can be used by hand. Ending by hand or the phone's take-back are unaffected.
     private func phoneCanLoop(now: Date = Date()) -> Bool {
         let window: TimeInterval = 10 * 60
-        if let phone = WatchG7Reader.shared.phoneGlucoseDate, now.timeIntervalSince(phone) < window { return true }
+        if let phone = WatchPhoneSigns.shared.phoneGlucoseDate, now.timeIntervalSince(phone) < window { return true }
         guard let own = ownReadingAt, now.timeIntervalSince(own) < window else { return true }
         if now.timeIntervalSince(fallbackHandbackHeldLoggedAt ?? .distantPast) > 15 * 60 {
             fallbackHandbackHeldLoggedAt = now
-            let minutes = WatchG7Reader.shared.phoneGlucoseDate.map { "\(Int(now.timeIntervalSince($0) / 60)) min" } ?? "none"
+            let minutes = WatchPhoneSigns.shared.phoneGlucoseDate.map { "\(Int(now.timeIntervalSince($0) / 60)) min" } ?? "none"
             Task {
                 await WatchLogger.shared.log(
                     "⌚️ Untethered: fallback — the phone is back without a reading of its own (newest: \(minutes)); the watch keeps the pump",
@@ -2766,7 +2765,7 @@ extension UntetheredWatchManager {
     /// The phone's watch state arrived: with a reading of its own from the last 10 minutes, the phone is back.
     func notePhoneState() {
         guard isFallbackSession, data.session.phase == .active,
-              let phoneNewest = WatchG7Reader.shared.phoneGlucoseDate, Date().timeIntervalSince(phoneNewest) < 10 * 60
+              let phoneNewest = WatchPhoneSigns.shared.phoneGlucoseDate, Date().timeIntervalSince(phoneNewest) < 10 * 60
         else { return }
         scheduleFallbackHandback()
     }

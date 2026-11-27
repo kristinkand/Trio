@@ -2480,7 +2480,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         )
         DispatchQueue.main.async {
             // the phone's own reading: the hand-back to a phone that reads again goes by it (`phoneCanLoop`)
-            WatchG7Reader.shared.notePhoneOwnReading(reading.date)
+            WatchPhoneSigns.shared.notePhoneOwnReading(reading.date)
             guard reading.date > (self.pendingPhoneReading?.date ?? .distantPast) else { return }
             self.pendingPhoneReading = reading
             self.takePendingPhoneReading()
@@ -2675,13 +2675,12 @@ extension UntetheredWatchManager {
         // Trio: the thresholds of the phone's glucose alarms, as the watch's own reader uses them (urgent low
         // included), in the units shown; the glucose range only when the phone has no such alarm turned on.
         if let latest, let value = latest.glucose ?? latest.sgv, now.timeIntervalSince(latest.dateString) < 12 * 60 {
-            let reader = WatchG7Reader.shared
             let mgdl = Double(value)
-            let low = reader.lowMgDL ?? NSDecimalNumber(decimal: grant.lowGlucose).doubleValue
-            let high = reader.highMgDL ?? NSDecimalNumber(decimal: grant.highGlucose).doubleValue
-            let body = "\(reader.format(mgdl)) \(reader.units) \(reader.arrow(for: latest.direction?.rawValue))"
+            let low = WatchPhoneSigns.shared.lowMgDL ?? NSDecimalNumber(decimal: grant.lowGlucose).doubleValue
+            let high = WatchPhoneSigns.shared.highMgDL ?? NSDecimalNumber(decimal: grant.highGlucose).doubleValue
+            let body = "\(WatchPhoneSigns.shared.format(mgdl)) \(WatchPhoneSigns.shared.units) \(WatchPhoneSigns.shared.arrow(for: latest.direction?.rawValue))"
                 .trimmingCharacters(in: .whitespaces)
-            if mgdl <= reader.urgentLowMgDL {
+            if mgdl <= WatchPhoneSigns.shared.urgentLowMgDL {
                 alarm("urgentLow", title: String(localized: "Urgent Low"), body: body, every: 5 * 60)
             } else if mgdl <= low {
                 alarm("low", title: String(localized: "Low Glucose"), body: body, every: 15 * 60)

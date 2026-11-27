@@ -1073,7 +1073,7 @@ struct UntetheredGlanceView: View {
         newestReading.map { now.timeIntervalSince($0) > 6 * 60 } ?? true
     }
 
-    private var arrow: String { WatchG7Reader.shared.arrow(for: state.trend) }
+    private var arrow: String { WatchPhoneSigns.shared.arrow(for: state.trend) }
 
     private func glucose(size: CGFloat, now: Date) -> some View {
         let stale = isStale(now)

@@ -88,7 +88,7 @@ struct GlucoseChartView: View {
     private var scrubDate: Date { Date().addingTimeInterval(-scrubOffset) }
 
     /// The phone's values in mg/dL, the chart's in the display units.
-    private var displayFactor: Double { WatchG7Reader.shared.isMmol ? 0.0555 : 1 }
+    private var displayFactor: Double { WatchPhoneSigns.shared.isMmol ? 0.0555 : 1 }
     private var lowLine: Double? { state.chartLowMgDL.map { $0 * displayFactor } }
     private var highLine: Double? { state.chartHighMgDL.map { $0 * displayFactor } }
     private var targetLine: Double? { state.chartTargetMgDL.map { $0 * displayFactor } }
@@ -386,7 +386,7 @@ struct GlucoseChartView: View {
         guard let bounds = yAxisBounds else { return 0 ... 1 }
         // as on the watch face: 0.5 mmol/L or 10 mg/dL past the readings and lines; the fixed 10 was mg/dL
         // only, and in mmol/L left the readings squeezed into a band in the middle
-        let padding = WatchG7Reader.shared.isMmol ? 0.5 : 10
+        let padding = WatchPhoneSigns.shared.isMmol ? 0.5 : 10
         return (bounds.min - padding) ... (bounds.max + padding)
     }
 
@@ -656,6 +656,6 @@ struct GlucoseChartView: View {
     }
 
     private func formattedGlucose(_ glucose: Double) -> String {
-        WatchG7Reader.shared.isMmol ? String(format: "%.1f", glucose) : "\(Int(glucose.rounded()))"
+        WatchPhoneSigns.shared.isMmol ? String(format: "%.1f", glucose) : "\(Int(glucose.rounded()))"
     }
 }

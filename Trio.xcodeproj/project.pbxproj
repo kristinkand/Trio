@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1AC30999787E3C16A914F46 /* WatchPhoneSigns.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EA1CD4582BCBB1BAD3B4B16 /* WatchPhoneSigns.swift */; };
 		6DB239F60D84E2BF0F88FE0A /* WatchAlarms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16132DBB6036BA76209A305A /* WatchAlarms.swift */; };
 		435ECBB4023AD86AC337C832 /* ComplicationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4C45A50BAC7D10420D2FC3 /* ComplicationState.swift */; };
 		C7EDCBACD8A9A209A63B65B2 /* ComplicationViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 723767D9B94FD9EB3147FB02 /* ComplicationViews.swift */; };
@@ -1576,6 +1577,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		8EA1CD4582BCBB1BAD3B4B16 /* WatchPhoneSigns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WatchPhoneSigns.swift; path = "Trio Watch App Extension/State/WatchPhoneSigns.swift"; sourceTree = SOURCE_ROOT; };
 		16132DBB6036BA76209A305A /* WatchAlarms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WatchAlarms.swift; path = "Trio Watch App Extension/Alarms/WatchAlarms.swift"; sourceTree = SOURCE_ROOT; };
 		3D4C45A50BAC7D10420D2FC3 /* ComplicationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ComplicationState.swift; path = "Trio Watch App Extension/ComplicationState.swift"; sourceTree = SOURCE_ROOT; };
 		723767D9B94FD9EB3147FB02 /* ComplicationViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ComplicationViews.swift; path = "Trio Watch App Extension/ComplicationViews.swift"; sourceTree = SOURCE_ROOT; };
@@ -3835,6 +3837,7 @@
 		388E594F25AD948C0019842D = {
 			isa = PBXGroup;
 			children = (
+				8EA1CD4582BCBB1BAD3B4B16 /* WatchPhoneSigns.swift */,
 				16132DBB6036BA76209A305A /* WatchAlarms.swift */,
 				3D4C45A50BAC7D10420D2FC3 /* ComplicationState.swift */,
 				723767D9B94FD9EB3147FB02 /* ComplicationViews.swift */,
@@ -7691,6 +7694,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1AC30999787E3C16A914F46 /* WatchPhoneSigns.swift in Sources */,
 				6DB239F60D84E2BF0F88FE0A /* WatchAlarms.swift in Sources */,
 				435ECBB4023AD86AC337C832 /* ComplicationState.swift in Sources */,
 				C7EDCBACD8A9A209A63B65B2 /* ComplicationViews.swift in Sources */,
