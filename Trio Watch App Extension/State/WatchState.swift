@@ -1367,9 +1367,11 @@ import WidgetKit
         ownReadings.filter { $0.dateString > date }
     }
 
-    /// The watch has read the sensor itself within the last 15 minutes.
+    /// The watch has read the sensor itself within the last 15 minutes: the reader, or watch mode with the borrowed
+    /// link (27 November: right after a hand-back, the reader's own last reading was the one before the session).
     var hasOwnReading: Bool {
-        (ownReadings.last?.dateString).map { Date().timeIntervalSince($0) < 15 * 60 } ?? false
+        [ownReadings.last?.dateString, UntetheredWatchManager.shared.ownReadingAt].compactMap { $0 }.max()
+            .map { Date().timeIntervalSince($0) < 15 * 60 } ?? false
     }
 
     /// Picks the reading shown again, as time passes: called when the watch app comes to the front.
