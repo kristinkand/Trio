@@ -169,6 +169,7 @@ import WatchKit
         isTalkingToSensor = false
         updateStatus()
         WatchLogger.shared.info(.data, "CGM manager lent to watch mode")
+        Task { await WatchLogger.shared.log("⌚️ Reader: lent to watch mode", force: true) }
         return manager
     }
 
@@ -180,6 +181,7 @@ import WatchKit
         install(manager)
         save(manager)
         WatchLogger.shared.info(.data, "CGM manager back from watch mode")
+        Task { await WatchLogger.shared.log("⌚️ Reader: back from watch mode", force: true) }
     }
 
     private func install(_ manager: any WatchReadableCGM) {
@@ -287,6 +289,7 @@ extension WatchCGMHost: CGMManagerDelegate {
                 let readings = Self.readings(from: samples)
                 guard !readings.isEmpty else { return }
                 WatchLogger.shared.info(.data, "Direct reading: \(readings.count) sample(s)")
+                Task { await WatchLogger.shared.log("⌚️ Reader: \(readings.count) reading(s), newest \(readings.last?.glucose ?? 0) mg/dL") }
                 updateStatus()
                 WatchState.shared.applyOwnReadings(readings)
                 // the Trio complication's graph, as G7Direct fed it
@@ -340,6 +343,8 @@ extension WatchCGMHost: CGMManagerDelegate {
         completion: ((Error?) -> Void)?
     ) {
         WatchLogger.shared.debug(.data, "CGM \(type): \(message)")
+        // also in the plain log the iPhone's log export carries, as watch mode's "Device:" lines are
+        Task { await WatchLogger.shared.log("⌚️ Reader: \(type) \(message)") }
         completion?(nil)
         DispatchQueue.main.async {
             MainActor.assumeIsolated { self.appendLog("\(type): \(message)") }
