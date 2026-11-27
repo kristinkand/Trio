@@ -47,8 +47,7 @@ final class WatchNotificationHandler: NSObject, UNUserNotificationCenterDelegate
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         let id = notification.request.identifier
-        if id.hasPrefix(WatchG7Reader.notificationIdentifierPrefix)
-            || id.hasPrefix(UntetheredWatchManager.notificationPrefix)
+        if id.hasPrefix(UntetheredWatchManager.notificationPrefix)
             || id.hasPrefix(WatchAlarms.notificationPrefix)
         {
             completionHandler([.banner, .list, .sound])
@@ -69,7 +68,7 @@ final class WatchNotificationHandler: NSObject, UNUserNotificationCenterDelegate
         // a tap on a notice that asks for action ("Watch Took Over: Open Trio", pairing) answers it: no reminders,
         // whether or not Trio counts as in front by the time it runs (31 October, 11:09)
         let id = response.notification.request.identifier
-        if id.hasPrefix(UntetheredWatchManager.notificationPrefix) || id.hasPrefix(WatchG7Reader.notificationIdentifierPrefix) {
+        if id.hasPrefix(UntetheredWatchManager.notificationPrefix) {
             ActionNotice.clearReminders()
             let title = response.notification.request.content.title
             let how = response.actionIdentifier == UNNotificationDefaultActionIdentifier ? "opened" : "dismissed or other action"

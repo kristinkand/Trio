@@ -119,3 +119,37 @@ func watchDiscardPod(_ pump: PumpManager, completion: @escaping () -> Void) -> B
     omni.discardPod(completion: completion)
     return true
 }
+
+/// The sensor holds a single key for the watch display slot. Watch mode's G7 manager records each new one here, and
+/// the reader's first manager takes it over instead of pairing again (a pairing costs two sensor windows, about 5 to
+/// 10 minutes). G7Direct, gone since, kept its key here too.
+enum WatchG7SlotKey {
+    private static let key = "watchG7.slotKey"
+    private static let peripheralKey = "watchG7.slotPeripheral"
+
+    static var current: Data? { UserDefaults.standard.data(forKey: key) }
+
+    /// The sensor's Bluetooth handle as the last of the two to connect knew it. Both run in the same app, so
+    /// the system gives them the same handle for the same sensor.
+    static var peripheral: UUID? {
+        UserDefaults.standard.string(forKey: peripheralKey).flatMap(UUID.init(uuidString:))
+    }
+
+    static func record(_ sharedKey: Data, peripheral: UUID? = nil) {
+        if sharedKey != current { UserDefaults.standard.set(sharedKey, forKey: key) }
+        if let peripheral { record(peripheral: peripheral) }
+    }
+
+    static func record(peripheral: UUID) {
+        guard peripheral != self.peripheral else { return }
+        UserDefaults.standard.set(peripheral.uuidString, forKey: peripheralKey)
+    }
+}
+
+/// What the retired G7Direct reader knew of its sensor (`watchG7.*`): the reader's first manager takes over its key
+/// for the same sensor and code, instead of pairing the watch again.
+enum RetiredReaderPairing {
+    static var sensorName: String? { UserDefaults.standard.string(forKey: "watchG7.sensorName") }
+    static var pairingCode: String? { UserDefaults.standard.string(forKey: "watchG7.pairingCode") }
+    static var hasWatchKey: Bool { UserDefaults.standard.data(forKey: "watchG7.sharedKey") != nil }
+}

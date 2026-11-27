@@ -5,18 +5,10 @@ struct GlucoseTrendView: View {
     let rotationDegrees: Double
     let isWatchStateDated: Bool
 
-    private var reader: WatchG7Reader { WatchG7Reader.shared }
-
-    /// The reading the watch took from the sensor itself, when it is newer
-    /// than the phone's: the phone is out of reach, or has lost the sensor.
-    private var directReading: WatchG7Reading? {
-        reader.readingToShow(phoneDataIsDated: isWatchStateDated)
-    }
-
     /// The value shown is one the watch read from the sensor itself (its reader, or untethered mode),
     /// not the phone's.
     private var readingIsWatchOwn: Bool {
-        directReading != nil || state.currentGlucoseIsWatchOwn || state.newestReadingIsOwn
+        state.currentGlucoseIsWatchOwn || state.newestReadingIsOwn
     }
 
     /// A reading the sensor marked unreliable, newer than the reliable one shown and fresh: greyed with a warning sign.
@@ -24,40 +16,28 @@ struct GlucoseTrendView: View {
         guard let date = state.unsureGlucoseDate, let mgdl = state.unsureGlucoseMgdl,
               Date().timeIntervalSince(date) < 12 * 60
         else { return nil }
-        let shown = [directReading?.date, state.glucoseValues.last?.date].compactMap { $0 }.max() ?? .distantPast
+        let shown = state.glucoseValues.last?.date ?? .distantPast
         return date > shown ? (date, mgdl) : nil
     }
 
     private var showsGlucose: Bool {
-        !isWatchStateDated || directReading != nil || unsureReading != nil
+        !isWatchStateDated || unsureReading != nil
     }
 
     private var glucoseText: String {
         if let unsureReading {
             return WatchPhoneSigns.shared.format(Double(unsureReading.mgdl))
         }
-        if let directReading {
-            return WatchPhoneSigns.shared.format(Double(directReading.glucose))
-        }
         return isWatchStateDated ? "--" : state.currentGlucose
     }
 
     private var glucoseColor: Color {
         if unsureReading != nil { return Color.orange }
-        if let directReading {
-            let glucose = Double(directReading.glucose)
-            if glucose <= (WatchPhoneSigns.shared.lowMgDL ?? 70) { return Color.loopRed }
-            if glucose >= (WatchPhoneSigns.shared.highMgDL ?? 180) { return Color.loopYellow }
-            return Color.loopGreen
-        }
         return isWatchStateDated ? Color.secondary : state.currentGlucoseColorString.toColor()
     }
 
     private var deltaText: String? {
         if unsureReading != nil { return nil }
-        if directReading != nil {
-            return reader.deltaText ?? "--"
-        }
         guard let delta = state.delta else { return nil }
         return isWatchStateDated ? "--" : delta
     }
@@ -77,13 +57,6 @@ struct GlucoseTrendView: View {
         {
             return label
         }
-        if let directReading {
-            let minutes = max(0, Int(Date().timeIntervalSince(directReading.date) / 60))
-            return String(
-                localized: "Watch sensor · \(minutes) min",
-                comment: "Shown under the glucose when the watch read it from the sensor itself (minutes since the reading)"
-            )
-        }
         // the watch's reader's own reading, shown while the phone's is older
         if state.newestReadingIsOwn, !state.currentGlucoseIsWatchOwn, let last = state.glucoseValues.last {
             let minutes = max(0, Int(Date().timeIntervalSince(last.date) / 60))
@@ -97,23 +70,7 @@ struct GlucoseTrendView: View {
             state.lastLoopTime ?? "--"
     }
 
-    private var effectiveRotation: Double {
-        guard let directReading else { return rotationDegrees }
-        switch directReading.trendName {
-        case "DoubleUp",
-             "SingleUp":
-            return -90
-        case "FortyFiveUp":
-            return -45
-        case "FortyFiveDown":
-            return 45
-        case "DoubleDown",
-             "SingleDown":
-            return 90
-        default:
-            return 0
-        }
-    }
+    private var effectiveRotation: Double { rotationDegrees }
 
     /// Determines the status color based on the time elapsed since the last loop
     /// - Parameter timeString: The time string representing minutes since last loop (format: "X min")
@@ -278,7 +235,7 @@ struct GlucoseTrendView: View {
 
             Text(bottomText)
                 .font(.system(size: minutesAgoFontSize))
-                .fontWidth(isWatchStateDated && directReading == nil ? .expanded : .standard)
+                .fontWidth(isWatchStateDated ? .expanded : .standard)
                 // "Not reliable · N min" in the warning sign's orange, so it reads as part of the warning
                 .foregroundStyle(unsureReading != nil ? Color.orange : Color.primary)
 

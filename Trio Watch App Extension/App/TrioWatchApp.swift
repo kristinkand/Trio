@@ -53,7 +53,7 @@ import WatchKit
     }
 }
 
-// dev's background refresh while WatchCGMHost reads; unused while the watch's own reader (G7Direct) schedules its own
+// dev's background refresh; unused here: WatchCGMHost books its acquisition backstop and watch mode its own wake
 @MainActor enum WatchBackgroundRefresh {
     private static let interval: TimeInterval = 15 * 60
     private static let settleTimeout: TimeInterval = 5

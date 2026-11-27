@@ -30,7 +30,7 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
         // the retired G7Direct reader's booked alerts from the build before
         let center = UNUserNotificationCenter.current()
         center.getPendingNotificationRequests { requests in
-            let ids = requests.map(\.identifier).filter { $0.hasPrefix(WatchG7Reader.notificationIdentifierPrefix) }
+            let ids = requests.map(\.identifier).filter { $0.hasPrefix("trio.watchG7.") }
             center.removePendingNotificationRequests(withIdentifiers: ids)
         }
         // remote commands sent straight to the watch while the phone is away (LoopFollow) arrive as pushes

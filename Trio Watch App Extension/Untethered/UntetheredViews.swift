@@ -89,7 +89,7 @@ struct UntetheredStatusView: View {
             }
         }
         .sheet(isPresented: $showLog) {
-            WatchG7DetailsView()
+            WatchSensorDetailsView()
         }
         .confirmationDialog("Pair the watch with the sensor again?", isPresented: $confirmPairAgain) {
             Button("Pair Again", role: .destructive) { manager.pairSensorAgain() }

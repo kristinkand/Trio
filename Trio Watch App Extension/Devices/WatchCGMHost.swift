@@ -29,6 +29,26 @@ import WatchKit
     /// The sensor the manager was built for, as the phone names it: the iPhone checks the watch reads its sensor.
     var sensorID: String? { builtFrom?["sensorID"] as? String }
 
+    /// The sensor kit's lines, newest last, for the sensor details on the watch (and to share).
+    private(set) var logLines: [String] = UserDefaults.standard.stringArray(forKey: "WatchCGMHost.log") ?? []
+
+    private func appendLog(_ line: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM HH:mm:ss"
+        logLines.append("\(formatter.string(from: Date())) \(line)")
+        if logLines.count > 200 { logLines.removeFirst(logLines.count - 200) }
+        UserDefaults.standard.set(logLines, forKey: "WatchCGMHost.log")
+    }
+
+    /// Readings that came on time in the last 2 hours (24 are due) and the longest wait without one.
+    var recentCoverage: (count: Int, longestGapMinutes: Int) {
+        let now = Date()
+        let start = now.addingTimeInterval(-2 * 60 * 60)
+        let dates = liveReadingDates.filter { $0 > start }.sorted()
+        let gaps = zip([start] + dates, dates + [now]).map { $1.timeIntervalSince($0) }
+        return (dates.count, Int((gaps.max() ?? 0) / 60))
+    }
+
     private func noteLive(_ dates: [Date]) {
         guard !dates.isEmpty else { return }
         let cutoff = Date().addingTimeInterval(-2 * 60 * 60)
@@ -203,6 +223,8 @@ import WatchKit
 
     private func noteSensorProblem(_ problem: Bool) {
         hasSensorProblem = problem
+        // the Trio complication's yellow triangle, as G7Direct set it
+        UntetheredComplicationStore.setSensorWarning(problem)
     }
 
     private func scheduleAcquisitionBackstop() {
@@ -260,6 +282,11 @@ extension WatchCGMHost: CGMManagerDelegate {
                 WatchLogger.shared.info(.data, "Direct reading: \(readings.count) sample(s)")
                 updateStatus()
                 WatchState.shared.applyOwnReadings(readings)
+                // the Trio complication's graph, as G7Direct fed it
+                for reading in readings {
+                    guard let glucose = reading.glucose else { continue }
+                    UntetheredComplicationStore.add(date: reading.dateString, glucose: glucose, trend: reading.direction?.rawValue)
+                }
                 WatchAlarms.shared.check(own: readings)
                 scheduleAcquisitionBackstop()
             case .unreliableData:
@@ -307,6 +334,9 @@ extension WatchCGMHost: CGMManagerDelegate {
     ) {
         WatchLogger.shared.debug(.data, "CGM \(type): \(message)")
         completion?(nil)
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { self.appendLog("\(type): \(message)") }
+        }
         guard type == .connection else { return }
         // in order with the manager's other news, which comes on main
         DispatchQueue.main.async {

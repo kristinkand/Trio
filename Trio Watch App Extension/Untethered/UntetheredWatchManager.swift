@@ -1046,12 +1046,11 @@ import WatchKit
         _ configuration: SharedDeviceConfiguration,
         type: (CGMManager & DeviceConfigurationSharing).Type
     ) -> CGMManager? {
-        let reader = WatchG7Reader.shared
         guard var state = watchCGMReaderState(configuration),
-              reader.hasWatchKey, let slotKey = WatchG7SlotKey.current,
-              let sensor = state["sensorID"] as? String, let readerSensor = reader.sensorName,
+              RetiredReaderPairing.hasWatchKey, let slotKey = WatchG7SlotKey.current,
+              let sensor = state["sensorID"] as? String, let readerSensor = RetiredReaderPairing.sensorName,
               sensor.suffix(2) == readerSensor.suffix(2),
-              let code = state["pairingCode"] as? String, code == reader.pairingCode
+              let code = state["pairingCode"] as? String, code == RetiredReaderPairing.pairingCode
         else { return nil }
         state["sharedKey"] = slotKey
         if let handle = WatchG7SlotKey.peripheral?.uuidString { state["peripheralIdentifier"] = handle }
