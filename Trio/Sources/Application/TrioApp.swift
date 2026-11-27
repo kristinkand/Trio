@@ -1,6 +1,5 @@
 import BackgroundTasks
 import CoreData
-import CryptoSwift
 import Foundation
 import SwiftUI
 import Swinject
@@ -131,9 +130,6 @@ extension Notification.Name {
     }
 
     init() {
-        // OmnipodKit loads CryptoSwift at launch. Since dev 1.0.2.89 nothing else in the app uses it,
-        // and Xcode then leaves the framework out of Trio.app. This one call keeps it in.
-        _ = Digest.md5([])
         TrioLogger.install(AppLogStore.shared)
         FileProtectionFixer.fixFlagFileProtectionForPropertyPersistentFlags() // TODO: ‼️ REMOVE ME BEFORE PUBLIC BETA / RELEASE
 
