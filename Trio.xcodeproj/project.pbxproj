@@ -2410,7 +2410,7 @@
 		BDA25F212D26D62200035F34 /* BolusInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BolusInputView.swift; path = "Trio Watch App Extension/Views/Treatments/BolusInputView.swift"; sourceTree = SOURCE_ROOT; };
 		BDA6CC872CAF219800F942F9 /* TempTargetSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TempTargetSetup.swift; sourceTree = "<group>"; };
 		BDA7593D2D37CFC000E649A4 /* CarbEntryEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbEntryEditorView.swift; sourceTree = "<group>"; };
-		BDAE3FFF2D372BA8009C12B1 /* WatchState+Requests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WatchState+Requests.swift; path = "Trio Watch App Extension/State/WatchState+Requests.swift"; sourceTree = SOURCE_ROOT; };
+		BDAE3FFF2D372BA8009C12B1 /* WatchState+Requests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "WatchState+Requests.swift"; path = "Trio Watch App Extension/State/WatchState+Requests.swift"; sourceTree = SOURCE_ROOT; };
 		BDB3C1182C03DD1000CEEAA1 /* UserDefaultsExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsExtension.swift; sourceTree = "<group>"; };
 		BDB899872C564509006F3298 /* ForecastChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastChart.swift; sourceTree = "<group>"; };
 		BDB899892C565D0B006F3298 /* CarbsGlucose+helper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CarbsGlucose+helper.swift"; sourceTree = "<group>"; };
