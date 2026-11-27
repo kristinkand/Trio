@@ -26,6 +26,13 @@ import WatchKit
     private(set) var liveReadingDates: [Date] = (UserDefaults.standard.array(forKey: "WatchCGMHost.liveReadings")
         as? [TimeInterval] ?? []).map(Date.init(timeIntervalSince1970:))
 
+    /// The manager holds a key for its sensor: it reads it without pairing (a code, a search or an unfinished pairing
+    /// is still to do otherwise).
+    var isPaired: Bool {
+        guard let cgmManager else { return false }
+        return !pairingUnfinished && !watchCGMNeedsPairing(cgmManager)
+    }
+
     /// The sensor the manager was built for, as the phone names it: the iPhone checks the watch reads its sensor.
     var sensorID: String? { builtFrom?["sensorID"] as? String }
 

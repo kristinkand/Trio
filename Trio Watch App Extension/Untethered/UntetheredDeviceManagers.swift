@@ -57,6 +57,12 @@ func watchCGMRecheckAcquisition(_ manager: CGMManager?) {
     (manager as? G7CGMManager)?.recheckAcquisition()
 }
 
+/// The manager has no key for its sensor yet: it needs the sensor's code, or searches for a sensor it never connected to.
+func watchCGMNeedsPairing(_ manager: CGMManager?) -> Bool {
+    guard let g7 = manager as? G7CGMManager else { return false }
+    return g7.needsCodeForSensor != nil || g7.isSearchingForSensor
+}
+
 /// The sensor's link is up right now: a reading or its backfill is on the radio.
 func watchCGMIsConnected(_ manager: CGMManager?) -> Bool {
     (manager as? G7CGMManager)?.isConnected ?? false

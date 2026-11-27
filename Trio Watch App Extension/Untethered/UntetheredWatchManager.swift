@@ -1458,16 +1458,24 @@ import WatchKit
     /// it would hold the pod with nothing to loop on (Jeremy Barnum's Loop, 22 November, "No Start until the watch
     /// has read the sensor itself": 70 minutes on 17 November). The same check as the iPhone's readiness line.
     static var sensorNotPaired: String? {
-        let ready = onMain { () -> Bool? in
+        onMain { () -> String? in
             let host = WatchCGMHost.shared
-            // no sensor from the phone yet: nothing to say
-            guard host.isReadingDirectly || host.isLent else { return nil }
-            return host.isLent || (host.cgmManager?.watchSensorStateText == nil && WatchState.shared.hasOwnReading)
+            // no sensor from the phone yet, or watch mode has it: nothing to say
+            guard host.isReadingDirectly, !host.isLent else { return nil }
+            if !host.isPaired {
+                return String(
+                    localized: "The watch isn't paired with this sensor yet. Open the sensor page in Trio on the watch near the sensor and wait for its first reading, then start."
+                )
+            }
+            // paired, but no reading of its own lately (off the wrist, out of reach): a start would hold the pod with
+            // nothing to loop on (27 November: the watch on its charger, 17 minutes without a reading)
+            guard WatchState.shared.hasOwnReading else {
+                return String(
+                    localized: "The watch has had no sensor reading of its own for over 15 minutes. Wear it near the sensor and wait for a reading on the sensor page, then start."
+                )
+            }
+            return nil
         }
-        if ready ?? true { return nil }
-        return String(
-            localized: "The watch isn't paired with this sensor yet. Open the sensor page in Trio on the watch near the sensor and wait for its first reading, then start."
-        )
     }
 
     // MARK: - Handing back
@@ -2413,7 +2421,8 @@ extension UntetheredWatchManager {
         // the iPhone checks the watch reads its sensor by the sensor's name
         let reader = Self.onMain { () -> (on: Bool, sensor: String, ready: Bool) in
             let host = WatchCGMHost.shared
-            return (host.isReadingDirectly || host.isLent, host.sensorID ?? "", Self.sensorNotPaired == nil)
+            // ready: paired with this sensor; a missing recent reading is the watch's own start check
+            return (host.isReadingDirectly || host.isLent, host.sensorID ?? "", host.isLent || host.isPaired)
         }
         var report: [String: Any] = [
             "readerOn": reader.on,
