@@ -2554,7 +2554,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
             sensorGlucose.map(\.dateString).max() ?? .distantPast,
             Date().addingTimeInterval(-60 * 60)
         )
-        let readings = WatchG7Reader.shared.history.filter { $0.date > since.addingTimeInterval(60) }
+        let readings = WatchState.shared.ownReadings(since: since.addingTimeInterval(60))
         guard !readings.isEmpty else { return }
         Task {
             await WatchLogger.shared.log(
@@ -2562,12 +2562,10 @@ extension UntetheredWatchManager: CGMManagerDelegate {
                 force: true
             )
         }
-        takeReadings(readings.map {
-            SessionReading(
-                date: $0.date,
-                mgdl: $0.glucose,
-                direction: BloodGlucose.Direction(rawValue: $0.trendName ?? "") ?? .none
-            )
+        takeReadings(readings.compactMap { reading in
+            (reading.glucose ?? reading.sgv).map {
+                SessionReading(date: reading.dateString, mgdl: $0, direction: reading.direction ?? .none)
+            }
         })
     }
 
@@ -2667,7 +2665,6 @@ extension UntetheredWatchManager {
     /// The watch is the only device watching glucose: low, high and a stalled loop sound here.
     /// Run on every reading and every wake: the loop and sensor alarms are for exactly the times no reading comes.
     func checkAlarms() {
-        WatchG7Reader.shared.refreshSensorWarning()
         guard isActive, let grant = data.grant else { return }
         let now = Date()
         let latest = data.glucose.max(by: { $0.dateString < $1.dateString })

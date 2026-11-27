@@ -1,5 +1,6 @@
 import CryptoKit
 import Security
+import UserNotifications
 import WatchConnectivity
 import WatchKit
 
@@ -21,10 +22,15 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
     private static let wakeLength: TimeInterval = 60
 
     func applicationDidFinishLaunching() {
-        // restores a running untethered session first, so the reader sees it and stays off
+        // restores a running untethered session, then the reader's sensor link (lent to the session if it runs)
         _ = UntetheredWatchManager.shared
-        WatchG7Reader.shared.bootstrap()
-        WatchG7Reader.shared.scheduleBackgroundRefresh()
+        MainActor.assumeIsolated { _ = WatchCGMHost.shared }
+        // the retired G7Direct reader's booked alerts from the build before
+        let center = UNUserNotificationCenter.current()
+        center.getPendingNotificationRequests { requests in
+            let ids = requests.map(\.identifier).filter { $0.hasPrefix(WatchG7Reader.notificationIdentifierPrefix) }
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+        }
         // remote commands sent straight to the watch while the phone is away (LoopFollow) arrive as pushes
         WKApplication.shared().registerForRemoteNotifications()
     }
@@ -62,12 +68,11 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
     }
 
     func applicationDidBecomeActive() {
-        WatchG7Reader.shared.appBecameActive()   // before the recheck, so it holds in the app
-        WatchG7Reader.shared.noteWake()
+        MainActor.assumeIsolated { WatchCGMHost.shared.recheckAcquisition() }
     }
 
     func applicationWillEnterForeground() {
-        WatchG7Reader.shared.noteWake()
+        MainActor.assumeIsolated { WatchCGMHost.shared.recheckAcquisition() }
     }
 
     /// Implementing this makes every background task ours to complete.
@@ -87,7 +92,8 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
         for task in backgroundTasks {
             switch task {
             case let bluetoothTask as WKBluetoothAlertRefreshBackgroundTask:
-                if UntetheredWatchManager.shared.isActive {
+                // the sensor's wake, the reader's or a session's: held long enough for the reading (and a loop)
+                do {
                     if bluetoothTask === heldUntetheredTask { continue }
                     if heldUntetheredTask != nil, let since = heldSince, Date().timeIntervalSince(since) < Self.wakeLength {
                         completeOnce(bluetoothTask)
@@ -109,27 +115,24 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
                         if Thread.isMainThread { expire() } else { DispatchQueue.main.sync(execute: expire) }
                     }
                     // a reading in this wake loops through the CGM delegate; the wake itself only checks (EJM0 cfbb364)
-                    UntetheredWatchManager.shared.recheckCGM()
+                    if UntetheredWatchManager.shared.isActive { UntetheredWatchManager.shared.recheckCGM() }
                     DispatchQueue.main.asyncAfter(deadline: .now() + Self.untetheredBluetoothHold) {
                         self.releaseUntethered(bluetoothTask)
                     }
-                } else {
-                    WatchG7Reader.shared.hold(bluetoothTask: bluetoothTask)
                 }
 
             case let connectivityTask as WKWatchConnectivityRefreshBackgroundTask:
                 // Keep the app awake until WatchConnectivity has delivered
                 // what the phone queued, as Apple asks.
-                WatchG7Reader.shared.noteWake()
                 completeWhenConnectivityIsDelivered(connectivityTask, attempt: 0)
 
             case let refreshTask as WKApplicationRefreshBackgroundTask:
                 if UntetheredWatchManager.shared.isActive {
                     UntetheredWatchManager.shared.recheckCGM()
                 }
-                WatchG7Reader.shared.noteWake()
-                WatchG7Reader.shared.scheduleBackgroundRefresh()
-                // the session's own wake, after the reader's: one refresh is pending at a time
+                // the reader's acquisition backstop (`WatchCGMHost`): a sensor connect still missing goes in now
+                MainActor.assumeIsolated { WatchCGMHost.shared.recheckAcquisition() }
+                // the session's own wake: one refresh is pending at a time
                 UntetheredWatchManager.shared.scheduleSessionRefresh()
                 // A few seconds for the re-check to lodge its request before suspending.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
@@ -144,7 +147,6 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
                 )
 
             default:
-                WatchG7Reader.shared.noteWake()
                 task.setTaskCompletedWithSnapshot(false)
             }
         }

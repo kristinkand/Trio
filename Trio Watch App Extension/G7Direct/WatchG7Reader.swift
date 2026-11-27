@@ -108,7 +108,8 @@ import WatchKit
 
     private init() {
         let defaults = UserDefaults.standard
-        isEnabled = defaults.bool(forKey: Key.enabled)
+        // retired: `WatchCGMHost` reads the sensor; kept for its key (`WatchG7SlotKey`) until the copy goes
+        isEnabled = false
         sensorName = defaults.string(forKey: Key.sensorName)
         pairingCode = defaults.string(forKey: Key.pairingCode)
         phoneUsesG7Direct = defaults.object(forKey: Key.phoneUsesG7Direct) as? Bool
@@ -486,7 +487,7 @@ import WatchKit
 
     func setEnabled(_ enabled: Bool) {
         dispatchPrecondition(condition: .onQueue(.main))
-        guard enabled != isEnabled else { return }
+        guard !enabled, enabled != isEnabled else { return }
         isEnabled = enabled
         defaults.set(enabled, forKey: Key.enabled)
         if enabled {

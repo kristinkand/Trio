@@ -16,7 +16,7 @@ struct GlucoseTrendView: View {
     /// The value shown is one the watch read from the sensor itself (its reader, or untethered mode),
     /// not the phone's.
     private var readingIsWatchOwn: Bool {
-        directReading != nil || state.currentGlucoseIsWatchOwn
+        directReading != nil || state.currentGlucoseIsWatchOwn || state.newestReadingIsOwn
     }
 
     /// A reading the sensor marked unreliable, newer than the reliable one shown and fresh: greyed with a warning sign.
@@ -71,13 +71,22 @@ struct GlucoseTrendView: View {
             )
         }
         // the sensor's own state, when it sends no glucose: the reason, not "stale"
-        if let label = reader.sensorProblemLabel, !reader.isStandingAside,
-           (reader.latest.map { Date().timeIntervalSince($0.date) > 6 * 60 } ?? true)
+        let host = WatchCGMHost.shared
+        if let label = host.sensorStateText, !host.isLent,
+           (state.glucoseValues.last.map { Date().timeIntervalSince($0.date) > 6 * 60 } ?? true)
         {
             return label
         }
         if let directReading {
             let minutes = max(0, Int(Date().timeIntervalSince(directReading.date) / 60))
+            return String(
+                localized: "Watch sensor · \(minutes) min",
+                comment: "Shown under the glucose when the watch read it from the sensor itself (minutes since the reading)"
+            )
+        }
+        // the watch's reader's own reading, shown while the phone's is older
+        if state.newestReadingIsOwn, !state.currentGlucoseIsWatchOwn, let last = state.glucoseValues.last {
+            let minutes = max(0, Int(Date().timeIntervalSince(last.date) / 60))
             return String(
                 localized: "Watch sensor · \(minutes) min",
                 comment: "Shown under the glucose when the watch read it from the sensor itself (minutes since the reading)"
@@ -251,7 +260,7 @@ struct GlucoseTrendView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(.orange)
                             .accessibilityLabel("Not reliable: the sensor reports an issue")
-                    } else if reader.showsSensorWarning {
+                    } else if WatchCGMHost.shared.hasSensorProblem, !WatchCGMHost.shared.isLent {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 13))
                             .foregroundStyle(.yellow)

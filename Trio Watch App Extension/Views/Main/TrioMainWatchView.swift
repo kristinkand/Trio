@@ -227,8 +227,8 @@ struct TrioMainWatchView: View {
                 if showsUntethered {
                     UntetheredStatusView(manager: untethered).tag(statusPage)
                 }
-                // the watch reading the G7 itself, its switch and log
-                WatchG7View()
+                // the watch reading the sensor itself (`WatchCGMHost`)
+                WatchSensorView(state: state)
                     .tag(watchSensorPage)
 
                 // Last, while it loops: the watch's own loop status

@@ -216,7 +216,6 @@ import WatchKit
     private func adoptSavedState() {
         data = store.data
         // before the watch's own G7 reader starts at launch: a running session keeps the sensor
-        updateReaderStandAside()
         DispatchQueue.main.async {
             self.restoreDevices()
             self.requestStandingGrantIfMissing()
@@ -247,7 +246,6 @@ import WatchKit
             store.update { $0.podTotalCheck = nil }
             data = store.data
         }
-        updateReaderStandAside()
         // the first page marks the reading as the watch's own while this mode reads the sensor
         // the phone's reading shows with the iPhone symbol
         let watchOwn = isActive && readingsFromPhoneSince == nil
@@ -261,19 +259,10 @@ import WatchKit
         }
     }
 
-    /// The watch's display-only G7 reader uses the same display slot on the sensor: from the grant to the
-    /// hand-back the sensor belongs to this mode.
-    private func updateReaderStandAside() {
-        // A start without the phone leaves the sensor to the reader until the pod is reached: until then nothing else
-        // reads it, and the reader's readings wake the app for the next try. On 24 October (tester, 16:35 to 16:54) the
-        // reader paused as the fallback began, the pod didn't answer in the first seconds, and for 19 minutes nothing
-        // read the sensor or woke the app, until the start ran out silently.
-        let aside = !data.session.isIdle && !(data.session.phase == .starting && data.session.startedWithoutPhone)
-        if Thread.isMainThread {
-            WatchG7Reader.shared.standAside(aside)
-        } else {
-            DispatchQueue.main.async { WatchG7Reader.shared.standAside(aside) }
-        }
+    /// Runs `body` on the main actor, where `WatchCGMHost` lives: at once when already on main.
+    static func onMain<T>(_ body: @MainActor () -> T) -> T {
+        if Thread.isMainThread { return MainActor.assumeIsolated(body) }
+        return DispatchQueue.main.sync { MainActor.assumeIsolated(body) }
     }
 
     /// Encryption timeouts on the sensor's link since its last reading (see `deviceManager(_:logEventForDeviceIdentifier:)`).
@@ -293,7 +282,19 @@ import WatchKit
     /// pairs again.
     func pairSensorAgain() {
         Task { await WatchLogger.shared.log("⌚️ Untethered: Pair Again tapped", force: true) }
-        WatchG7Reader.shared.resetWatchPairing()
+        // the sensor link starts afresh without the watch's key: the old manager lets go first (one central)
+        if let old = cgmManager, let grant = data.grant, let configuration = Self.configuration(grant.cgmConfiguration),
+           let type = watchCGMManagers[configuration.managerIdentifier]
+        {
+            old.cgmManagerDelegate = nil
+            cgmManager = nil
+            Task { @MainActor in
+                await old.delete()
+                guard self.isActive, let fresh = type.init(adopting: configuration, localState: nil) else { return }
+                self.install(fresh)
+                self.sensorPairingDue()
+            }
+        }
         sensorEncryptTimeouts = 0
         if data.lastError == Self.sensorRefusalMessage { setError(nil) }
     }
@@ -697,7 +698,6 @@ import WatchKit
         // before the alarms are booked, so No Sensor Readings counts from the reader's newest reading
         if !wasActive, isActive { seedFallbackReadings() }
         if wasActive != isActive {
-            WatchG7Reader.shared.refreshSensorWarning()
             handOverAlertNotifications(toWatch: isActive)
             noteSessionBattery(started: isActive)
         }
@@ -992,6 +992,16 @@ import WatchKit
     /// instead of pairing afresh; a different sensor or code starts over.
     private func startCGM() {
         guard let grant = data.grant, let configuration = Self.configuration(grant.cgmConfiguration) else { return }
+        // the watch's reader already reads this sensor: its manager, one central and no second pairing
+        if let borrowed = Self.onMain({ WatchCGMHost.shared.lend(for: configuration) }) {
+            Task { await WatchLogger.shared.log("⌚️ Untethered: taking the watch reader's sensor link", force: true) }
+            store.update {
+                $0.cgmBuiltFrom = Self.plist(configuration.state)
+                $0.pendingPumpAlerts.removeAll { $0.managerIdentifier == borrowed.pluginIdentifier }
+            }
+            install(borrowed)
+            return
+        }
         let sameSensor = Self.dictionary(store.data.cgmBuiltFrom)
             .map { NSDictionary(dictionary: $0).isEqual(to: configuration.state) } ?? false
         if sameSensor, let restored = restoredCGM() {
@@ -1051,15 +1061,30 @@ import WatchKit
     /// The watch stops connecting; its saved state stays for the next session.
     private func stopCGM() {
         sensorPairingDone()
-        guard let cgm = cgmManager else { return }
-        // in the log next to the reader's takeover, to see which of the two centrals went first
-        Task { await WatchLogger.shared.log("⌚️ Untethered: letting go of the sensor", force: true) }
+        guard let cgm = cgmManager else {
+            Self.onMain { WatchCGMHost.shared.takeBack(nil, builtFrom: nil) }
+            return
+        }
+        Task { await WatchLogger.shared.log("⌚️ Untethered: the sensor link goes back to the watch's reader", force: true) }
         saveCGMState()
         cgm.cgmManagerDelegate = nil
-        // an adopted manager only lets go of the sensor: the phone owns its lifecycle and records. Async since
-        // LoopKit#685; without a delegate it only stops the sensor link.
-        Task { @MainActor in await cgm.delete() }
         cgmManager = nil
+        // the reader reads on with the same manager: no pairing again, one central
+        let builtFrom = Self.dictionary(store.data.cgmBuiltFrom)
+        Self.onMain { WatchCGMHost.shared.takeBack(cgm, builtFrom: builtFrom) }
+    }
+
+    /// A manager for this sensor with the watch's own key, from a watch mode session's saved state or G7Direct's
+    /// pairing, for the reader's first build: nil when the watch has none for it.
+    func knownSensorManager(for configuration: SharedDeviceConfiguration) -> CGMManager? {
+        guard let type = watchCGMManagers[configuration.managerIdentifier] else { return nil }
+        if let saved = Self.dictionary(store.data.cgmBuiltFrom),
+           watchCGMManagersByIdentifier[configuration.managerIdentifier]?.sameSensor(saved, configuration.state) == true,
+           let restored = restoredCGM()
+        {
+            return restored
+        }
+        return Self.sensorPairedByReader(configuration, type: type)
     }
 
     func install(_ cgm: CGMManager) {
@@ -1142,7 +1167,16 @@ import WatchKit
                 install(pump)
                 if data.session.phase == .starting { takeover(continuing: pump) }
             }
-            if data.session.phase != .starting, let cgm = restoredCGM() { install(cgm) }
+            if data.session.phase != .starting {
+                // the reader restored its manager too: the session takes that one, one central
+                if let grant = data.grant, let configuration = Self.configuration(grant.cgmConfiguration),
+                   let borrowed = Self.onMain({ WatchCGMHost.shared.lend(for: configuration) })
+                {
+                    install(borrowed)
+                } else if let cgm = restoredCGM() {
+                    install(cgm)
+                }
+            }
         case .idle,
              .preparing:
             break
@@ -1425,9 +1459,13 @@ import WatchKit
     /// it would hold the pod with nothing to loop on (Jeremy Barnum's Loop, 22 November, "No Start until the watch
     /// has read the sensor itself": 70 minutes on 17 November). The same check as the iPhone's readiness line.
     static var sensorNotPaired: String? {
-        let reader = WatchG7Reader.shared
-        guard reader.sensorName != nil else { return nil }
-        if reader.hasWatchKey, reader.sensorAnswered || !reader.isEnabled { return nil }
+        let ready = onMain { () -> Bool? in
+            let host = WatchCGMHost.shared
+            // no sensor from the phone yet: nothing to say
+            guard host.isReadingDirectly || host.isLent else { return nil }
+            return host.isLent || (host.cgmManager?.watchSensorStateText == nil && WatchState.shared.hasOwnReading)
+        }
+        if ready ?? true { return nil }
         return String(
             localized: "The watch isn't paired with this sensor yet. Open the sensor page in Trio on the watch near the sensor and wait for its first reading, then start."
         )
@@ -2373,11 +2411,11 @@ extension UntetheredWatchManager {
     /// iPhone" line (22 November: a start without the iPhone fails when the watch never met the pod or the sensor,
     /// and nothing says so until the iPhone is left behind). The time of the copy tells the iPhone which pod it was.
     var readinessReport: [String: Any] {
-        let reader = WatchG7Reader.shared
+        let reader = Self.onMain { (on: WatchCGMHost.shared.isReadingDirectly, ready: Self.sensorNotPaired == nil) }
         var report: [String: Any] = [
-            "readerOn": reader.isEnabled,
-            "sensorName": reader.sensorName ?? "",
-            "sensorReady": reader.hasWatchKey && reader.sensorAnswered
+            "readerOn": reader.on,
+            "sensorName": WatchState.shared.watchReadsSensor ? "G7" : "",
+            "sensorReady": reader.on && reader.ready
         ]
         if let issuedAt = data.standingGrantIssuedAt, data.standingGrant != nil {
             report[Self.readinessGrantKey] = issuedAt.timeIntervalSince1970

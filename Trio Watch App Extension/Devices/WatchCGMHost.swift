@@ -18,6 +18,9 @@ import WatchKit
     @ObservationIgnored private var swap: Task<Void, Never>?
     /// A pairing's Bluetooth bond never finished (the app was in the background); the kit retracts it on a reading.
     @ObservationIgnored private var pairingUnfinished = false
+    /// Watch mode has the sensor: it borrowed this manager, or built its own. Nothing is built or swapped until it
+    /// gives the manager back: one central under the kit's restore identifier, one connection in the watch slot.
+    @ObservationIgnored private(set) var isLent = false
 
     /// For the glucose bubble.
     private(set) var isReadingDirectly = false
@@ -47,8 +50,9 @@ import WatchKit
     /// The phone's settings arrived. Builds a manager when its export names a different sensor or code, lets go of
     /// the sensor when the phone stopped sharing, and otherwise treats it as a wake.
     func update(from state: WatchState) {
-        // a state arriving mid-swap is dropped; the phone sends the next within minutes
-        guard swap == nil else { return }
+        // a state arriving mid-swap or while watch mode has the sensor is dropped; the phone sends the next within
+        // minutes
+        guard swap == nil, !isLent else { return }
         guard state.watchReadsSensor, let data = state.sensorConfiguration,
               let raw = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
               let configuration = SharedDeviceConfiguration(rawValue: raw)
@@ -81,7 +85,12 @@ import WatchKit
     }
 
     private func build(from configuration: SharedDeviceConfiguration) {
-        guard let manager = watchCGMManager(adopting: configuration, localState: nil) else {
+        // the watch's own key for this sensor when it has one (watch mode's or G7Direct's): no pairing again
+        let known = UntetheredWatchManager.shared.knownSensorManager(for: configuration) as? any WatchReadableCGM
+        if known != nil {
+            WatchLogger.shared.info(.data, "CGM manager built with the watch's own key for this sensor")
+        }
+        guard let manager = known ?? watchCGMManager(adopting: configuration, localState: nil) else {
             WatchLogger.shared.warning(.data, "The phone's CGM (\(configuration.managerIdentifier)) can't be read from the watch")
             return
         }
@@ -94,6 +103,41 @@ import WatchKit
     /// Any wake that is not the sensor's own.
     func recheckAcquisition() {
         cgmManager?.recheckAcquisition()
+    }
+
+    /// Watch mode takes the sensor: this manager when it reads the same sensor, else nil and watch mode builds its
+    /// own. Either way nothing is built here until `takeBack`.
+    func lend(for configuration: SharedDeviceConfiguration) -> CGMManager? {
+        isLent = true
+        guard swap == nil, let manager = cgmManager else { return nil }
+        guard let builtFrom, manager.pluginIdentifier == configuration.managerIdentifier,
+              type(of: manager).sameSensor(builtFrom, configuration.state)
+        else {
+            // another sensor than watch mode's: this one lets go, watch mode builds its own
+            WatchLogger.shared.info(.data, "Watch mode has another sensor: letting go of the reader's")
+            swap = Task {
+                await remove()
+                swap = nil
+            }
+            return nil
+        }
+        manager.cgmManagerDelegate = nil
+        statusObserver.map(NotificationCenter.default.removeObserver)
+        statusObserver = nil
+        cgmManager = nil
+        isTalkingToSensor = false
+        WatchLogger.shared.info(.data, "CGM manager lent to watch mode")
+        return manager
+    }
+
+    /// Watch mode is done with the sensor: its manager reads on here, without a new pairing.
+    func takeBack(_ manager: CGMManager?, builtFrom state: [String: Any]?) {
+        isLent = false
+        guard let manager = manager as? any WatchReadableCGM else { return }
+        if let state { builtFrom = state }
+        install(manager)
+        save(manager)
+        WatchLogger.shared.info(.data, "CGM manager back from watch mode")
     }
 
     private func install(_ manager: any WatchReadableCGM) {

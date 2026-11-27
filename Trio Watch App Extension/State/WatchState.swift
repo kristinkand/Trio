@@ -1281,23 +1281,6 @@ import WidgetKit
             if !allow || !untetheredMode { DispatchQueue.main.async { UntetheredWatchManager.shared.dropStandingGrant() } }
         }
 
-        // Start by Itself waits for readings of the watch's own reader, so the reader comes on with it, once each time
-        // the setting comes on (27 October: the reader was off since a reset, and the watch never started by itself).
-        // Switched off by hand afterwards, it stays off; its page then says what that stops.
-        let fallbackWantsReader = fallbackLoop && untetheredMode && allowUntetheredStartWithoutPhone
-        let readerEnsuredKey = "fallbackLoop.readerEnsured"
-        if fallbackWantsReader, !UserDefaults.standard.bool(forKey: readerEnsuredKey) {
-            UserDefaults.standard.set(true, forKey: readerEnsuredKey)
-            DispatchQueue.main.async {
-                if !WatchG7Reader.shared.isEnabled {
-                    WatchG7Reader.shared.setEnabled(true)
-                    Task { await WatchLogger.shared.log("⌚️ Untethered: watch sensor turned on for Start by Itself", force: true) }
-                }
-            }
-        } else if !fallbackWantsReader {
-            UserDefaults.standard.set(false, forKey: readerEnsuredKey)
-        }
-
         if let low = message["complicationRangeLowMgDL"] as? Double, low != chartLowMgDL { chartLowMgDL = low }
         if let high = message["complicationRangeHighMgDL"] as? Double, high != chartHighMgDL { chartHighMgDL = high }
         if let target = message["complicationTargetMgDL"] as? Double, target != chartTargetMgDL { chartTargetMgDL = target }
@@ -1323,8 +1306,8 @@ import WidgetKit
         // the watch's battery back to the phone, which uploads it for LoopFollow
         reportBatteryIfChanged()
 
-        // Sensor details, alarm thresholds and units for the watch's own G7 reading.
-        WatchG7Reader.shared.updateFromPhone(message)
+        // the phone's newest reading and dose, units and alarm thresholds
+        WatchPhoneSigns.shared.update(from: message)
         // a session the fallback started goes back once the phone sends fresh readings again
         UntetheredWatchManager.shared.notePhoneState()
         // after the reader took the units and alert thresholds from the same message
@@ -1356,13 +1339,14 @@ import WidgetKit
         }
 
         // the export can be absent while the phone starts; only Read on Apple Watch turns the link off
-        // kept, but WatchCGMHost stays off while the watch's own reader (G7Direct) reads the sensor: one reader at a time
         if let watchReadsSensor = message[WatchMessageKeys.watchReadsSensor] as? Bool, watchReadsSensor != self.watchReadsSensor {
             self.watchReadsSensor = watchReadsSensor
         }
         if let configuration = message[WatchMessageKeys.watchSensorConfiguration] as? Data, configuration != sensorConfiguration {
             sensorConfiguration = configuration
         }
+        // every phone state: a new sensor builds the reader's manager again, the same one is a wake
+        Task { @MainActor in WatchCGMHost.shared.update(from: self) }
 
         // the watch's own reading first; the phone's only while the watch has none fresh
         applyOwnOverlay()
@@ -1376,6 +1360,16 @@ import WidgetKit
         ownReadings += readings.filter { !known.contains(Int($0.dateString.timeIntervalSince1970 / 60)) }
         ownReadings.sort { $0.dateString < $1.dateString }
         applyOwnOverlay()
+    }
+
+    /// The watch's own readings after `date`, oldest first: a session the fallback starts begins with them.
+    func ownReadings(since date: Date) -> [BloodGlucose] {
+        ownReadings.filter { $0.dateString > date }
+    }
+
+    /// The watch has read the sensor itself within the last 15 minutes.
+    var hasOwnReading: Bool {
+        (ownReadings.last?.dateString).map { Date().timeIntervalSince($0) < 15 * 60 } ?? false
     }
 
     /// Picks the reading shown again, as time passes: called when the watch app comes to the front.
