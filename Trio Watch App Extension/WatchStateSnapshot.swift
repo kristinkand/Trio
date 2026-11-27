@@ -57,7 +57,7 @@ struct TrioComplicationData: Codable {
     var untetheredLastLoop: Date?
 }
 
-enum ComplicationStore {
+enum UntetheredComplicationStore {
     static let kind = "TrioWatchComplication"
     private static let key = "complication.glucose"
     /// The graph spans 3 hours.

@@ -818,7 +818,7 @@ import WatchKit
             DispatchQueue.main.async { self.refreshSensorWarning() }
             return
         }
-        ComplicationStore.setSensorWarning(showsSensorWarning)
+        UntetheredComplicationStore.setSensorWarning(showsSensorWarning)
     }
 
     // MARK: - Sensor state alerts
@@ -1065,7 +1065,7 @@ import WatchKit
             self.handBackAt = nil
             UntetheredWatchManager.shared.checkFallback(readerReadings: self.history.map(\.date))
             UntetheredWatchManager.shared.resendOwnershipAnswerIfUnconfirmed()
-            ComplicationStore.add(reading)
+            UntetheredComplicationStore.add(reading)
             self.bookNoReadingsAlert()
             self.appendLog("Reading \(self.format(Double(reading.glucose))) \(self.units) \(self.arrow(for: reading.trendName))")
             self.evaluateAlerts(for: reading)

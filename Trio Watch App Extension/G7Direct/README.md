@@ -27,7 +27,7 @@ when the iPhone is out of reach. Display and alerts only: nothing here doses.
 - `WatchG7Messages.swift`: glucose and backfill parsing without LoopKit.
 - `WatchG7Reader.swift`: settings, history, alerts, and what the phone sends.
 - `WatchG7View.swift`: the third page of the watch app.
-- `TrioWatchAppDelegate.swift`: launches the reader at every (also background)
+- `../App/TrioWatchAppDelegate.swift`: launches the reader at every (also background)
   launch and holds Bluetooth wakes.
 
 ## Keeping it current

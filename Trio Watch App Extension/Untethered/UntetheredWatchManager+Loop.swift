@@ -2994,7 +2994,7 @@ extension UntetheredWatchManager {
         state.lastWatchStateUpdate = Date().timeIntervalSince1970
         guard inFront else {
             // this fork's complication store takes the units and range; the target stays as last given
-            ComplicationStore.update(
+            UntetheredComplicationStore.update(
                 from: state,
                 isMmol: units != .mgdL,
                 lowMgDL: NSDecimalNumber(decimal: grant.lowGlucose).doubleValue,
@@ -3046,7 +3046,7 @@ extension UntetheredWatchManager {
         }
         state.maxBolus = grant.maxBolus
         state.maxCarbs = grant.maxCarbs
-        ComplicationStore.update(
+        UntetheredComplicationStore.update(
             from: state,
             isMmol: units != .mgdL,
             lowMgDL: NSDecimalNumber(decimal: grant.lowGlucose).doubleValue,

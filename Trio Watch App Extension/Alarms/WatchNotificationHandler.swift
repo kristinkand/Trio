@@ -49,6 +49,7 @@ final class WatchNotificationHandler: NSObject, UNUserNotificationCenterDelegate
         let id = notification.request.identifier
         if id.hasPrefix(WatchG7Reader.notificationIdentifierPrefix)
             || id.hasPrefix(UntetheredWatchManager.notificationPrefix)
+            || id.hasPrefix(WatchAlarms.notificationPrefix)
         {
             completionHandler([.banner, .list, .sound])
         } else {
@@ -93,6 +94,10 @@ final class WatchNotificationHandler: NSObject, UNUserNotificationCenterDelegate
     /// A duration of 0 ends the active snooze.
     func sendSnoozeRequest(minutes: Int) {
         guard WCSession.isSupported() else { return }
+        // at once on the watch too: its own alarms snooze while the phone is away
+        DispatchQueue.main.async {
+            WatchState.shared.snoozeUntilDate = minutes > 0 ? Date().addingTimeInterval(TimeInterval(minutes) * 60) : .distantPast
+        }
 
         let payload: [String: Any] = [WatchMessageKeys.snoozeDuration: minutes]
         let session = WCSession.default

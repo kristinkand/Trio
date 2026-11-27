@@ -147,6 +147,10 @@ extension PluginSource: CGMManagerDelegate {
         processQueue.async { self.glucoseManager?.trioAlertManager?.retractAlert(identifier: alert.identifier) }
     }
 
+    /// Not yet: the watch reads the G7 with its own reader (G7Direct, and untethered mode), and `WatchCGMHost` would be
+    /// a second one on the same sensor. Hides the G7's Read on Apple Watch.
+    func supportsWatchDirectRead(for _: CGMManager) -> Bool { false }
+
     func cgmManagerWantsDeletion(_ manager: CGMManager) async {
         info(.cgm, "CGM \(manager.pluginIdentifier) requested removal")
         await glucoseManager?.deleteGlucoseSource()

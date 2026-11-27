@@ -57,11 +57,11 @@ struct TrioMainWatchView: View {
     // treatments
     @State private var selectedTreatment: TreatmentOption?
 
-    /// Ticks so staleness shows without new data.
+    /// Ticks the bubble's staleness and the switch to the watch's own readings.
     @State private var now = Date()
     private static let ticker = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
-    /// The bubble goes stale by reading age.
+    /// The bubble is dated by its newest reading, the watch's own included; without readings, by the last update.
     private var isReadingDated: Bool {
         guard let newestReading = state.glucoseValues.last?.date else { return isWatchStateDated }
         return now.timeIntervalSince(newestReading) > 6 * 60
@@ -77,6 +77,26 @@ struct TrioMainWatchView: View {
     /// Treatments and IOB/COB rely on the phone's data, unless the watch runs the loop itself.
     private var isPhoneDataUnusable: Bool {
         !untethered.isActive && (isWatchStateDated || isSessionUnreachable)
+    }
+
+    /// Left of the bubble: the phone while it syncs; the watch with waves while its link to the sensor is up; the
+    /// watch alone while the bubble shows a fresh reading of its own, not merely a sensor it was given. The watch is
+    /// yellow while the sensor needs a look (warmup, grace period, an unreliable reading), red once it has failed or
+    /// expired, and then always shown.
+    private var linkIndicator: (symbol: String, waves: Bool, tint: Color)? {
+        if state.showSyncingAnimation { return ("iphone.radiowaves.left.and.right", true, .primary) }
+        let host = WatchCGMHost.shared
+        let tint = host.sensorHasEnded ? Color.loopRed : host.hasSensorProblem ? Color.yellow : .primary
+        if host.isTalkingToSensor { return ("applewatch.radiowaves.left.and.right", true, tint) }
+        if state.newestReadingIsOwn || host.hasSensorProblem { return ("applewatch", false, tint) }
+        return nil
+    }
+
+    /// The phone sends its state after each loop, so it is often a few seconds past 5 min old: the loop's age is
+    /// counted on for two cycles before it counts as unknown.
+    private var isPhoneStateDated: Bool {
+        guard let lastUpdate = state.lastWatchStateUpdate else { return true }
+        return now.timeIntervalSince1970 - lastUpdate > 10 * 60
     }
 
     var isSessionUnreachable: Bool {
@@ -170,15 +190,11 @@ struct TrioMainWatchView: View {
                             )
                     }
 
-                    if state.showSyncingAnimation {
-                        Image(systemName: "iphone.radiowaves.left.and.right")
+                    if let linkIndicator {
+                        Image(systemName: linkIndicator.symbol)
                             .symbolRenderingMode(.palette)
-                            .foregroundStyle(Color.primary, Color.tabBar, Color.clear)
-                            .symbolEffect(
-                                .variableColor.iterative,
-                                options: .repeating,
-                                value: state.showSyncingAnimation
-                            )
+                            .foregroundStyle(linkIndicator.tint, Color.tabBar, Color.clear)
+                            .symbolEffect(.variableColor.iterative, options: .repeating, isActive: linkIndicator.waves)
                             .position(
                                 x: 20,
                                 y: (WKInterfaceDevice.current().screenBounds.height / 4) -
@@ -387,6 +403,7 @@ struct TrioMainWatchView: View {
                 }
             }
             .onChange(of: scenePhase) { _, newPhase in
+                // the ages tick every 30 s, and not at all while the app is in the background
                 if newPhase == .active { now = Date() }
                 // An entry left for more than 2 min (wrist down, app in the background) is
                 // cleared and the input screens are closed, so a stale amount can't be confirmed

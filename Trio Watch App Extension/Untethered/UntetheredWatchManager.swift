@@ -253,7 +253,7 @@ import WatchKit
         let watchOwn = isActive && readingsFromPhoneSince == nil
         if WatchState.shared.currentGlucoseIsWatchOwn != watchOwn { WatchState.shared.currentGlucoseIsWatchOwn = watchOwn }
         // the face's watch symbol: before the readings go to the complication, so their redraw carries the last loop
-        ComplicationStore.setUntethered(isActive, lastLoop: data.lastLoopDate)
+        UntetheredComplicationStore.setUntethered(isActive, lastLoop: data.lastLoopDate)
         if isActive {
             publishToWatchState()
         } else if !WatchState.shared.treatmentMarkers.isEmpty {
