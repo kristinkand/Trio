@@ -24,6 +24,8 @@ final class TrioWatchAppDelegate: NSObject, WKApplicationDelegate {
     func applicationDidFinishLaunching() {
         // restores a running untethered session, then the reader's sensor link (lent to the session if it runs)
         _ = UntetheredWatchManager.shared
+        // the retired G7Direct reader's pending connect would keep the sensor from the reader below
+        RetiredReaderCentral.shared.release()
         MainActor.assumeIsolated { _ = WatchCGMHost.shared }
         // the retired G7Direct reader's booked alerts from the build before
         let center = UNUserNotificationCenter.current()
