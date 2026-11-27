@@ -9,6 +9,8 @@ struct WatchSensorView: View {
 
     private var host: WatchCGMHost { WatchCGMHost.shared }
     private var readings: [BloodGlucose] { state.ownReadings(since: now.addingTimeInterval(-60 * 60)) }
+    /// Readings that came on time, as G7Direct counted them: one filled in after a gap doesn't count.
+    private var onTime: Int { host.liveReadingDates.filter { $0 > now.addingTimeInterval(-60 * 60) }.count }
 
     var body: some View {
         ScrollView {
@@ -36,7 +38,7 @@ struct WatchSensorView: View {
                         note(String(localized: "Warmup ends in \(Int(warmup.timeIntervalSince(now) / 60) + 1) min"))
                     }
                     // a reading every 5 minutes: 12 an hour
-                    note(String(localized: "Last hour: \(readings.count) of 12 readings"))
+                    note(String(localized: "Last hour: \(onTime) of 12 readings on time"))
                 }
             }
             .padding(.horizontal, 4)

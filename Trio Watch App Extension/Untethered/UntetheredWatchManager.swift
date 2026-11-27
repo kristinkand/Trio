@@ -2411,10 +2411,14 @@ extension UntetheredWatchManager {
     /// iPhone" line (22 November: a start without the iPhone fails when the watch never met the pod or the sensor,
     /// and nothing says so until the iPhone is left behind). The time of the copy tells the iPhone which pod it was.
     var readinessReport: [String: Any] {
-        let reader = Self.onMain { (on: WatchCGMHost.shared.isReadingDirectly, ready: Self.sensorNotPaired == nil) }
+        // the iPhone checks the watch reads its sensor by the sensor's name
+        let reader = Self.onMain { () -> (on: Bool, sensor: String, ready: Bool) in
+            let host = WatchCGMHost.shared
+            return (host.isReadingDirectly || host.isLent, host.sensorID ?? "", Self.sensorNotPaired == nil)
+        }
         var report: [String: Any] = [
             "readerOn": reader.on,
-            "sensorName": WatchState.shared.watchReadsSensor ? "G7" : "",
+            "sensorName": reader.sensor,
             "sensorReady": reader.on && reader.ready
         ]
         if let issuedAt = data.standingGrantIssuedAt, data.standingGrant != nil {

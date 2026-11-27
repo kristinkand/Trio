@@ -21,6 +21,20 @@ import WatchKit
     /// Watch mode has the sensor: it borrowed this manager, or built its own. Nothing is built or swapped until it
     /// gives the manager back: one central under the kit's restore identifier, one connection in the watch slot.
     @ObservationIgnored private(set) var isLent = false
+    /// When readings came as they were taken, not filled in afterwards, over the last 2 hours: the sensor page counts
+    /// these, as G7Direct's did.
+    private(set) var liveReadingDates: [Date] = (UserDefaults.standard.array(forKey: "WatchCGMHost.liveReadings")
+        as? [TimeInterval] ?? []).map(Date.init(timeIntervalSince1970:))
+
+    /// The sensor the manager was built for, as the phone names it: the iPhone checks the watch reads its sensor.
+    var sensorID: String? { builtFrom?["sensorID"] as? String }
+
+    private func noteLive(_ dates: [Date]) {
+        guard !dates.isEmpty else { return }
+        let cutoff = Date().addingTimeInterval(-2 * 60 * 60)
+        liveReadingDates = (liveReadingDates + dates).filter { $0 > cutoff }
+        UserDefaults.standard.set(liveReadingDates.map(\.timeIntervalSince1970), forKey: "WatchCGMHost.liveReadings")
+    }
 
     /// For the glucose bubble.
     private(set) var isReadingDirectly = false
@@ -126,6 +140,7 @@ import WatchKit
         statusObserver = nil
         cgmManager = nil
         isTalkingToSensor = false
+        updateStatus()
         WatchLogger.shared.info(.data, "CGM manager lent to watch mode")
         return manager
     }
@@ -239,6 +254,7 @@ extension WatchCGMHost: CGMManagerDelegate {
         MainActor.assumeIsolated {
             switch readingResult {
             case let .newData(samples):
+                noteLive(samples.filter { !$0.isBackfill && !$0.wasUserEntered }.map(\.date))
                 let readings = Self.readings(from: samples)
                 guard !readings.isEmpty else { return }
                 WatchLogger.shared.info(.data, "Direct reading: \(readings.count) sample(s)")
