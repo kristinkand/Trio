@@ -1357,12 +1357,13 @@ struct WatchModeSheet: View {
             .focused($crownFocused)
             // scrolling the page by touch takes the crown for the page; a tap gives it back to the ring
             .onTapGesture { crownFocused = true }
+            // .medium: about half the turning of .low, still too much for a brush of the sleeve (28 November)
             .digitalCrownRotation(
                 $turn,
                 from: 0,
                 through: 1,
                 by: 0.01,
-                sensitivity: .low,
+                sensitivity: .medium,
                 isContinuous: false,
                 isHapticFeedbackEnabled: true
             )
