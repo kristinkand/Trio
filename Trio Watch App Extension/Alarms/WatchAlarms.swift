@@ -68,7 +68,7 @@ import WatchKit
             category: NotificationCategoryIdentifier.trioAlert.rawValue
         )
         // felt at once while the app runs; the notification may wait for the screen
-        WKInterfaceDevice.current().play(kind == "high" ? .notification : .failure)
+        UntetheredWatchManager.playAlarmTaps(kind)
         WatchLogger.shared.info(.data, "Watch alarm: \(title) \(body)")
     }
 
