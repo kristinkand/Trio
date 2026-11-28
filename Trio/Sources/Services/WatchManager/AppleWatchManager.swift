@@ -313,7 +313,15 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                     watchState.lastLoopTime = "--"
                 } else {
                     watchState.lastLoopTime = "\(lastLoopMinutes) min"
+                    watchState.lastLoopDate = self.apsManager.lastLoopDate
                 }
+
+                watchState.lowGlucoseLimit = self.units == .mgdL
+                    ? Double(truncating: self.lowGlucose as NSNumber)
+                    : Double(truncating: self.lowGlucose.asMmolL as NSNumber)
+                watchState.highGlucoseLimit = self.units == .mgdL
+                    ? Double(truncating: self.highGlucose as NSNumber)
+                    : Double(truncating: self.highGlucose.asMmolL as NSNumber)
 
                 // Set IOB and COB from latest determination
                 let iob = self.iobService.currentIOB ?? 0
@@ -353,6 +361,13 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
 
                 let currentGlucoseColor = Trio.getDynamicGlucoseColor(
                     glucoseValue: Decimal(latestGlucose.glucose),
+                    highGlucoseColorValue: highGlucoseColorValue,
+                    lowGlucoseColorValue: lowGlucoseColorValue,
+                    targetGlucose: targetGlucose,
+                    glucoseColorScheme: self.glucoseColorScheme
+                )
+
+                watchState.complicationRingStops = Trio.complicationRingStops(
                     highGlucoseColorValue: highGlucoseColorValue,
                     lowGlucoseColorValue: lowGlucoseColorValue,
                     targetGlucose: targetGlucose,
@@ -440,6 +455,35 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
                 watchState.maxProtein = self.settingsManager.settings.maxProtein
                 watchState.bolusIncrement = self.settingsManager.preferences.bolusIncrement
                 watchState.confirmBolusFaster = self.settingsManager.settings.confirmBolusFaster
+
+                watchState.complicationCornerValue = self.settingsManager.settings.watchComplicationCornerValue
+                watchState.complicationSecondaryValue = self.settingsManager.settings.watchComplicationSecondaryValue
+                watchState.complicationStaleMinutes = self.settingsManager.settings.watchComplicationStaleMinutes
+                watchState.complicationColorMode = self.settingsManager.settings.watchComplicationColorMode
+
+                // the watch reads a directly paired G7 itself (`WatchCGMHost`), from this export, in its own display
+                // slot, as watch mode does; without the export's time, so an unchanged sensor changes no state
+                if let g7 = self.fetchGlucoseManager?.cgmManager as? G7CGMManager, g7.state.sessionMode == .direct,
+                   g7.state.sensorID != nil
+                {
+                    let export = g7.exportConfiguration()
+                    let configuration = SharedDeviceConfiguration(
+                        managerIdentifier: export.managerIdentifier,
+                        asOf: .distantPast,
+                        deliveredUnits: nil,
+                        state: export.state
+                    )
+                    watchState.watchSensorConfiguration = try? PropertyListSerialization.data(
+                        fromPropertyList: configuration.rawValue,
+                        format: .binary,
+                        options: 0
+                    )
+                    watchState.watchReadsSensor = watchState.watchSensorConfiguration != nil
+                }
+                watchState.glucoseRangeLow = self.lowGlucose
+                watchState.glucoseRangeHigh = self.highGlucose
+                watchState.glucoseRangeTarget = currentGlucoseTarget
+                watchState.glucoseColorScheme = self.glucoseColorScheme.rawValue
                 watchState.reducedBolusOption = self.settingsManager.settings.fattyMeals
                 watchState.superBolusOption = self.settingsManager.settings.sweetMeals
                 watchState.mealTimeReminderEnabled = self.settingsManager.settings.mealTimeReminderEnabled
@@ -708,6 +752,11 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
             WatchMessageKeys.maxProtein: state.maxProtein,
             WatchMessageKeys.bolusIncrement: state.bolusIncrement,
             WatchMessageKeys.confirmBolusFaster: state.confirmBolusFaster,
+            WatchMessageKeys.complicationCornerValue: state.complicationCornerValue.rawValue,
+            WatchMessageKeys.complicationSecondaryValue: state.complicationSecondaryValue.rawValue,
+            WatchMessageKeys.complicationStaleMinutes: state.complicationStaleMinutes,
+            WatchMessageKeys.complicationColorMode: state.complicationColorMode.rawValue,
+            WatchMessageKeys.complicationRingStops: state.complicationRingStops.map(\.payload),
             WatchMessageKeys.reducedBolusOption: state.reducedBolusOption,
             WatchMessageKeys.superBolusOption: state.superBolusOption,
             WatchMessageKeys.mealTimeReminderEnabled: state.mealTimeReminderEnabled,
@@ -752,6 +801,29 @@ final class BaseWatchManager: NSObject, WCSessionDelegate, Injectable, WatchMana
         }
 
         dictionary[WatchMessageKeys.forecastData] = forecastData
+        if let lowGlucoseLimit = state.lowGlucoseLimit {
+            dictionary[WatchMessageKeys.lowGlucoseLimit] = lowGlucoseLimit
+        }
+        if let highGlucoseLimit = state.highGlucoseLimit {
+            dictionary[WatchMessageKeys.highGlucoseLimit] = highGlucoseLimit
+        }
+        if let lastLoopDate = state.lastLoopDate {
+            dictionary[WatchMessageKeys.lastLoopDate] = lastLoopDate.timeIntervalSince1970
+        }
+        dictionary[WatchMessageKeys.watchSensorConfiguration] = state.watchSensorConfiguration
+        dictionary[WatchMessageKeys.watchReadsSensor] = state.watchReadsSensor
+        dictionary[WatchMessageKeys.glucoseRangeLow] = NSDecimalNumber(decimal: state.glucoseRangeLow).doubleValue
+        dictionary[WatchMessageKeys.glucoseRangeHigh] = NSDecimalNumber(decimal: state.glucoseRangeHigh).doubleValue
+        dictionary[WatchMessageKeys.glucoseRangeTarget] = NSDecimalNumber(decimal: state.glucoseRangeTarget).doubleValue
+        dictionary[WatchMessageKeys.glucoseColorScheme] = state.glucoseColorScheme
+        // the phone's glucose alarms, for the watch's own readings: the highest low, the lowest high that is on
+        let alerts = GlucoseAlertsStore.shared.alerts
+        func thresholds(_ type: GlucoseAlertType) -> [Double] {
+            alerts.filter { $0.type == type && $0.shouldEvaluate }.map { NSDecimalNumber(decimal: $0.thresholdMgDL).doubleValue }
+        }
+        dictionary[WatchMessageKeys.glucoseAlarmUrgentLow] = thresholds(.urgentLow).max() ?? 54
+        dictionary[WatchMessageKeys.glucoseAlarmLow] = thresholds(.low).max() ?? 0
+        dictionary[WatchMessageKeys.glucoseAlarmHigh] = thresholds(.high).min() ?? 0
         dictionary.merge(watchG7Details()) { _, new in new }
         dictionary[WatchMessageKeys.peripheralData] = peripheralDetails()
         return dictionary

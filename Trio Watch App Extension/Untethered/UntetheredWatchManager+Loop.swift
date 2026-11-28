@@ -2480,7 +2480,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         )
         DispatchQueue.main.async {
             // the phone's own reading: the hand-back to a phone that reads again goes by it (`phoneCanLoop`)
-            WatchG7Reader.shared.notePhoneOwnReading(reading.date)
+            WatchPhoneSigns.shared.notePhoneOwnReading(reading.date)
             guard reading.date > (self.pendingPhoneReading?.date ?? .distantPast) else { return }
             self.pendingPhoneReading = reading
             self.takePendingPhoneReading()
@@ -2554,7 +2554,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
             sensorGlucose.map(\.dateString).max() ?? .distantPast,
             Date().addingTimeInterval(-60 * 60)
         )
-        let readings = WatchG7Reader.shared.history.filter { $0.date > since.addingTimeInterval(60) }
+        let readings = WatchState.shared.ownReadings(since: since.addingTimeInterval(60))
         guard !readings.isEmpty else { return }
         Task {
             await WatchLogger.shared.log(
@@ -2562,12 +2562,10 @@ extension UntetheredWatchManager: CGMManagerDelegate {
                 force: true
             )
         }
-        takeReadings(readings.map {
-            SessionReading(
-                date: $0.date,
-                mgdl: $0.glucose,
-                direction: BloodGlucose.Direction(rawValue: $0.trendName ?? "") ?? .none
-            )
+        takeReadings(readings.compactMap { reading in
+            (reading.glucose ?? reading.sgv).map {
+                SessionReading(date: reading.dateString, mgdl: $0, direction: reading.direction ?? .none)
+            }
         })
     }
 
@@ -2667,7 +2665,6 @@ extension UntetheredWatchManager {
     /// The watch is the only device watching glucose: low, high and a stalled loop sound here.
     /// Run on every reading and every wake: the loop and sensor alarms are for exactly the times no reading comes.
     func checkAlarms() {
-        WatchG7Reader.shared.refreshSensorWarning()
         guard isActive, let grant = data.grant else { return }
         let now = Date()
         let latest = data.glucose.max(by: { $0.dateString < $1.dateString })
@@ -2675,13 +2672,12 @@ extension UntetheredWatchManager {
         // Trio: the thresholds of the phone's glucose alarms, as the watch's own reader uses them (urgent low
         // included), in the units shown; the glucose range only when the phone has no such alarm turned on.
         if let latest, let value = latest.glucose ?? latest.sgv, now.timeIntervalSince(latest.dateString) < 12 * 60 {
-            let reader = WatchG7Reader.shared
             let mgdl = Double(value)
-            let low = reader.lowMgDL ?? NSDecimalNumber(decimal: grant.lowGlucose).doubleValue
-            let high = reader.highMgDL ?? NSDecimalNumber(decimal: grant.highGlucose).doubleValue
-            let body = "\(reader.format(mgdl)) \(reader.units) \(reader.arrow(for: latest.direction?.rawValue))"
+            let low = WatchPhoneSigns.shared.lowMgDL ?? NSDecimalNumber(decimal: grant.lowGlucose).doubleValue
+            let high = WatchPhoneSigns.shared.highMgDL ?? NSDecimalNumber(decimal: grant.highGlucose).doubleValue
+            let body = "\(WatchPhoneSigns.shared.format(mgdl)) \(WatchPhoneSigns.shared.units) \(WatchPhoneSigns.shared.arrow(for: latest.direction?.rawValue))"
                 .trimmingCharacters(in: .whitespaces)
-            if mgdl <= reader.urgentLowMgDL {
+            if mgdl <= WatchPhoneSigns.shared.urgentLowMgDL {
                 alarm("urgentLow", title: String(localized: "Urgent Low"), body: body, every: 5 * 60)
             } else if mgdl <= low {
                 alarm("low", title: String(localized: "Low Glucose"), body: body, every: 15 * 60)
@@ -3008,7 +3004,7 @@ extension UntetheredWatchManager {
         state.lastWatchStateUpdate = Date().timeIntervalSince1970
         guard inFront else {
             // this fork's complication store takes the units and range; the target stays as last given
-            ComplicationStore.update(
+            UntetheredComplicationStore.update(
                 from: state,
                 isMmol: units != .mgdL,
                 lowMgDL: NSDecimalNumber(decimal: grant.lowGlucose).doubleValue,
@@ -3060,7 +3056,7 @@ extension UntetheredWatchManager {
         }
         state.maxBolus = grant.maxBolus
         state.maxCarbs = grant.maxCarbs
-        ComplicationStore.update(
+        UntetheredComplicationStore.update(
             from: state,
             isMmol: units != .mgdL,
             lowMgDL: NSDecimalNumber(decimal: grant.lowGlucose).doubleValue,

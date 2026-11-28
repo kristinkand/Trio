@@ -57,7 +57,7 @@ struct TrioComplicationData: Codable {
     var untetheredLastLoop: Date?
 }
 
-enum ComplicationStore {
+enum UntetheredComplicationStore {
     static let kind = "TrioWatchComplication"
     private static let key = "complication.glucose"
     /// The graph spans 3 hours.
@@ -91,9 +91,8 @@ enum ComplicationStore {
     }
 
     private static func range(isMmol: Bool, lowMgDL: Double? = nil, highMgDL: Double? = nil) -> (low: Double, high: Double) {
-        let reader = WatchG7Reader.shared
-        let low = lowMgDL ?? reader.lowMgDL ?? 70
-        let high = highMgDL ?? reader.highMgDL ?? 180
+        let low = lowMgDL ?? WatchPhoneSigns.shared.lowMgDL ?? 70
+        let high = highMgDL ?? WatchPhoneSigns.shared.highMgDL ?? 180
         return isMmol ? (low * mmolFactor, high * mmolFactor) : (low, high)
     }
 
@@ -109,7 +108,7 @@ enum ComplicationStore {
     ) {
         guard let newest = state.glucoseValues.last else { return }
         let old = load()
-        let isMmol = isMmol ?? WatchG7Reader.shared.isMmol
+        let isMmol = isMmol ?? WatchPhoneSigns.shared.isMmol
         let cutoff = Date().addingTimeInterval(-span)
         // the phone and untethered mode already colored each reading by the scheme
         var points = state.glucoseValues.filter { $0.date >= cutoff }
@@ -163,18 +162,18 @@ enum ComplicationStore {
         save(data, previousLatest: data.points.last?.date, force: true)
     }
 
-    /// A reading of the watch's own G7 reader, in mg/dL.
-    static func add(_ reading: WatchG7Reading) {
+    /// A reading the watch took from the sensor itself (`WatchCGMHost`), in mg/dL, with its Nightscout trend name.
+    static func add(date readingDate: Date, glucose readingGlucose: Int, trend readingTrend: String?) {
         let old = load()
-        let isMmol = WatchG7Reader.shared.isMmol
+        let isMmol = WatchPhoneSigns.shared.isMmol
         var points = (old?.isMmol == isMmol ? old?.points : nil) ?? []
         // within a minute of one already there it is the same reading
-        guard !points.contains(where: { abs($0.date.timeIntervalSince(reading.date)) < 60 }),
-              reading.date > (points.last?.date ?? .distantPast)
+        guard !points.contains(where: { abs($0.date.timeIntervalSince(readingDate)) < 60 }),
+              readingDate > (points.last?.date ?? .distantPast)
         else { return }
-        let value = isMmol ? Double(reading.glucose) * mmolFactor : Double(reading.glucose)
+        let value = isMmol ? Double(readingGlucose) * mmolFactor : Double(readingGlucose)
         var delta: String?
-        if let previous = points.last, reading.date.timeIntervalSince(previous.date) < 15 * 60 {
+        if let previous = points.last, readingDate.timeIntervalSince(previous.date) < 15 * 60 {
             let change = value - previous.value
             let formatted = change.formatted(.number.precision(.fractionLength(isMmol ? 1 : 0)))
             delta = change < 0 ? formatted : "+" + formatted
@@ -188,20 +187,20 @@ enum ComplicationStore {
         let scheme = old?.colorScheme.flatMap(GlucoseColorScheme.init(rawValue:)) ?? .staticColor
         let toMgDL = isMmol ? 1 / mmolFactor : 1
         let color = getDynamicGlucoseColor(
-            glucoseValue: Decimal(reading.glucose),
+            glucoseValue: Decimal(readingGlucose),
             highGlucoseColorValue: scheme == .dynamicColor ? 220 : Decimal(shaded.high * toMgDL),
             lowGlucoseColorValue: scheme == .dynamicColor ? 55 : Decimal(shaded.low * toMgDL),
             targetGlucose: Decimal(old?.targetMgDL ?? 100),
             glucoseColorScheme: scheme
         )
-        points.append(.init(date: reading.date, value: value, color: color.toHexString()))
+        points.append(.init(date: readingDate, value: value, color: color.toHexString()))
         save(
             TrioComplicationData(
                 points: points,
                 isMmol: isMmol,
                 low: shaded.low,
                 high: shaded.high,
-                trend: reading.trendName,
+                trend: readingTrend,
                 delta: delta,
                 colorScheme: old?.colorScheme,
                 targetMgDL: old?.targetMgDL,
