@@ -2163,7 +2163,7 @@ extension UntetheredWatchManager: CGMManagerDelegate {
         for tap in 0 ..< taps {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(tap)) { WKInterfaceDevice.current().play(.failure) }
         }
-        Task { await WatchLogger.shared.log("⌚️ Untethered alarm: \(Self.podLinkTitle) after \(minutes) min", force: true) }
+        Task { await WatchLogger.shared.log("⌚️ Watch mode alarm: \(Self.podLinkTitle) after \(minutes) min", force: true) }
         reconnectPod(pump, minutes: minutes, now: now)
     }
 
@@ -2874,7 +2874,7 @@ extension UntetheredWatchManager {
         notify(id: Self.notificationPrefix + kind, title: title, body: body)
         // felt at once while the app runs, as the watch's G7 reader alerts; the notification may wait for the screen
         Self.playAlarmTaps(kind)
-        Task { await WatchLogger.shared.log("⌚️ Untethered alarm: \(title) \(body)", force: true) }
+        Task { await WatchLogger.shared.log("⌚️ Watch mode alarm: \(title) \(body)", force: true) }
     }
 
     /// The alarms that mean nobody is looping or the user is in danger: critical with Settings › Notifications ›
