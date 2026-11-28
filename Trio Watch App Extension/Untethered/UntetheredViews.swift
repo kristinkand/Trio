@@ -1334,12 +1334,13 @@ struct WatchModeSheet: View {
             .frame(width: 56, height: 56)
             .focusable(true)
             .focused($crownFocused)
+            // .medium: about half the turning of .low, still too much for a brush of the sleeve (28 November)
             .digitalCrownRotation(
                 $turn,
                 from: 0,
                 through: 1,
                 by: 0.01,
-                sensitivity: .low,
+                sensitivity: .medium,
                 isContinuous: false,
                 isHapticFeedbackEnabled: true
             )
